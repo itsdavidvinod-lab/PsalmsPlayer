@@ -1,0 +1,28 @@
+# Decisions and open questions
+
+## Chosen
+- Stack: Next.js (TypeScript) for the website and admin, wrapped with Capacitor for the Android app, then iOS.
+- Backend: Supabase (Postgres, login, file storage, row-level security).
+- Login at launch: email and Google. Phone OTP later if needed.
+- Build order: website for users and admin first, then the Android APK, then iOS.
+
+## Product rules
+- Catalogue is curated by the owner. Songs and lyrics are uploaded for artists under a signed agreement. Uploading is free of cost.
+- Agreements are accepted only from the official email (never WhatsApp or chat). In the database a verified agreement needs a document reference and a verifier.
+- A song is hidden until every writer and owner has consented and the agreement and consent are in date. An artist whose agreement has expired shows as Unavailable.
+- Expiry dates, end times and prices are visible to admins only. Users see posters and songs, never when they end or what was paid.
+- Promotion and song requests arrive by WhatsApp or email and are logged by an admin. Prices are agreed in the chat and recorded in the admin ledger only.
+- Buyers pay for eligibility to be shown, not views. If it cannot be shown, the full amount is refunded.
+- Region and language live in Settings. Posters are shown by region and language: both, either, or everyone.
+- Monthly listeners = distinct signed-in users who played or opened a song by the artist in the last 30 days, counted in the app. Hidden below 10.
+
+## Open
+- What is refunded when a poster is taken down after part of its run (for example day 12 of 15).
+- How a requester is verified before a poster or song goes live (the database only stores that it was done).
+- How an artist's identity is checked independently of the channel their request came in on.
+- Who watches the expiry list. The database exposes `v_expiry_watch`; nothing sends reminders yet.
+- Whether unavailable setlist slots should keep the song title. Today they show position only.
+- Playlist versus setlist: kept as one list type with a kind flag. Confirm that is what you want.
+- Equalizer: only possible for audio the app hosts. YouTube embeds cannot be equalized.
+- Offline Stage mode in the Android app: needs a local copy of the user's setlist lyrics and a purge when a song is hidden.
+- Tax and invoicing for promotion income, and a lawyer's review of the agreement.

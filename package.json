@@ -1,0 +1,11 @@
+{
+  "name": "psalmsplayer",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Christian community songbook and player: database rules and shared logic. The Next.js site is added in the next step.",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "test:logic": "node --experimental-strip-types --no-warnings --test src/lib/lib.test.ts",
+    "test:db": "bash supabase/tests/run.sh"
+  }
+}
