@@ -72,7 +72,7 @@ rollback;
 
 -- ============================================================ lyrics need login and respect the agreement
 begin;
-select set_config('test.uid', '11111111-1111-1111-1111-111111111111', true);
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
 set local role authenticated;
 do $$ begin
   assert (select count(*) from public.get_lyrics('d0000000-0000-0000-0000-000000000001')) = 3, 'live song returns original, romanized, meaning';
@@ -85,7 +85,7 @@ rollback;
 
 begin;
 update public.agreements set allow_chords = false, allow_translations = false where id = 'b0000000-0000-0000-0000-000000000001';
-select set_config('test.uid', '11111111-1111-1111-1111-111111111111', true);
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
 set local role authenticated;
 do $$ begin
   assert (select count(*) from public.get_lyrics('d0000000-0000-0000-0000-000000000001')) = 1, 'translations withheld when not allowed';
@@ -96,7 +96,7 @@ rollback;
 
 begin;
 update public.agreements set allow_lyrics = false where id = 'b0000000-0000-0000-0000-000000000001';
-select set_config('test.uid', '11111111-1111-1111-1111-111111111111', true);
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
 set local role authenticated;
 do $$ begin
   assert (select count(*) from public.get_lyrics('d0000000-0000-0000-0000-000000000001')) = 0, 'no lyrics when the agreement does not allow lyrics';
@@ -192,7 +192,7 @@ rollback;
 
 -- ============================================================ users cannot touch admin data or their own role
 begin;
-select set_config('test.uid', '11111111-1111-1111-1111-111111111111', true);
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
 set local role authenticated;
 do $$ begin
   assert (select count(*) from public.agreements) = 0,   'user sees no agreements';
@@ -222,7 +222,7 @@ rollback;
 -- ============================================================ likes and playlists
 begin;
 insert into public.song_likes (user_id, song_id) values ('22222222-2222-2222-2222-222222222222', 'd0000000-0000-0000-0000-000000000004');
-select set_config('test.uid', '11111111-1111-1111-1111-111111111111', true);
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
 set local role authenticated;
 do $$ begin
   assert (select count(*) from public.song_likes) = 0, 'user cannot see another user''s likes';
@@ -239,7 +239,7 @@ insert into public.playlists (id, user_id, name, kind) values ('99999999-0000-00
 insert into public.playlist_items (playlist_id, song_id, position) values
   ('99999999-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001', 1),
   ('99999999-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002', 2);
-select set_config('test.uid', '11111111-1111-1111-1111-111111111111', true);
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
 set local role authenticated;
 do $$ begin
   assert (select count(*) from public.my_playlist_items('99999999-0000-0000-0000-000000000001')) = 2, 'both slots are kept';
@@ -253,7 +253,7 @@ rollback;
 
 begin;
 insert into public.playlists (id, user_id, name) values ('99999999-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'Not yours');
-select set_config('test.uid', '11111111-1111-1111-1111-111111111111', true);
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
 set local role authenticated;
 do $$ begin
   assert (select count(*) from public.playlists) = 0, 'user cannot see another user''s playlists';
@@ -331,7 +331,7 @@ do $$ begin raise notice 'ok: integrity rules (verified requester, proof of agre
 rollback;
 
 begin;
-select set_config('test.uid', '00000000-0000-0000-0000-0000000000aa', true);
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
 set local role authenticated;
 do $$
 declare
@@ -367,7 +367,7 @@ rollback;
 begin;
 update public.agreements set expires_on = public.app_today() + 20 where id = 'b0000000-0000-0000-0000-000000000001';
 update public.song_credits set consent_expires_on = public.app_today() + 5 where person_name = 'Writer One';
-select set_config('test.uid', '00000000-0000-0000-0000-0000000000aa', true);
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
 set local role authenticated;
 do $$ begin
   assert (select days_left from public.v_expiry_watch where kind = 'agreement') = 20, 'agreement expiring in 20 days is on the watch list';
@@ -378,7 +378,7 @@ rollback;
 
 -- ============================================================ listening data
 begin;
-select set_config('test.uid', '11111111-1111-1111-1111-111111111111', true);
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
 set local role authenticated;
 do $$ begin
   perform public.record_play('d0000000-0000-0000-0000-000000000001');
@@ -431,7 +431,7 @@ insert into public.song_likes (user_id, song_id) values
   ('44444444-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000004'),
   ('44444444-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000004'),
   ('44444444-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');
-select set_config('test.uid', '44444444-0000-0000-0000-000000000001', true);
+select set_config('request.jwt.claim.sub', '44444444-0000-0000-0000-000000000001', true);
 set local role authenticated;
 do $$ begin
   assert (select slug from public.most_liked_songs() limit 1) = 'placeholder-single', 'most liked orders by like count';

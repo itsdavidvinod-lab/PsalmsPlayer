@@ -1,0 +1,19 @@
+# Settings for the local Supabase stack (`supabase start`) used by CI and by anyone developing on a laptop.
+# The hosted project's settings (Google sign-in, email templates, password rules) are set in the Supabase dashboard.
+project_id = "psalmsplayer"
+
+[db]
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000/auth/callback", "http://localhost:3000/auth/callback"]
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false

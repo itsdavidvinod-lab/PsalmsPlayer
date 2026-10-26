@@ -32,6 +32,22 @@ jobs:
         env:
           PGURL: postgres://postgres:postgres@localhost:5432/postgres
 
+  supabase:
+    name: real Supabase stack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start Supabase (applies the four migrations, then seed.sql)
+        run: supabase start
+      - name: Security tests against the real stack
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f supabase/tests/security.test.sql
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup
+
   web:
     name: website build
     runs-on: ubuntu-latest

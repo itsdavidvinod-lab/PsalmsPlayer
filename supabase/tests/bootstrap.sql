@@ -11,9 +11,10 @@ create table auth.users (
   email text,
   raw_user_meta_data jsonb not null default '{}'::jsonb
 );
--- Test sessions set the current user with:  select set_config('test.uid', '<uuid>', true);
+-- Test sessions set the current user with:  select set_config('request.jwt.claim.sub', '<uuid>', true);
+-- This is the same setting the real Supabase auth.uid() reads, so security.test.sql runs unchanged on both.
 create function auth.uid() returns uuid language sql stable as $$
-  select nullif(current_setting('test.uid', true), '')::uuid
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
 grant usage on schema auth to anon, authenticated, service_role;
 grant execute on function auth.uid() to anon, authenticated, service_role;
