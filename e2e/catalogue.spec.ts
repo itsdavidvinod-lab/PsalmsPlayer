@@ -73,12 +73,17 @@ test('Browse lists live songs and artists, hides the rest, and survives odd sear
   await page.goto('/browse?language=ta');
   await expect(page.locator('a[href="/artist/grace-worship"]')).toBeVisible();
 
-  for (const q of ["x' or 1=1 --", '100%', '_', '"; drop table songs; --', '<script>alert(1)</script>']) {
+  for (const q of ["x' or 1=1 --", '100%', '"; drop table songs; --', '<script>alert(1)</script>']) {
     const res = await page.goto(`/browse?q=${encodeURIComponent(q)}`);
     expect(res?.status(), q).toBe(200);
     await expect(page.getByRole('heading', { name: 'Browse', level: 1 })).toBeVisible();
     await expect(page.getByText('Placeholder Song One')).toHaveCount(0);
   }
+
+  // Symbols only are stripped, which leaves an empty search: the normal list, not an error and not a wildcard match of hidden rows.
+  await page.goto('/browse?q=_');
+  await expect(page.getByText('Placeholder Song One', { exact: true })).toBeVisible();
+  for (const t of HIDDEN_TITLES) await expect(page.getByText(t)).toHaveCount(0);
 });
 
 test('monthly listeners appear once 10 different signed-in people have opened the artist\'s songs', async ({ page, request }) => {
