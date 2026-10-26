@@ -41,7 +41,7 @@ jobs:
         with:
           version: latest
       - name: Start Supabase (applies the four migrations, then seed.sql)
-        run: supabase start
+        run: bash .github/scripts/start-supabase.sh
       - name: Security tests against the real stack
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f supabase/tests/security.test.sql
       - name: Stop Supabase
@@ -94,7 +94,7 @@ jobs:
         with:
           version: latest
       - name: Start Supabase (migrations and seed applied)
-        run: supabase start
+        run: bash .github/scripts/start-supabase.sh
       - name: Point the site at the local stack
         run: |
           eval "$(supabase status -o env)"
