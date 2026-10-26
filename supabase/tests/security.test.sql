@@ -851,4 +851,130 @@ do $$ begin
 end $$;
 rollback;
 
+-- ============================================================ reference lists (0011)
+begin;
+-- shapes
+select test_helpers.expect_error($q$insert into public.languages (code, name) values ('TA', 'Upper')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.languages (code, name) values ('x', 'Short')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.languages (code, name) values ('abcd', 'Long')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.languages (code, name) values ('xx', '   ')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.regions (code, name, country_code) values ('in', 'Lower', 'IN')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.regions (code, name, country_code) values ('IND', 'Three', 'IND')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.regions (code, name, country_code) values ('IN-XX', 'Wrong country', 'LK')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.tags (kind, code, label) values ('genre', 'Bad Code', 'x')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.tags (kind, code, label) values ('genre', 'ok-code', '')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.tags (kind, code, label) values ('colour', 'red', 'Red')$q$, '23514');
+do $$ begin
+  insert into public.languages (code, name, native_name) values ('xx', 'Testish', null), ('xxx', 'Testish three', 'T');
+  insert into public.regions (code, name, country_code) values ('XX', 'Testland', 'XX'), ('XX-A1', 'Testland north', 'XX');
+  insert into public.tags (kind, code, label) values ('genre', 'test-genre', 'Test genre'), ('occasion', 'test-occasion', 'Test occasion'), ('mood', 'test-mood', 'Test mood');
+  raise notice 'ok: reference shapes';
+end $$;
+rollback;
+
+begin;
+-- codes never change; names do
+select test_helpers.expect_error($q$update public.languages set code = 'tx' where code = 'ta'$q$, '23514');
+select test_helpers.expect_error($q$update public.regions   set code = 'IN-XX', country_code = 'IN' where code = 'IN-TN'$q$, '23514');
+select test_helpers.expect_error($q$update public.tags      set code = 'worship2' where kind = 'genre' and code = 'worship'$q$, '23514');
+select test_helpers.expect_error($q$update public.tags      set kind = 'mood' where kind = 'genre' and code = 'worship'$q$, '23514');
+do $$ begin
+  update public.languages set name = 'Tamil (renamed)', native_name = null where code = 'ta';
+  update public.regions   set name = 'Tamil Nadu (renamed)' where code = 'IN-TN';
+  update public.tags      set label = 'Worship (renamed)' where kind = 'genre' and code = 'worship';
+  assert (select name from public.languages where code = 'ta') = 'Tamil (renamed)';
+  raise notice 'ok: codes fixed, names editable';
+end $$;
+rollback;
+
+begin;
+-- nothing in use can be deleted. Seed: Tamil is a song language; Hindi only sits in an artist's language list and a poster target;
+-- IN-TN is an artist's region; IN has states; worship is an artist and song genre; sunday-service and peaceful are song tags.
+select test_helpers.expect_error($q$delete from public.languages where code = 'ta'$q$, '23503');
+select test_helpers.expect_error($q$delete from public.languages where code = 'hi'$q$, '23503');
+select test_helpers.expect_error($q$delete from public.regions where code = 'IN-TN'$q$, '23503');
+select test_helpers.expect_error($q$delete from public.regions where code = 'IN'$q$, '23503');
+select test_helpers.expect_error($q$delete from public.tags where kind = 'genre' and code = 'worship'$q$, '23503');
+select test_helpers.expect_error($q$delete from public.tags where kind = 'genre' and code = 'gospel'$q$, '23503');
+select test_helpers.expect_error($q$delete from public.tags where kind = 'occasion' and code = 'sunday-service'$q$, '23503');
+select test_helpers.expect_error($q$delete from public.tags where kind = 'mood' and code = 'peaceful'$q$, '23503');
+do $$ begin
+  -- a language that appears only in a poster's target list, a listener's list, or a lyrics version still counts as in use
+  insert into public.languages (code, name) values ('xa', 'Only in a poster'), ('xb', 'Only in a profile'), ('xc', 'Only in lyrics'), ('xd', 'Unused');
+  insert into public.regions (code, name, country_code) values ('XA', 'Only in a poster', 'XA'), ('XB', 'Unused', 'XB');
+  insert into public.posters (kind, title, image_url, match_mode, target_language_codes, target_region_codes)
+    values ('notice', 'Ref test', 'https://x.org/r.jpg', 'either', '{xa}', '{XA}');
+  update public.profiles set language_codes = '{xb}' where id = '00000000-0000-0000-0000-0000000000aa';
+  insert into public.lyrics (song_id, version, language_code, body) values ('d0000000-0000-0000-0000-000000000004', 'romanized', 'xc', 'x');
+end $$;
+select test_helpers.expect_error($q$delete from public.languages where code = 'xa'$q$, '23503');
+select test_helpers.expect_error($q$delete from public.languages where code = 'xb'$q$, '23503');
+select test_helpers.expect_error($q$delete from public.languages where code = 'xc'$q$, '23503');
+select test_helpers.expect_error($q$delete from public.regions where code = 'XA'$q$, '23503');
+do $$
+declare msg text;
+begin
+  -- the message says what still uses it
+  begin
+    delete from public.tags where kind = 'genre' and code = 'worship';
+  exception when others then msg := sqlerrm;
+  end;
+  assert msg like format('This genre is still in use (artists: %s, songs: %s,%%',
+                         (select count(*) from public.artists where 'worship' = any (genres)),
+                         (select count(*) from public.songs   where 'worship' = any (genres))),
+         'message counts artists and songs, got: ' || coalesce(msg, 'no error');
+  assert msg not like '%artists: 0, songs: 0%', 'the counts are not all zero';
+  -- the language message counts songs too, so an admin is told the real reason rather than a bare foreign-key error
+  msg := null;
+  begin
+    delete from public.languages where code = 'ta';
+  exception when others then msg := sqlerrm;
+  end;
+  assert msg like format('This language is still in use (artists: %s, songs: %s,%%',
+                         (select count(*) from public.artists where 'ta' = any (language_codes)),
+                         (select count(*) from (select song_id from public.lyrics where language_code = 'ta' union select id from public.songs where language_code = 'ta') u)),
+         'language message counts songs, got: ' || coalesce(msg, 'no error');
+  assert msg not like '%songs: 0,%', 'songs are counted';
+  -- a song sung in a language with no lyrics written yet still counts
+  insert into public.languages (code, name) values ('xe', 'Song only');
+  insert into public.songs (artist_id, slug, title, language_code) values ('a0000000-0000-0000-0000-000000000001', 'ref-song-only', 'Ref song only', 'xe');
+  msg := null;
+  begin
+    delete from public.languages where code = 'xe';
+  exception when others then msg := sqlerrm;
+  end;
+  assert msg like 'This language is still in use (artists: 0, songs: 1,%', 'a song without lyrics still counts, got: ' || coalesce(msg, 'no error');
+  -- and so does a lyrics version written in it
+  msg := null;
+  begin
+    delete from public.languages where code = 'xc';
+  exception when others then msg := sqlerrm;
+  end;
+  assert msg like 'This language is still in use (artists: 0, songs: 1,%', 'a lyrics version still counts, got: ' || coalesce(msg, 'no error');
+  -- and unused values go
+  delete from public.languages where code = 'xd';
+  delete from public.regions where code = 'XB';
+  insert into public.tags (kind, code, label) values ('genre', 'unused-genre', 'Unused');
+  delete from public.tags where kind = 'genre' and code = 'unused-genre';
+  -- once nothing uses a value any more, it can go
+  delete from public.posters where title = 'Ref test';
+  delete from public.regions where code = 'XA';
+  delete from public.languages where code = 'xa';
+  raise notice 'ok: values in use are protected, unused ones can be deleted';
+end $$;
+rollback;
+
+begin;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
+set local role authenticated;
+do $$ begin
+  -- the guards also hold for a signed-in admin, and the guard functions are not callable
+  begin delete from public.languages where code = 'ta'; assert false, 'admin deleted a language in use'; exception when foreign_key_violation then null; end;
+  assert not has_function_privilege('authenticated', 'public.guard_reference_delete()', 'execute');
+  assert not has_function_privilege('authenticated', 'public.guard_reference_code()', 'execute');
+  raise notice 'ok: guards hold for admins';
+end $$;
+reset role;
+rollback;
+
 select 'database tests finished' as result;

@@ -6,6 +6,7 @@ import {
   isChordName, isKnownDirective,
 } from './chordpro.ts';
 import { checkChordPro } from './lyrics-check.ts';
+import { TAG_KINDS, explainReferenceError, normalizeLanguageCode, normalizeRegionCode, regionCountry, suggestTagCode, validateLanguage, validateRegion, validateTag } from './reference-form.ts';
 import { paiseToInput, paiseToRupees, istInputToIso, isoToIstInput, rupeesToPaise, validateRequest, validatePoster, requestAllowsApproval, posterPhase, paidOnToIso, isoToPaidOn, type RequestInput, type PosterInput } from './ledger.ts';
 import { AGREEMENT_STATUSES, ENFORCED_RIGHTS, agreementPhase, agreementSummary, parseTerritories, stampsFor, validateAgreement, type AgreementInput } from './agreement-form.ts';
 import { AUDIO_MAX_BYTES, checkAudioFile, audioObjectName, audioHostingState, durationSeconds, audioDisplayName, mmss, sizeLabel } from './audio-file.ts';
@@ -712,4 +713,46 @@ test('Ledger: when a poster is showing, matching what home_posters() does', () =
   assert.equal(posterPhase(ev, at('2026-12-10T18:29:59Z')), 'showing', 'until 23:59:59 on the event day in India');
   assert.equal(posterPhase(ev, at('2026-12-10T18:30:00Z')), 'ended');
   assert.equal(posterPhase({ ...p, event_date: '2027-03-01' }, at('2026-12-25T17:30:00Z')), 'ended', 'a later event day does not extend the window');
+});
+
+test('Lists: codes and names are checked before the database is asked', () => {
+  assert.equal(normalizeLanguageCode(' TA '), 'ta');
+  assert.equal(normalizeRegionCode(' in-tn '), 'IN-TN');
+  assert.equal(regionCountry('in-tn'), 'IN');
+  assert.equal(regionCountry('LK'), 'LK');
+
+  assert.equal(validateLanguage({ code: 'TA', name: 'Tamil', native_name: 'தமிழ்' }), null, 'upper case is tidied, not refused');
+  assert.equal(validateLanguage({ code: 'hin', name: 'Hindi', native_name: '' }), null);
+  for (const code of ['', 'a', 'abcd', 't1', 'ta-IN', 'த']) assert.match(validateLanguage({ code, name: 'x', native_name: '' }) ?? '', /2 or 3 letters/, code);
+  assert.match(validateLanguage({ code: 'ta', name: '  ', native_name: '' }) ?? '', /name is required/);
+  assert.match(validateLanguage({ code: 'ta', name: 'x'.repeat(81), native_name: '' }) ?? '', /too long/);
+  assert.match(validateLanguage({ code: 'ta', name: 'Tamil', native_name: 'x'.repeat(81) }) ?? '', /too long/);
+
+  assert.equal(validateRegion({ code: 'in', name: 'India' }), null);
+  assert.equal(validateRegion({ code: 'IN-TN', name: 'Tamil Nadu' }), null);
+  assert.equal(validateRegion({ code: 'IN-A1', name: 'x' }), null);
+  for (const code of ['', 'I', 'IND', 'IN-', 'IN-TNNN', 'IN_TN', 'IN-tn!']) assert.match(validateRegion({ code, name: 'x' }) ?? '', /region code/, code);
+  assert.match(validateRegion({ code: 'IN', name: '' }) ?? '', /name is required/);
+
+  assert.equal(validateTag({ code: 'sunday-service', label: 'Sunday service' }, 'occasion'), null);
+  for (const code of ['', 'Sunday', 'sunday service', '-x', 'x-', 'x--y', 'a'.repeat(41)]) assert.match(validateTag({ code, label: 'x' }, 'genre') ?? '', /genre code/, code);
+  assert.match(validateTag({ code: 'ok', label: ' ' }, 'mood') ?? '', /label is required/);
+  assert.equal(validateTag({ code: 'xyz', label: 'x' }, 'mood'), null);
+
+  assert.equal(suggestTagCode('Sunday service'), 'sunday-service');
+  assert.equal(suggestTagCode('New Year!'), 'new-year');
+  assert.equal(suggestTagCode('தமிழ்'), '', 'no Latin letters: the admin types a code');
+  assert.ok(suggestTagCode('x'.repeat(100)).length <= 40);
+  assert.deepEqual(TAG_KINDS.map((k) => k.kind), ['genre', 'occasion', 'mood']);
+});
+
+test('Lists: errors read as sentences', () => {
+  assert.equal(explainReferenceError({ code: '23505', message: 'duplicate key value' }, 'save'), 'That code is already in the list.');
+  assert.equal(
+    explainReferenceError({ code: '23503', message: 'This genre is still in use (artists: 1, songs: 3, listeners: 0, posters: 0, regions inside it: 0). Remove it from them first' }, 'delete'),
+    'This genre is still in use (artists: 1, songs: 3, listeners: 0, posters: 0, regions inside it: 0). Remove it from them first.',
+  );
+  assert.match(explainReferenceError({ code: '23503', message: 'x' }, 'save'), /linked item does not exist/, 'a missing link on save keeps the generic text');
+  assert.equal(explainReferenceError({ code: '23514', message: 'A code cannot be changed. Add a new one' }, 'save'), 'A code cannot be changed. Add a new one.');
+  assert.match(explainReferenceError({ code: '42501' }, 'delete'), /Not allowed/);
 });
