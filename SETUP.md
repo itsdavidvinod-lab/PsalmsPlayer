@@ -1,6 +1,6 @@
 # PsalmsPlayer: setup
 
-Where the build stands: the database and its rules (step 1) and the first part of the website (step 2a: sign-in, Home, song page with transpose, Settings). The rest of the website, the admin site, the Android app and iOS are not built yet.
+Where the build stands: the database and its rules (step 1) and most of the user website (sign-in, Home, Browse, Artist, Album, song page with transpose, Settings). Stage mode, Library, Charts, the admin site, the Android app and iOS are not built yet.
 
 ## What is in this folder
 
@@ -10,12 +10,12 @@ Where the build stands: the database and its rules (step 1) and the first part o
 | `supabase/seed.sql` | Fake development data (placeholder lyrics, a placeholder admin) | Run on a real Supabase stack in CI |
 | `supabase/tests/` | 94 assertions and 36 must-fail checks (users cannot read agreements, prices, end dates or hidden songs, or make themselves admin) | Pass on both; deliberate breakages are caught |
 | `src/lib/` | ChordPro parsing and transposing, YouTube link reading, share links | 16 tests pass, strict TypeScript clean |
-| `src/app/`, `src/components/` | The website: `/login`, `/` (Home), `/song/[slug]`, `/settings`, `/get` | Built and type-checked in CI; browser-tested (see below) |
+| `src/app/`, `src/components/` | The website: `/login`, `/` (Home), `/browse`, `/artist/[slug]`, `/album/[slug]`, `/song/[slug]`, `/settings`, `/get` | Built and type-checked in CI; browser-tested (see below) |
 | `e2e/` | Playwright tests that drive the built site and call the API against a real Supabase stack | Pass in CI |
 | `.github/workflows/checks.yml` | Runs everything above on every push | |
 | `docs/DECISIONS.md` | Rules you decided, and what is still open | |
 
-What the browser tests cover: a visitor who is not signed in is sent to login; Home shows only live songs and only posters inside their window; Settings changes which posters appear; a song shows lyrics, transposes, offers the video, switches versions, and can be liked; hidden and unknown songs return the same "not available" page; and the API refuses anonymous or ordinary users anything they should not have (agreements, hidden lyrics, admin views, making themselves admin).
+What the browser tests cover: a visitor who is not signed in is sent to login; Home shows only live songs and only posters inside their window; Settings changes which posters appear; artist, album and Browse pages hide what must be hidden (unavailable artists show a name only, a listener count appears only from 10 people); a song shows lyrics, transposes, offers the video, switches versions, and can be liked; hidden and unknown songs return the same "not available" page; and the API refuses anonymous or ordinary users anything they should not have (agreements, hidden lyrics, admin views, making themselves admin).
 
 Not checked: Google sign-in (needs your Google Cloud client), email confirmation (switched off in the local stack), and anything on a phone.
 
