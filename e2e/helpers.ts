@@ -29,7 +29,7 @@ export async function signUpAndIn(page: Page, email: string): Promise<void> {
     await page.getByLabel('Password').fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   }
-  await expect(page).toHaveURL(/127\.0\.0\.1:3000\/$/);
+  await expect(page).toHaveURL(/localhost:3000\/$/);
 }
 
 export async function passwordToken(request: import('@playwright/test').APIRequestContext, email: string): Promise<{ token: string; userId: string }> {

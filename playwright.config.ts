@@ -10,13 +10,13 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['github']] : [['list']],
   timeout: 45_000,
   use: {
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL: 'http://localhost:3000',
     trace: 'off',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run start -- -H 127.0.0.1',
-    url: 'http://127.0.0.1:3000/login',
+    command: 'npm run start',
+    url: 'http://localhost:3000/login',
     timeout: 120_000,
     reuseExistingServer: false,
   },
