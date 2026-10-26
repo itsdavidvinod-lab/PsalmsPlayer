@@ -39,9 +39,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
-        env:
-          GITHUB_TOKEN: ${{ github.token }}   # avoids the anonymous GitHub API rate limit when resolving "latest"
+          version: 2.122.0   # pinned: "latest" is resolved through the GitHub API and fails when that is rate limited
       - run: echo "::notice title=supabase cli version::$(supabase --version)"
       - name: Start Supabase (applies the four migrations, then seed.sql)
         run: bash .github/scripts/start-supabase.sh
@@ -95,9 +93,7 @@ jobs:
           node-version: 22
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
-        env:
-          GITHUB_TOKEN: ${{ github.token }}   # avoids the anonymous GitHub API rate limit when resolving "latest"
+          version: 2.122.0   # pinned: "latest" is resolved through the GitHub API and fails when that is rate limited
       - run: echo "::notice title=supabase cli version::$(supabase --version)"
       - name: Start Supabase (migrations and seed applied)
         run: bash .github/scripts/start-supabase.sh
