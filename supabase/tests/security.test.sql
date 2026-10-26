@@ -775,4 +775,80 @@ select test_helpers.expect_error($q$select public.guard_song_album()$q$, '42501'
 reset role;
 rollback;
 
+-- ============================================================ a request that ends stops its posters (0010)
+-- Seed: request e...01 (verified, paid, live) has approved posters f...01, f...04, f...06 and a refunded one f...07.
+--       request e...02 has approved posters f...02 and f...05.
+begin;
+update public.posters set status = 'paused' where id = 'f0000000-0000-0000-0000-000000000006'; -- one of them was paused by hand before the refund
+update public.requests set status = 'refunded', refund_paise = 9900, refund_reason = 'event cancelled' where id = 'e0000000-0000-0000-0000-000000000001';
+do $$ begin
+  assert (select count(*) from public.posters where request_id = 'e0000000-0000-0000-0000-000000000001' and status in ('approved', 'paused')) = 0, 'a refund stops every approved and paused poster of that request';
+  assert (select count(*) from public.posters where request_id = 'e0000000-0000-0000-0000-000000000001' and status = 'refunded') = 4, 'they all become refunded, including the paused one';
+  assert (select status from public.posters where id = 'f0000000-0000-0000-0000-000000000002') = 'approved', 'another request''s posters are untouched';
+  assert (select count(*) from public.audit_log where entity = 'posters' and action = 'UPDATE' and entity_id = 'f0000000-0000-0000-0000-000000000001') >= 1, 'the change is in the audit trail';
+end $$;
+set local role anon;
+do $$ begin
+  assert not exists (select 1 from public.home_posters('{ta}', 'IN-TN') where id = 'f0000000-0000-0000-0000-000000000001'), 'and users stop seeing it at once';
+  assert exists (select 1 from public.home_posters('{ta}', 'IN-TN') where id = 'f0000000-0000-0000-0000-000000000002'), 'while the others keep showing';
+end $$;
+reset role;
+-- putting the request back does not switch anything back on
+update public.requests set status = 'live' where id = 'e0000000-0000-0000-0000-000000000001';
+do $$ begin
+  assert (select count(*) from public.posters where request_id = 'e0000000-0000-0000-0000-000000000001' and status = 'approved') = 0, 'un-refunding never re-approves';
+  raise notice 'ok: a refund stops the posters';
+end $$;
+-- a poster cannot be approved under a refunded request
+update public.requests set status = 'refunded' where id = 'e0000000-0000-0000-0000-000000000001';
+select test_helpers.expect_error($q$update public.posters set status = 'approved' where id = 'f0000000-0000-0000-0000-000000000006'$q$, '23514');
+select test_helpers.expect_error($q$insert into public.posters (request_id, kind, title, image_url, status, starts_at, ends_at)
+  values ('e0000000-0000-0000-0000-000000000001', 'event', 't', 'https://x.org/p.jpg', 'approved', now(), now() + interval '1 day')$q$, '23514');
+rollback;
+
+begin;
+update public.requests set status = 'cancelled' where id = 'e0000000-0000-0000-0000-000000000002';
+do $$ begin
+  assert (select count(*) from public.posters where request_id = 'e0000000-0000-0000-0000-000000000002' and status = 'paused') = 2, 'cancelling pauses its approved posters';
+  assert (select status from public.posters where id = 'f0000000-0000-0000-0000-000000000001') = 'approved', 'other requests are untouched';
+  raise notice 'ok: cancelling pauses the posters';
+end $$;
+select test_helpers.expect_error($q$update public.posters set status = 'approved' where id = 'f0000000-0000-0000-0000-000000000002'$q$, '23514');
+rollback;
+
+begin;
+update public.requests set contact_verified = false where id = 'e0000000-0000-0000-0000-000000000001';
+do $$ begin
+  assert (select count(*) from public.posters where request_id = 'e0000000-0000-0000-0000-000000000001' and status = 'approved') = 0, 'an unverified requester pauses its posters';
+  assert (select count(*) from public.posters where request_id = 'e0000000-0000-0000-0000-000000000001' and status = 'paused') = 3, 'paused, not refunded';
+  assert (select status from public.posters where id = 'f0000000-0000-0000-0000-000000000007') = 'refunded', 'an already refunded poster stays refunded';
+end $$;
+rollback;
+
+begin;
+update public.requests set amount_paise = null where id = 'e0000000-0000-0000-0000-000000000002';
+do $$ begin
+  assert (select count(*) from public.posters where request_id = 'e0000000-0000-0000-0000-000000000002' and status = 'paused') = 2, 'clearing the amount pauses its posters';
+  raise notice 'ok: a request that loses its proof pauses the posters';
+end $$;
+rollback;
+
+begin;
+-- drafts are never switched on or off by this, and unrelated edits to the request change nothing
+insert into public.posters (id, request_id, kind, title, image_url, status) values ('f0000000-0000-0000-0000-0000000000d1', 'e0000000-0000-0000-0000-000000000001', 'notice', 'Draft', 'https://x.org/d.jpg', 'draft');
+update public.requests set status = 'cancelled' where id = 'e0000000-0000-0000-0000-000000000001';
+do $$ begin
+  assert (select status from public.posters where id = 'f0000000-0000-0000-0000-0000000000d1') = 'draft', 'a draft stays a draft';
+end $$;
+rollback;
+begin;
+update public.requests set notes = 'called back' where id = 'e0000000-0000-0000-0000-000000000001';
+do $$ begin
+  assert (select count(*) from public.posters where request_id = 'e0000000-0000-0000-0000-000000000001' and status = 'approved') = 3, 'a note changes nothing';
+  assert not has_function_privilege('authenticated', 'public.requests_stop_posters()', 'execute'), 'the trigger function is not callable by users';
+  assert not has_function_privilege('anon', 'public.requests_stop_posters()', 'execute'), 'nor by visitors';
+  raise notice 'ok: drafts, notes and function privileges';
+end $$;
+rollback;
+
 select 'database tests finished' as result;

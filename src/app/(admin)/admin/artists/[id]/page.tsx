@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAdmin } from '@/lib/admin';
-import type { AdminAlbum, AdminArtist, AdminSongSummary, Option } from '@/lib/admin-types';
-import { isUuid, visibilityLabel } from '@/lib/admin-text';
+import type { AdminAgreement, AdminAlbum, AdminArtist, AdminArtistStatus, AdminSongSummary, Option } from '@/lib/admin-types';
+import { daysLeftLabel, indiaToday, isUuid, visibilityLabel } from '@/lib/admin-text';
+import AgreementsSection from '../../AgreementsSection';
 import AlbumForm from '../../AlbumForm';
 import ArtistForm from '../../ArtistForm';
 
@@ -13,15 +14,17 @@ export const dynamic = 'force-dynamic';
 export default async function AdminArtistPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const { supabase } = await requireAdmin(`/admin/artists/${id}`);
+  const { supabase, user } = await requireAdmin(`/admin/artists/${id}`);
 
-  const [artistRes, albumsRes, songsRes, langRes, regionRes, tagRes] = await Promise.all([
+  const [artistRes, albumsRes, songsRes, langRes, regionRes, tagRes, agreementsRes, statusRes] = await Promise.all([
     supabase.from('artists').select('id, slug, name, bio, photo_url, language_codes, region_code, genres, is_published').eq('id', id).maybeSingle(),
     supabase.from('albums').select('id, slug, title, kind, release_year, cover_url, is_published').eq('artist_id', id).order('created_at'),
     supabase.from('v_admin_songs').select('id, slug, title, artist_id, artist_name, album_id, is_published, hidden_by_admin, visibility').eq('artist_id', id).order('title'),
     supabase.from('languages').select('code, name, native_name').order('name'),
     supabase.from('regions').select('code, name').order('name'),
     supabase.from('tags').select('code, label').eq('kind', 'genre').order('label'),
+    supabase.from('agreements').select('*').eq('artist_id', id).order('created_at', { ascending: false }),
+    supabase.from('v_admin_artists').select('available, agreement_expires_on, agreement_days_left').eq('id', id).maybeSingle(),
   ]);
   if (!artistRes.data) notFound();
 
@@ -34,7 +37,12 @@ export default async function AdminArtistPage({ params }: { params: Promise<{ id
   }));
   const regions: Option[] = (regionRes.data ?? []).map((r: { code: string; name: string }) => ({ value: r.code, label: r.name }));
   const genres: Option[] = (tagRes.data ?? []).map((t: { code: string; label: string }) => ({ value: t.code, label: t.label }));
-  const failed = Boolean(albumsRes.error || songsRes.error || langRes.error || regionRes.error || tagRes.error);
+  const agreements = (agreementsRes.data ?? []) as AdminAgreement[];
+  const standing = statusRes.data as AdminArtistStatus | null;
+  const failed = Boolean(albumsRes.error || songsRes.error || langRes.error || regionRes.error || tagRes.error || agreementsRes.error || statusRes.error);
+  const reasons: string[] = [];
+  if (!artist.is_published) reasons.push('the artist is not published');
+  if (!standing?.agreement_expires_on) reasons.push('no verified agreement is in force');
 
   return (
     <div>
@@ -42,7 +50,22 @@ export default async function AdminArtistPage({ params }: { params: Promise<{ id
       <h1 style={{ fontSize: '1.6rem', margin: '4px 0 12px' }}>{artist.name}</h1>
       {failed ? <p className="error" role="alert">Some parts of this page could not be loaded. Please refresh.</p> : null}
 
+      <div className={standing?.available ? 'ok' : 'notice'} role="status" aria-label="Artist status">
+        {standing?.available ? (
+          <strong>
+            Available: users can find this artist. The agreement in force ends on {standing.agreement_expires_on} ({daysLeftLabel(standing.agreement_days_left)}).
+          </strong>
+        ) : (
+          <strong>Not available to users: {reasons.length > 0 ? reasons.join(' and ') : 'the status could not be read'}.</strong>
+        )}
+      </div>
+
       <ArtistForm artist={artist} languages={languages} regions={regions} genres={genres} />
+
+      <section className="section" aria-labelledby="agreements">
+        <h2 id="agreements">Agreements</h2>
+        <AgreementsSection artistId={artist.id} adminId={user.id} agreements={agreements} today={indiaToday(new Date())} />
+      </section>
 
       <section className="section" aria-labelledby="albums">
         <h2 id="albums">Albums</h2>

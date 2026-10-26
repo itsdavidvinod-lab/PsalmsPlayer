@@ -69,8 +69,3 @@ export function mmss(seconds: number): string {
 export function sizeLabel(bytes: number): string {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${megabytes(bytes)} MB`;
 }
-
-/** Today's date (YYYY-MM-DD) in India, which is how the database reads "valid through the end of that day". */
-export function indiaToday(now: Date): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-}

@@ -6,12 +6,14 @@ import {
   isChordName, isKnownDirective,
 } from './chordpro.ts';
 import { checkChordPro } from './lyrics-check.ts';
-import { AUDIO_MAX_BYTES, checkAudioFile, audioObjectName, audioHostingState, durationSeconds, audioDisplayName, mmss, sizeLabel, indiaToday } from './audio-file.ts';
+import { paiseToInput, paiseToRupees, istInputToIso, isoToIstInput, rupeesToPaise, validateRequest, validatePoster, requestAllowsApproval, posterPhase, paidOnToIso, isoToPaidOn, type RequestInput, type PosterInput } from './ledger.ts';
+import { AGREEMENT_STATUSES, ENFORCED_RIGHTS, agreementPhase, agreementSummary, parseTerritories, stampsFor, validateAgreement, type AgreementInput } from './agreement-form.ts';
+import { AUDIO_MAX_BYTES, checkAudioFile, audioObjectName, audioHostingState, durationSeconds, audioDisplayName, mmss, sizeLabel } from './audio-file.ts';
 import { extractYoutubeId, youtubeWatchUrl } from './youtube.ts';
 import { buildShareUrl, safeNextPath } from './share.ts';
 import {
   visibilityLabel, slugify, isValidSlug, isHttpsUrl, isUuid, parseOptionalInt, daysLeftLabel, explainAdminError,
-  visibilityHint, youtubeStatusLabel, KEY_CHOICES, isMusicalKey,
+  visibilityHint, youtubeStatusLabel, KEY_CHOICES, isMusicalKey, indiaToday,
 } from './admin-text.ts';
 
 test('transposeChord moves roots and keeps quality and bass', () => {
@@ -530,4 +532,184 @@ test('Admin audio: durations, names, sizes and the India date', () => {
   assert.equal(indiaToday(new Date('2026-10-26T21:00:00Z')), '2026-10-27');
   assert.equal(indiaToday(new Date('2026-10-26T18:29:59Z')), '2026-10-26');
   assert.equal(indiaToday(new Date('2026-10-26T18:30:00Z')), '2026-10-27');
+});
+
+const goodAgreement: AgreementInput = { status: 'verified', starts_on: '2026-01-01', expires_on: '2026-12-31', document_ref: 'MSG-1', revocation_email: '', territories: '' };
+
+test('Agreement form: what is checked before it is sent', () => {
+  assert.equal(validateAgreement(goodAgreement), null);
+  assert.equal(validateAgreement({ ...goodAgreement, status: 'sent', starts_on: '', expires_on: '', document_ref: '' }), null, 'a sent agreement needs nothing yet');
+  assert.match(validateAgreement({ ...goodAgreement, document_ref: '  ' }) ?? '', /needs the document reference/);
+  assert.match(validateAgreement({ ...goodAgreement, starts_on: '' }) ?? '', /both a start date and an end date/);
+  assert.match(validateAgreement({ ...goodAgreement, expires_on: '' }) ?? '', /both a start date and an end date/);
+  assert.match(validateAgreement({ ...goodAgreement, starts_on: '2026-06-01', expires_on: '2026-05-31' }) ?? '', /before the start/);
+  assert.equal(validateAgreement({ ...goodAgreement, starts_on: '2026-06-01', expires_on: '2026-06-01' }), null, 'a one-day term is fine');
+  assert.match(validateAgreement({ ...goodAgreement, starts_on: '2026-13-01x' }) ?? '', /start date is not a valid date/);
+  assert.match(validateAgreement({ ...goodAgreement, document_ref: 'x'.repeat(301) }) ?? '', /too long/);
+  assert.match(validateAgreement({ ...goodAgreement, revocation_email: 'not an email' }) ?? '', /email/);
+  assert.equal(validateAgreement({ ...goodAgreement, revocation_email: 'rights@band.example' }), null);
+  assert.match(validateAgreement({ ...goodAgreement, territories: 'India' }) ?? '', /"INDIA" is not a country/);
+  assert.equal(validateAgreement({ ...goodAgreement, status: 'revoked', document_ref: '', starts_on: '', expires_on: '' }), null, 'revoking never needs proof');
+});
+
+test('Agreement form: territories', () => {
+  assert.deepEqual(parseTerritories(''), { ok: true, value: [] });
+  assert.deepEqual(parseTerritories('in, lk;  IN  in-tn'), { ok: true, value: ['IN', 'LK', 'IN-TN'] });
+  assert.equal(parseTerritories('IND').ok, false);
+  assert.equal(parseTerritories('I').ok, false);
+  assert.equal(parseTerritories('IN-').ok, false);
+  const many = Array.from({ length: 31 }, (_, i) => `${String.fromCharCode(65 + Math.floor(i / 26))}${String.fromCharCode(65 + (i % 26))}`).join(',');
+  assert.equal(parseTerritories(many).ok, false, 'more than 30');
+});
+
+test('Agreement form: who verified it and when', () => {
+  const now = '2026-10-27T10:00:00.000Z';
+  const before = '2026-09-01T00:00:00.000Z';
+  // new record
+  assert.deepEqual(stampsFor(null, 'sent', 'admin-1', now), { sent_at: now, signed_at: null, verified_at: null, verified_by: null });
+  assert.deepEqual(stampsFor(null, 'verified', 'admin-1', now), { sent_at: now, signed_at: now, verified_at: now, verified_by: 'admin-1' });
+  // moving forward keeps the earlier moments
+  const sent = { sent_at: before, signed_at: null, verified_at: null, verified_by: null };
+  assert.deepEqual(stampsFor(sent, 'signed', 'admin-1', now), { sent_at: before, signed_at: now, verified_at: null, verified_by: null });
+  const signed = { sent_at: before, signed_at: before, verified_at: null, verified_by: null };
+  assert.deepEqual(stampsFor(signed, 'verified', 'admin-2', now), { sent_at: before, signed_at: before, verified_at: now, verified_by: 'admin-2' });
+  // saving an already verified record again does not change who verified it
+  const done = { sent_at: before, signed_at: before, verified_at: before, verified_by: 'admin-1' };
+  assert.deepEqual(stampsFor(done, 'verified', 'admin-2', now), done);
+  // taking verification back clears it
+  assert.deepEqual(stampsFor(done, 'signed', 'admin-2', now), { sent_at: before, signed_at: before, verified_at: null, verified_by: null });
+  assert.deepEqual(stampsFor(done, 'sent', 'admin-2', now), { sent_at: before, signed_at: before, verified_at: null, verified_by: null });
+  // revoking keeps the history of who verified it
+  assert.deepEqual(stampsFor(done, 'revoked', 'admin-2', now), done);
+});
+
+test('Agreement form: phase and summary line, matching the database definition of "in force"', () => {
+  const t = '2026-10-27';
+  const v = { status: 'verified', starts_on: '2026-01-01', expires_on: '2026-12-31' };
+  assert.equal(agreementPhase(v, t), 'in_force');
+  assert.equal(agreementPhase({ ...v, expires_on: '2026-10-27' }, t), 'in_force', 'valid through the end of the last day');
+  assert.equal(agreementPhase({ ...v, expires_on: '2026-10-26' }, t), 'expired');
+  assert.equal(agreementPhase({ ...v, starts_on: '2026-10-27' }, t), 'in_force', 'starts at the beginning of its first day');
+  assert.equal(agreementPhase({ ...v, starts_on: '2026-10-28' }, t), 'not_started');
+  assert.equal(agreementPhase({ ...v, status: 'signed' }, t), 'not_verified');
+  assert.equal(agreementPhase({ ...v, starts_on: null }, t), 'not_verified');
+  assert.equal(agreementPhase({ ...v, status: 'revoked' }, t), 'revoked');
+  assert.equal(agreementSummary(v, t), 'Verified · 2026-01-01 to 2026-12-31 · In force');
+  assert.equal(agreementSummary({ status: 'sent', starts_on: null, expires_on: null }, t), 'Sent · no term set · Not verified yet');
+  assert.equal(agreementSummary({ status: 'revoked', starts_on: '2026-01-01', expires_on: '2026-12-31' }, t), 'Revoked · 2026-01-01 to 2026-12-31 · Revoked');
+  assert.deepEqual(AGREEMENT_STATUSES.map((s) => s.value), ['sent', 'signed', 'verified', 'revoked']);
+  assert.deepEqual(ENFORCED_RIGHTS.map((r) => r.key), ['allow_lyrics', 'allow_chords', 'allow_translations', 'allow_video_embed', 'allow_audio_hosting']);
+});
+
+test('Ledger: rupees and paise without floating point', () => {
+  assert.deepEqual(rupeesToPaise(''), { ok: true, value: null });
+  assert.deepEqual(rupeesToPaise('  '), { ok: true, value: null });
+  assert.deepEqual(rupeesToPaise('0'), { ok: true, value: 0 });
+  assert.deepEqual(rupeesToPaise('1500'), { ok: true, value: 150000 });
+  assert.deepEqual(rupeesToPaise('1,500.5'), { ok: true, value: 150050 });
+  assert.deepEqual(rupeesToPaise('₹ 1500.50'), { ok: true, value: 150050 });
+  assert.deepEqual(rupeesToPaise('0.07'), { ok: true, value: 7 });
+  assert.deepEqual(rupeesToPaise('19.99'), { ok: true, value: 1999 }, 'the classic float trap');
+  assert.deepEqual(rupeesToPaise('1000000000'), { ok: true, value: 100_000_000_000 }, 'the largest accepted amount');
+  for (const bad of ['-5', '1.234', '12abc', '1e3', '.5', '5.', '1000000001', '１２']) assert.equal(rupeesToPaise(bad).ok, false, bad);
+
+  assert.equal(paiseToRupees(150050), '₹1,500.50');
+  assert.equal(paiseToRupees(15000000), '₹1,50,000.00', 'Indian digit grouping');
+  assert.equal(paiseToRupees(0), '₹0.00');
+  assert.equal(paiseToRupees(null), 'not recorded');
+  assert.equal(paiseToInput(150050), '1500.50');
+  assert.equal(paiseToInput(150000), '1500');
+  assert.equal(paiseToInput(7), '0.07');
+  assert.equal(paiseToInput(null), '');
+  for (const p of [0, 7, 99, 100, 1999, 150050, 100_000_000_000]) {
+    assert.deepEqual(rupeesToPaise(paiseToInput(p)), { ok: true, value: p }, `round trip ${p}`);
+  }
+});
+
+test('Ledger: India time in and out', () => {
+  assert.equal(istInputToIso('2026-11-01T09:00'), '2026-11-01T03:30:00.000Z');
+  assert.equal(istInputToIso('2026-11-01T00:00'), '2026-10-31T18:30:00.000Z');
+  assert.equal(istInputToIso(''), null);
+  assert.equal(istInputToIso('2026-11-01'), null);
+  assert.equal(istInputToIso('2026-13-01T09:00'), null);
+  assert.equal(isoToIstInput('2026-11-01T03:30:00.000Z'), '2026-11-01T09:00');
+  assert.equal(isoToIstInput('2026-10-31T18:30:00+00:00'), '2026-11-01T00:00');
+  assert.equal(isoToIstInput(null), '');
+  assert.equal(isoToIstInput('garbage'), '');
+  for (const local of ['2026-01-01T00:00', '2026-12-31T23:59', '2027-02-28T12:30']) assert.equal(isoToIstInput(istInputToIso(local)), local, local);
+  assert.equal(paidOnToIso('2026-11-01'), '2026-10-31T18:30:00.000Z');
+  assert.equal(paidOnToIso(''), null);
+  assert.equal(isoToPaidOn('2026-10-31T18:30:00.000Z'), '2026-11-01');
+});
+
+const goodRequest: RequestInput = { kind: 'promotion', channel: 'email', contact: 'band@example.org', status: 'in_discussion', amount: '', refund: '', refund_reason: '', paid_on: '' };
+
+test('Ledger: what a request must have at each stage', () => {
+  assert.equal(validateRequest(goodRequest), null);
+  assert.match(validateRequest({ ...goodRequest, contact: ' ' }) ?? '', /contact is required/);
+  assert.match(validateRequest({ ...goodRequest, contact: 'band at example' }) ?? '', /email/);
+  assert.equal(validateRequest({ ...goodRequest, channel: 'whatsapp', contact: '+91 98765-43210' }), null);
+  assert.match(validateRequest({ ...goodRequest, channel: 'whatsapp', contact: '12345' }) ?? '', /8 to 15 digits/);
+  assert.match(validateRequest({ ...goodRequest, amount: 'lots' }) ?? '', /amount is not a valid/);
+  // paid, live and completed all need the money recorded
+  for (const status of ['paid', 'live', 'completed'] as const) {
+    assert.match(validateRequest({ ...goodRequest, status }) ?? '', /needs the amount/, status);
+    assert.match(validateRequest({ ...goodRequest, status, amount: '0' }) ?? '', /needs the amount/, `${status} at zero`);
+    assert.match(validateRequest({ ...goodRequest, status, amount: '1500' }) ?? '', /needs the date/, status);
+    assert.equal(validateRequest({ ...goodRequest, status, amount: '1500', paid_on: '2026-10-20' }), null, status);
+  }
+  // refunds
+  const paid = { ...goodRequest, status: 'paid' as const, amount: '1500', paid_on: '2026-10-20' };
+  assert.match(validateRequest({ ...paid, status: 'refunded' }) ?? '', /amount refunded/);
+  assert.match(validateRequest({ ...paid, status: 'refunded', refund: '1500' }) ?? '', /reason/);
+  assert.equal(validateRequest({ ...paid, status: 'refunded', refund: '1500', refund_reason: 'Event cancelled' }), null);
+  assert.equal(validateRequest({ ...paid, status: 'refunded', refund: '500', refund_reason: 'Part refund' }), null, 'a partial refund');
+  assert.match(validateRequest({ ...paid, status: 'refunded', refund: '1500.01', refund_reason: 'x' }) ?? '', /more than the amount paid/);
+  assert.match(validateRequest({ ...goodRequest, refund: '10' }) ?? '', /before recording a refund/);
+  assert.equal(validateRequest({ ...goodRequest, status: 'cancelled' }), null, 'cancelling needs no money');
+});
+
+const goodPoster: PosterInput = {
+  status: 'draft', title: 'Christmas night', image_url: 'https://cdn.example.org/p.jpg', youtube: '', match_mode: 'everyone',
+  languages: [], regions: [], event_date: '', starts_local: '', ends_local: '', request_id: '',
+};
+const readyRequest = { contact_verified: true, amount_paise: 150000 };
+
+test('Ledger: what a poster must have before it can be approved', () => {
+  assert.equal(validatePoster(goodPoster, null), null, 'a draft needs nothing from a request');
+  assert.match(validatePoster({ ...goodPoster, title: ' ' }, null) ?? '', /title is required/);
+  assert.match(validatePoster({ ...goodPoster, image_url: 'http://x.org/p.jpg' }, null) ?? '', /https/);
+  assert.match(validatePoster({ ...goodPoster, image_url: 'https://x.org/a b.jpg' }, null) ?? '', /https/);
+  assert.match(validatePoster({ ...goodPoster, starts_local: '2026-12-01T09:00', ends_local: '2026-12-01T09:00' }, null) ?? '', /end must be after/);
+  assert.match(validatePoster({ ...goodPoster, starts_local: 'soon' }, null) ?? '', /start is not a valid/);
+  assert.match(validatePoster({ ...goodPoster, match_mode: 'both', languages: ['ta'] }, null) ?? '', /at least one language and at least one region/);
+  assert.equal(validatePoster({ ...goodPoster, match_mode: 'both', languages: ['ta'], regions: ['IN'] }, null), null);
+  assert.match(validatePoster({ ...goodPoster, match_mode: 'either' }, null) ?? '', /at least one language or region/);
+  assert.equal(validatePoster({ ...goodPoster, match_mode: 'either', regions: ['IN'] }, null), null);
+
+  const approved = { ...goodPoster, status: 'approved' as const, starts_local: '2026-12-01T09:00', ends_local: '2026-12-25T23:00' };
+  assert.equal(validatePoster(approved, readyRequest), null);
+  assert.match(validatePoster({ ...approved, ends_local: '' }, readyRequest) ?? '', /needs a start and an end/);
+  assert.match(validatePoster(approved, null) ?? '', /Link the poster/);
+  assert.match(validatePoster(approved, { contact_verified: false, amount_paise: 150000 }) ?? '', /not verified/);
+  assert.match(validatePoster(approved, { contact_verified: true, amount_paise: null }) ?? '', /no amount recorded/);
+  assert.equal(requestAllowsApproval({ contact_verified: true, amount_paise: 0 }).ok, true, 'a free promotion still has a recorded amount (zero)');
+  assert.equal(requestAllowsApproval(null).ok, false);
+});
+
+test('Ledger: when a poster is showing, matching what home_posters() does', () => {
+  const at = (iso: string) => Date.parse(iso);
+  const p = { status: 'approved', starts_at: '2026-12-01T03:30:00Z', ends_at: '2026-12-25T17:30:00Z', event_date: null as string | null };
+  assert.equal(posterPhase(p, at('2026-11-30T00:00:00Z')), 'scheduled');
+  assert.equal(posterPhase(p, at('2026-12-01T03:30:00Z')), 'showing', 'from the very start');
+  assert.equal(posterPhase(p, at('2026-12-25T17:29:59Z')), 'showing');
+  assert.equal(posterPhase(p, at('2026-12-25T17:30:00Z')), 'ended', 'the end is exclusive');
+  assert.equal(posterPhase({ ...p, status: 'draft' }, at('2026-12-02T00:00:00Z')), 'off');
+  assert.equal(posterPhase({ ...p, status: 'paused' }, at('2026-12-02T00:00:00Z')), 'off');
+  assert.equal(posterPhase({ ...p, starts_at: null }, at('2026-12-02T00:00:00Z')), 'off');
+  // an event day cuts the display short: the day ends at midnight in India
+  const ev = { ...p, event_date: '2026-12-10' };
+  assert.equal(posterPhase(ev, at('2026-12-10T18:29:59Z')), 'showing', 'until 23:59:59 on the event day in India');
+  assert.equal(posterPhase(ev, at('2026-12-10T18:30:00Z')), 'ended');
+  assert.equal(posterPhase({ ...p, event_date: '2027-03-01' }, at('2026-12-25T17:30:00Z')), 'ended', 'a later event day does not extend the window');
 });

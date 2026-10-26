@@ -1,4 +1,5 @@
 // Shapes the admin pages read. Written by hand, like types.ts.
+import type { AgreementStatus } from './agreement-form.ts';
 
 export type Option = { value: string; label: string };
 
@@ -119,3 +120,29 @@ export type AdminAudio = {
   audio_bytes: number | null;
   duration_s: number | null;
 };
+
+/** One row of agreements, as the admin form edits it. */
+export type AdminAgreement = {
+  id: string;
+  artist_id: string;
+  status: AgreementStatus;
+  sent_at: string | null;
+  signed_at: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
+  starts_on: string | null;
+  expires_on: string | null;
+  document_ref: string | null;
+  allow_lyrics: boolean;
+  allow_chords: boolean;
+  allow_translations: boolean;
+  allow_video_embed: boolean;
+  allow_audio_hosting: boolean;
+  allow_photo_bio: boolean;
+  territories: string[];
+  revocation_email: string | null;
+  created_at: string;
+};
+
+/** The parts of v_admin_artists the artist page shows in its status line. */
+export type AdminArtistStatus = { available: boolean; agreement_expires_on: string | null; agreement_days_left: number | null };

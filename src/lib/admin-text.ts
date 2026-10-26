@@ -138,3 +138,8 @@ export const CONSENT_STATUSES = [
   { value: 'granted', label: 'Granted' },
   { value: 'revoked', label: 'Revoked' },
 ] as const;
+
+/** Today's date (YYYY-MM-DD) in India, which is how the database reads "valid through the end of that day". */
+export function indiaToday(now: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}
