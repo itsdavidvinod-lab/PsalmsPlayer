@@ -41,10 +41,10 @@ jobs:
         with:
           version: 2.122.0   # pinned: "latest" is resolved through the GitHub API and fails when that is rate limited
       - run: echo "::notice title=supabase cli version::$(supabase --version)"
-      - name: Start Supabase (applies the four migrations, then seed.sql)
+      - name: Start Supabase (applies the migrations, then seed.sql)
         run: bash .github/scripts/start-supabase.sh
       - name: Security tests against the real stack
-        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f supabase/tests/security.test.sql
+        run: bash .github/scripts/run-db-tests.sh
       - name: Stop Supabase
         if: always()
         run: supabase stop --no-backup
