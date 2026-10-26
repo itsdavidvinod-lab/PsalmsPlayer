@@ -5,6 +5,9 @@
 - Backend: Supabase (Postgres, login, file storage, row-level security).
 - Login at launch: email and Google. Phone OTP later if needed.
 - Build order: website for users and admin first, then the Android APK, then iOS.
+- Website: Next.js 15 (App Router) with the Supabase browser/server clients. Every page except login, the sign-in callback and the public `/get` landing page requires a login (a choice made while building; say if browsing should be public).
+- Hidden songs and unknown addresses return the same "not available" page, so nobody can tell that a hidden song exists.
+- A share "app link" goes to `/get`, which for now points people to the web because the apps are not published.
 
 ## Product rules
 - Catalogue is curated by the owner. Songs and lyrics are uploaded for artists under a signed agreement. Uploading is free of cost.
@@ -17,6 +20,9 @@
 - Monthly listeners = distinct signed-in users who played or opened a song by the artist in the last 30 days, counted in the app. Hidden below 10.
 
 ## Open
+- Tamil and other Indian-language lyrics use the device's own font for now. Check them on real phones and add a web font if any look wrong.
+- Plays inside the YouTube embed are invisible to the site, so listener and trending numbers count "lyrics opened" only. Real play counts need the YouTube player API or hosted audio.
+- Sign-up sends a confirmation email on the hosted project (turn it on in Supabase) but not on the local stack. Pick the production setting before launch.
 - What is refunded when a poster is taken down after part of its run (for example day 12 of 15).
 - How a requester is verified before a poster or song goes live (the database only stores that it was done).
 - How an artist's identity is checked independently of the channel their request came in on.
