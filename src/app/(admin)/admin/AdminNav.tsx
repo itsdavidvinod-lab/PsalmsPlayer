@@ -7,6 +7,8 @@ const LINKS = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/artists', label: 'Artists' },
   { href: '/admin/songs', label: 'Songs' },
+  { href: '/admin/requests', label: 'Requests' },
+  { href: '/admin/posters', label: 'Posters' },
 ];
 
 export default function AdminNav() {

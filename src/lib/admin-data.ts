@@ -1,4 +1,4 @@
-import type { AlbumOption, ArtistOption, Option } from '@/lib/admin-types';
+import type { AlbumOption, ArtistOption, Option, RequestOption } from '@/lib/admin-types';
 import type { createClient } from '@/lib/supabase/server';
 
 type Db = Awaited<ReturnType<typeof createClient>>;
@@ -34,5 +34,28 @@ export async function loadSongChoices(supabase: Db): Promise<{
     occasions: tagOptions('occasion'),
     moods: tagOptions('mood'),
     failed: Boolean(artistRes.error || albumRes.error || langRes.error || tagRes.error),
+  };
+}
+
+/** What the poster form offers as choices: the requests a poster can belong to, languages and regions. */
+export async function loadPosterChoices(supabase: Db): Promise<{
+  requests: RequestOption[];
+  languages: Option[];
+  regions: Option[];
+  failed: boolean;
+}> {
+  const [reqRes, langRes, regionRes] = await Promise.all([
+    supabase.from('requests').select('id, kind, contact, contact_verified, status, amount_paise').order('created_at', { ascending: false }),
+    supabase.from('languages').select('code, name, native_name').order('name'),
+    supabase.from('regions').select('code, name').order('name'),
+  ]);
+  return {
+    requests: (reqRes.data ?? []) as RequestOption[],
+    languages: (langRes.data ?? []).map((l: { code: string; name: string; native_name: string | null }) => ({
+      value: l.code,
+      label: l.native_name && l.native_name !== l.name ? `${l.name} · ${l.native_name}` : l.name,
+    })),
+    regions: (regionRes.data ?? []).map((r: { code: string; name: string }) => ({ value: r.code, label: r.name })),
+    failed: Boolean(reqRes.error || langRes.error || regionRes.error),
   };
 }

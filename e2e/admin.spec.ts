@@ -16,7 +16,7 @@ test('signed-out visitors go to login and ordinary users get the same "not avail
   await expect(page).toHaveURL(/\/login\?next=%2Fadmin$/);
 
   await signUpAndIn(page, uniqueEmail('plain-user'));
-  for (const path of ['/admin', '/admin/artists', '/admin/artists/new', `/admin/artists/${SEED_ARTIST_ID}`]) {
+  for (const path of ['/admin', '/admin/artists', '/admin/artists/new', `/admin/artists/${SEED_ARTIST_ID}`, '/admin/requests', '/admin/requests/new', '/admin/posters', '/admin/posters/new']) {
     await page.goto(path);
     await expect(page.getByRole('heading', { name: 'Not available' }), path).toBeVisible();
     await expect(page.getByText('Dashboard'), path).toHaveCount(0);

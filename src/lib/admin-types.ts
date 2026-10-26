@@ -1,5 +1,6 @@
 // Shapes the admin pages read. Written by hand, like types.ts.
 import type { AgreementStatus } from './agreement-form.ts';
+import type { MatchMode, PosterKind, PosterStatus, RequestChannel, RequestKind, RequestStatus } from './ledger.ts';
 
 export type Option = { value: string; label: string };
 
@@ -146,3 +147,39 @@ export type AdminAgreement = {
 
 /** The parts of v_admin_artists the artist page shows in its status line. */
 export type AdminArtistStatus = { available: boolean; agreement_expires_on: string | null; agreement_days_left: number | null };
+
+/** One row of requests: someone asking for a promotion or for their songs to be added. Admins only; users never see any of this. */
+export type AdminRequest = {
+  id: string;
+  kind: RequestKind;
+  channel: RequestChannel;
+  contact: string;
+  contact_verified: boolean;
+  status: RequestStatus;
+  amount_paise: number | null;
+  paid_at: string | null;
+  refund_paise: number | null;
+  refund_reason: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+/** What the poster form needs to know about each request it could be linked to. */
+export type RequestOption = Pick<AdminRequest, 'id' | 'kind' | 'contact' | 'contact_verified' | 'status' | 'amount_paise'>;
+
+export type AdminPoster = {
+  id: string;
+  request_id: string | null;
+  kind: PosterKind;
+  title: string;
+  image_url: string;
+  youtube_id: string | null;
+  target_language_codes: string[];
+  target_region_codes: string[];
+  match_mode: MatchMode;
+  event_date: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  status: PosterStatus;
+  created_at: string;
+};
