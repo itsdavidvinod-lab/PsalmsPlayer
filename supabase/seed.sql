@@ -38,14 +38,14 @@ insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000aa
 update public.profiles set role = 'admin', display_name = 'Seed admin' where id = '00000000-0000-0000-0000-0000000000aa';
 
 insert into public.agreements (id, artist_id, status, verified_at, verified_by, starts_on, expires_on, document_ref,
-                               allow_lyrics, allow_chords, allow_translations, allow_video_embed, territories, revocation_email)
+                               allow_lyrics, allow_chords, allow_translations, allow_video_embed, allow_audio_hosting, territories, revocation_email)
 values
   -- Grace Worship Team: valid, everything allowed
   ('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'verified', now(), '00000000-0000-0000-0000-0000000000aa',
-   public.app_today() - 30, public.app_today() + 200, 'mailbox:msg-0001', true, true, true, true, '{IN,LK}', 'rights@example.org'),
+   public.app_today() - 30, public.app_today() + 200, 'mailbox:msg-0001', true, true, true, true, true, '{IN,LK}', 'rights@example.org'),
   -- Shalom Choir: expired yesterday, so the artist shows as Unavailable
   ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'verified', now(), '00000000-0000-0000-0000-0000000000aa',
-   public.app_today() - 400, public.app_today() - 1, 'mailbox:msg-0002', true, true, false, true, '{IN}', 'rights@example.org');
+   public.app_today() - 400, public.app_today() - 1, 'mailbox:msg-0002', true, true, false, true, true, '{IN}', 'rights@example.org');
 
 -- ---------------------------------------------------------------- albums and songs
 insert into public.albums (id, artist_id, slug, title, kind, release_year, is_published) values

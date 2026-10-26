@@ -2,7 +2,7 @@
 // as the real Storage service enforces it (the database tests only see a stand-in for Storage).
 import { expect, test } from '@playwright/test';
 import {
-  ANON_KEY, SINGLE_ID, SONG_ONE_ID, SONG_TWO_ID, SUPABASE_URL, apiHeaders, audioTime, createApiUser, ensureAudio, signUpAndIn, uniqueEmail,
+  ANON_KEY, SINGLE_ID, SONG_ONE_ID, SONG_TWO_ID, SUPABASE_URL, apiHeaders, audioTime, createApiUser, ensureAudio, signUpAndIn, sql, uniqueEmail,
 } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
@@ -125,4 +125,28 @@ test('the audio bucket is private: links are issued only for live songs, to sign
     data: Buffer.alloc(2000, 0x80),
   });
   expect(upload.ok(), 'only admins may upload').toBeFalsy();
+});
+
+test('without the artist\'s audio right the song is lyrics-only and its file is not served', async ({ page, request }) => {
+  const path = await ensureAudio(request, SONG_ONE_ID);
+  const user = await createApiUser(request, 'rights');
+  const agreement = 'b0000000-0000-0000-0000-000000000001'; // Grace Worship Team's agreement in the seed data
+  sql(`update public.agreements set allow_audio_hosting = false where id = '${agreement}'`);
+  try {
+    const rpc = await request.post(`${SUPABASE_URL}/rest/v1/rpc/song_audio_path`, { headers: apiHeaders(user.token), data: { p_song: SONG_ONE_ID } });
+    expect(await rpc.text(), 'no path without the audio right').toBe('null');
+    const sign = await request.post(`${SUPABASE_URL}/storage/v1/object/sign/audio/${path}`, { headers: apiHeaders(user.token), data: { expiresIn: 60 } });
+    expect(sign.ok(), 'no signed link without the audio right').toBeFalsy();
+
+    await signUpAndIn(page, uniqueEmail('rights'));
+    await page.goto('/song/placeholder-song-one');
+    await expect(page.getByRole('heading', { name: 'Placeholder Song One' })).toBeVisible();
+    await expect(page.getByText('Placeholder line one of the')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Play / })).toHaveCount(0);
+    await expect(page.getByText('No audio file for this song yet')).toBeVisible();
+  } finally {
+    sql(`update public.agreements set allow_audio_hosting = true where id = '${agreement}'`);
+  }
+  const back = await request.post(`${SUPABASE_URL}/rest/v1/rpc/song_audio_path`, { headers: apiHeaders(user.token), data: { p_song: SONG_ONE_ID } });
+  expect(await back.json(), 'the path returns with the right').toBe(path);
 });

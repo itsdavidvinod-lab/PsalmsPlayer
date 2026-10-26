@@ -14,7 +14,7 @@
 - Admins upload the audio file themselves (any common format: MP3, M4A/AAC, WAV, OGG/Opus, FLAC, WebM; up to 100 MB each). Files are streamed to signed-in users through one-hour links, and only while the song is live.
 - YouTube is a link out only: a "Watch on YouTube" link in the song page and the mini player opens YouTube (the YouTube app on a phone). Nothing from YouTube is embedded, and our audio pauses when the link is tapped.
 - Dark theme only for now; all colours are variables, so a light theme is a second block of values.
-- Songs without an audio file are lyrics-only: they show a "Lyrics" tag and no play button.
+- Songs without an audio file are lyrics-only: they show a "Lyrics" tag and no play button. The same happens when the artist's agreement does not allow audio hosting (a separate right from lyrics, chords, translations and video): the file stays uploaded but is not served until the flag is ticked.
 
 ## Product rules
 - Catalogue is curated by the owner. Songs and lyrics are uploaded for artists under a signed agreement. Uploading is free of cost.

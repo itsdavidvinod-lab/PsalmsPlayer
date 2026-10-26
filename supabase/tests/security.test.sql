@@ -619,6 +619,40 @@ reset role;
 rollback;
 
 begin;
+-- Hosting audio is its own right. The agreement stops allowing it: lyrics stay, the file and the play button go.
+update public.songs set audio_path = id::text || '/track.mp3', audio_mime = 'audio/mpeg', audio_bytes = 1000
+ where id in ('d0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000004');
+insert into storage.objects (bucket_id, name) values
+  ('audio', 'd0000000-0000-0000-0000-000000000001/track.mp3'),
+  ('audio', 'd0000000-0000-0000-0000-000000000004/track.mp3');
+update public.agreements set allow_audio_hosting = false where id = 'b0000000-0000-0000-0000-000000000001';
+
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select has_audio from public.v_songs where slug = 'placeholder-song-one') = false, 'no audio right: the song shows as lyrics-only';
+  assert (select count(*) from public.v_songs where slug = 'placeholder-song-one') = 1, 'the song itself stays visible';
+  assert public.song_audio_path('d0000000-0000-0000-0000-000000000001') is null, 'no audio right: no path';
+  assert (select count(*) from storage.objects) = 0, 'no audio right: no file is readable';
+  assert (select count(*) from public.get_lyrics('d0000000-0000-0000-0000-000000000001')) > 0, 'lyrics are not affected';
+  raise notice 'ok: audio needs allow_audio_hosting';
+end $$;
+reset role;
+
+-- and when the flag comes back, so does the audio, with nothing else to do
+update public.agreements set allow_audio_hosting = true where id = 'b0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select has_audio from public.v_songs where slug = 'placeholder-song-one') = true, 'flag back on: has audio again';
+  assert public.song_audio_path('d0000000-0000-0000-0000-000000000001') = 'd0000000-0000-0000-0000-000000000001/track.mp3', 'flag back on: path again';
+  assert (select count(*) from storage.objects) = 2, 'flag back on: files readable again';
+  raise notice 'ok: audio returns with the right';
+end $$;
+reset role;
+rollback;
+
+begin;
 -- admins can add and remove files; nobody else can. The path must stay inside the song's own folder.
 update public.songs set audio_path = id::text || '/track.mp3' where id = 'd0000000-0000-0000-0000-000000000001';
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);

@@ -6,7 +6,7 @@ Where the build stands: the database and its rules, and the user website with th
 
 | Path | What it is | Checked |
 |---|---|---|
-| `supabase/migrations/0001..0006` | Tables, visibility rules, security, public API, listening time, hosted audio | Run on a real Supabase stack in CI, and on plain Postgres 16 |
+| `supabase/migrations/0001..0007` | Tables, visibility rules, security, public API, listening time, hosted audio, audio rights | Run on a real Supabase stack in CI, and on plain Postgres 16 |
 | `supabase/seed.sql` | Fake development data (placeholder lyrics, a placeholder admin) | Run on a real Supabase stack in CI |
 | `supabase/tests/` | 94 assertions and 36 must-fail checks (users cannot read agreements, prices, end dates or hidden songs, or make themselves admin) | Pass on both; deliberate breakages are caught |
 | `src/lib/` | ChordPro parsing and transposing, YouTube link reading, share links, play queue, audio-link cache, listening-time reporter | 27 tests pass, strict TypeScript clean |
@@ -25,7 +25,7 @@ Not checked: Google sign-in (needs your Google Cloud client), email confirmation
 - Dates mean "valid through the end of that day, India time".
 - A verified agreement must carry a document reference and a verifier. That is where the "official mailbox only" rule is recorded.
 - An artist with an expired agreement still appears, as **Unavailable**: name and placeholder only.
-- Lyrics need a login. Chords are removed unless the agreement allows chords. Romanized and meaning versions need the translations flag. The YouTube id is withheld unless its link passed the admin's check; the site only links out to YouTube and never embeds it. Audio files sit in a private bucket and are readable only while their song is live.
+- Lyrics need a login. Chords are removed unless the agreement allows chords. Romanized and meaning versions need the translations flag. The YouTube id is withheld unless its link passed the admin's check; the site only links out to YouTube and never embeds it. Audio files sit in a private bucket and are playable only while the song is live **and** an agreement in force for the artist has "allow audio hosting" ticked; otherwise the song shows as lyrics-only.
 - Users never receive poster start/end dates or any price. Posters are chosen on the server (`home_posters`), ranked both-match, then one match, then everyone, and stop at the earlier of the paid end or the event date.
 - A poster can only be approved when its request has a verified requester and a recorded amount.
 - Every change to agreements, consents, songs, posters, requests and artists is written to an audit log that nobody can edit or delete through the API.
@@ -34,7 +34,7 @@ Not checked: Google sign-in (needs your Google Cloud client), email confirmation
 ## First run on Supabase
 
 1. Create a project at supabase.com. Pick the region closest to your users.
-2. Open **SQL editor** and run these six files in order, each in a new query: `0001_schema.sql`, `0002_rules.sql`, `0003_security.sql`, `0004_public_api.sql`, `0005_listening.sql`, `0006_audio.sql`.
+2. Open **SQL editor** and run these seven files in order, each in a new query: `0001_schema.sql`, `0002_rules.sql`, `0003_security.sql`, `0004_public_api.sql`, `0005_listening.sql`, `0006_audio.sql`, `0007_audio_rights.sql`.
 3. For a throwaway test project only, run `seed.sql` to get sample data. **Never run it on the real project.** Its placeholder admin cannot log in.
 4. Sign up once through the site (or **Authentication → Users → Add user**), copy your user id, and make yourself admin:
    ```sql
