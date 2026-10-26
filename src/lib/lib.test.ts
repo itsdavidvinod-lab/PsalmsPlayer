@@ -6,6 +6,7 @@ import {
   isChordName, isKnownDirective,
 } from './chordpro.ts';
 import { checkChordPro } from './lyrics-check.ts';
+import { AUDIO_MAX_BYTES, checkAudioFile, audioObjectName, audioHostingState } from './audio-file.ts';
 import { extractYoutubeId, youtubeWatchUrl } from './youtube.ts';
 import { buildShareUrl, safeNextPath } from './share.ts';
 import {
@@ -461,4 +462,46 @@ test('Admin: hints, link status words and key choices', () => {
   assert.equal(isMusicalKey('C7'), false);
   assert.equal(isMusicalKey('g'), false);
   assert.equal(isMusicalKey(''), false);
+});
+
+test('Admin audio: only MP3 and M4A/AAC, within the size limit, with safe storage names', () => {
+  assert.deepEqual(checkAudioFile({ name: 'Nanna Kadege .mp3', type: 'audio/mpeg', size: 9_873_856 }), { ok: true, mime: 'audio/mpeg', ext: 'mp3' });
+  assert.deepEqual(checkAudioFile({ name: 'SONG.M4A', type: 'audio/x-m4a', size: 5_000_000 }), { ok: true, mime: 'audio/mp4', ext: 'm4a' });
+  assert.deepEqual(checkAudioFile({ name: 'song.aac', type: 'audio/aac', size: 5_000_000 }), { ok: true, mime: 'audio/aac', ext: 'aac' });
+  assert.deepEqual(checkAudioFile({ name: 'song.mp3', type: '', size: 1000 }), { ok: true, mime: 'audio/mpeg', ext: 'mp3' }, 'some browsers send no type');
+
+  for (const name of ['song.wav', 'song.flac', 'song.ogg', 'song.mp4', 'song', 'song.mp3.exe', '.mp3x']) {
+    const r = checkAudioFile({ name, type: '', size: 1000 });
+    assert.equal(r.ok, false, name);
+  }
+  const lie = checkAudioFile({ name: 'song.mp3', type: 'audio/wav', size: 1000 });
+  assert.equal(lie.ok, false);
+  assert.match(lie.ok ? '' : lie.reason, /does not match/);
+  assert.equal(checkAudioFile({ name: 'song.mp3', type: 'audio/mpeg', size: 0 }).ok, false, 'empty');
+  assert.equal(checkAudioFile({ name: 'song.mp3', type: 'audio/mpeg', size: AUDIO_MAX_BYTES }).ok, true, 'exactly at the limit');
+  const big = checkAudioFile({ name: 'song.mp3', type: 'audio/mpeg', size: AUDIO_MAX_BYTES + 1 });
+  assert.equal(big.ok, false);
+  assert.match(big.ok ? '' : big.reason, /50 MB/);
+  assert.equal(checkAudioFile({ name: 'song.mp3', type: 'audio/mpeg', size: 80 * 1024 * 1024 }, 100 * 1024 * 1024).ok, true, 'a paid plan can raise the limit');
+
+  assert.equal(audioObjectName('Nanna Kadege .mp3', 'mp3', 1_700_000_000_000), 'nanna-kadege-lo6h2qfc.mp3'.replace('lo6h2qfc', (1_700_000_000_000).toString(36)));
+  assert.equal(audioObjectName('தமிழ்.mp3', 'mp3', 36), 'audio-10.mp3', 'a name with no Latin letters still gets a usable one');
+  assert.equal(audioObjectName('../../evil name!.mp3', 'mp3', 36), 'evil-name-10.mp3', 'no path tricks');
+  assert.notEqual(audioObjectName('a.mp3', 'mp3', 1), audioObjectName('a.mp3', 'mp3', 2), 'never repeats');
+  assert.ok(!audioObjectName('x'.repeat(200) + '.mp3', 'mp3', 1).includes('..'));
+  assert.ok(audioObjectName('x'.repeat(200) + '.mp3', 'mp3', 1).length < 80);
+});
+
+test('Admin audio: whether the agreement in force lets the file play', () => {
+  const ok = { status: 'verified', starts_on: '2026-01-01', expires_on: '2026-12-31', allow_audio_hosting: true };
+  assert.equal(audioHostingState([ok], '2026-10-27').ok, true);
+  assert.equal(audioHostingState([ok], '2026-12-31').ok, true, 'valid through the end of the last day');
+  assert.equal(audioHostingState([ok], '2027-01-01').ok, false, 'expired');
+  assert.equal(audioHostingState([ok], '2025-12-31').ok, false, 'not started');
+  assert.equal(audioHostingState([{ ...ok, status: 'signed' }], '2026-10-27').ok, false, 'signed is not verified');
+  assert.equal(audioHostingState([{ ...ok, status: 'revoked' }], '2026-10-27').ok, false);
+  assert.equal(audioHostingState([{ ...ok, allow_audio_hosting: false }], '2026-10-27').reason, 'The agreement in force does not allow audio hosting.');
+  assert.equal(audioHostingState([], '2026-10-27').reason, 'No verified agreement is in force for this artist.');
+  assert.equal(audioHostingState([{ ...ok, allow_audio_hosting: false }, ok], '2026-10-27').ok, true, 'any agreement in force that allows it is enough');
+  assert.equal(audioHostingState([{ ...ok, starts_on: null }], '2026-10-27').ok, false);
 });

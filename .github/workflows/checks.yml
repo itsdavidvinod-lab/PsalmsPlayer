@@ -104,7 +104,14 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY:-$PUBLISHABLE_KEY}" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN=1" >> "$GITHUB_ENV"   # test builds only: the e2e tests sign in with email
       - run: npm install
-      - run: npm run build
+      - name: Build
+        # The log of a failed job cannot be downloaded without a login, so the end of the build output is turned into an annotation.
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log || {
+            echo "::error title=build failed::$(tail -n 60 build.log | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\r//g' -e 's/\n/%0A/g')"
+            exit 1
+          }
       - run: npx playwright install --with-deps chromium
       - name: Browser and API tests
         run: npx playwright test
