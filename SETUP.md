@@ -75,6 +75,6 @@ GitHub also commits `package-lock.json` for you when dependencies change (a CI s
 
 ## Next steps
 
-2. Website, remaining pages: Browse, Artist, Album, Stage mode, Library (liked, playlists, setlists), Charts, Share sheet polish, then the admin site (catalogue, agreements and consent, posters, requests ledger, expiry watch).
+2. The admin site: artists, albums, songs with audio upload and a format rule, lyrics with a preview, the YouTube link, agreements and consent (including "allow audio hosting"), posters and the requests ledger, expiry watch. Then Charts and share-sheet polish.
 3. Android app (Capacitor) once the site is complete. Offline lyrics for Stage mode need the app to carry its own screens and a local copy of the user's setlists, so the wrapper cannot simply open the website.
 4. iOS after Android.
