@@ -110,7 +110,8 @@ test('regions: a state needs its country, uppercase is applied, and a country wi
   await state.getByRole('button', { name: 'Yes, delete' }).click();
   await expect(section.locator('#region-QZ-AA-name')).toHaveCount(0);
   const country2 = section.locator('details', { has: page.locator('#region-QZ-name') });
-  await country2.locator('summary').click();
+  // still open from the refused delete above: clicking its summary again would close it
+  await expect(country2).toHaveJSProperty('open', true);
   await country2.getByRole('button', { name: 'Delete', exact: true }).click();
   await country2.getByRole('button', { name: 'Yes, delete' }).click();
   await expect(section.locator('#region-QZ-name')).toHaveCount(0);

@@ -11,7 +11,7 @@
 
 ## Player and media (decided with the owner)
 - The product centres on lyrics and the music player. The look follows Spotify: dark, a tab bar on phones, a sidebar on wide screens, and a mini player that stays on every page. Tapping the mini player opens the song page, which holds the lyrics.
-- Admins upload the audio file themselves (any common format: MP3, M4A/AAC, WAV, OGG/Opus, FLAC, WebM; up to 100 MB each). Files are streamed to signed-in users through one-hour links, and only while the song is live.
+- Admins upload the audio file themselves. The admin site accepts **MP3 and M4A/AAC only, up to 50 MB** (the free Supabase plan refuses larger files; other formats must be converted first because MP3 and AAC play on every phone and browser we target). The storage bucket itself still permits other formats and 100 MB, so the limit is one number in `src/lib/audio-file.ts` when a paid plan allows more. Files are streamed to signed-in users through one-hour links, and only while the song is live.
 - YouTube is a link out only: a "Watch on YouTube" link in the song page and the mini player opens YouTube (the YouTube app on a phone). Nothing from YouTube is embedded, and our audio pauses when the link is tapped.
 - Dark theme only for now; all colours are variables, so a light theme is a second block of values.
 - Songs without an audio file are lyrics-only: they show a "Lyrics" tag and no play button. The same happens when the artist's agreement does not allow audio hosting (a separate right from lyrics, chords, translations and video): the file stays uploaded but is not served until the flag is ticked.
@@ -22,6 +22,16 @@
 - A setlist's key per song changes only that setlist; the song itself is never changed. In Stage mode the key can be nudged up or down by up to six semitones for the day, and that nudge is not saved.
 - Stage mode is a separate full-screen view with no player bar: opening it from the app stops any music that was playing. Text size is remembered on the device only.
 - Songs can also be opened in Stage mode one at a time from their page.
+
+## Admin site (decided while building)
+- Admins only, signed in through the same Google login; anyone else gets the same "not available" page as for an address that does not exist. The page check is a convenience; the database refuses admin reads and writes to everyone else.
+- A song's live or hidden state always comes from the database's own rule, and the song page says in words what is missing (no writer, consent missing, consent expired, agreement not in force, not published, taken down).
+- Replacing a recording uploads the new file under a fresh name, points the song at it, and only then deletes the old file, so a failure never leaves a song without audio. Removing deletes the file too.
+- Agreements are never deleted: a record of what was agreed stays, and "revoked" ends it (with a second confirmation, because the artist's songs vanish at once). Verifying records which admin did it and when, and going back from verified clears that. The "photo and bio" right and the territories list are recorded but not enforced by the site yet; the form says so.
+- Money is typed in rupees and stored in paise. Poster windows are typed and shown in India time. A poster's event date ends it at the end of that day (India time) even if its paid period runs longer.
+- A refunded or cancelled request, or one that loses its verified requester or recorded amount, switches its posters off in the database. Putting a request back never switches a poster back on: an admin approves it again.
+- Codes in the Lists page (languages, regions, genres, occasions, moods) never change, because records point to them by code; names can change. A value that anything still uses cannot be deleted.
+- A real project gets its starting lists from `supabase/reference.sql`, never from the seed.
 
 ## Product rules
 - Catalogue is curated by the owner. Songs and lyrics are uploaded for artists under a signed agreement. Uploading is free of cost.
@@ -35,6 +45,9 @@
 - How listening time is kept honest: the player reports play time from the audio element every 15 s; the database credits only what the clock allows (shared across all of a person's sessions, one report at a time, 20 s per report, 8 h per day, 120 new sessions per hour). Muted, paused or buffering audio does not count.
 
 ## Open
+- Admin two-factor sign-in. The admin account can do everything, so its protection matters. Options: (a) rely on Google 2-Step Verification on the admin's Google account (nothing to build, and it protects the whole Google login), or (b) also require an authenticator code in the app (more to build, and a lost phone can lock the admin out). Not built; (a) is the recommendation until there is more than one admin.
+- The artist "photo and bio" right and the agreement territories are stored but not enforced.
+- Whether a second admin is needed, and if so how one is invited (today the role is set in the SQL editor).
 - Tamil and other Indian-language lyrics use the device's own font for now. Check them on real phones and add a web font if any look wrong.
 - Listening time is reported by the browser, so someone who writes a script that waits in real time on many real accounts can still inflate a count. Email confirmation and a CAPTCHA on sign-up (Supabase settings) are the defence; the choice is still open. Hosted audio with signed streaming would make it much harder, at a hosting cost.
 - The Android app plays the hosted audio inside a WebView; whether it keeps playing, and keeps reporting listening time, with the screen off must be tested on a device. If timers stop with the screen off, listening time is under-counted (safe direction), and a native audio plugin may be needed.
