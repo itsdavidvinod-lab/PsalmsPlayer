@@ -1,21 +1,21 @@
 # PsalmsPlayer: setup
 
-Where the build stands: the database and its rules, and the user website with the player layer: Google sign-in, a Spotify-style frame (tab bar on phones, sidebar on wide screens), a mini player that keeps playing across pages, hosted audio streaming, lyrics with transpose, a YouTube link-out, Home, Browse, Artist, Album, Settings. Library, Stage mode, the admin site, the Android app and iOS are not built yet. Until the admin site exists, songs and audio can only be added with SQL and the Storage upload.
+Where the build stands: the database and its rules, and the user website with the player layer: Google sign-in, a Spotify-style frame (tab bar on phones, sidebar on wide screens), a mini player that keeps playing across pages, hosted audio streaming, lyrics with transpose, a YouTube link-out, Home, Browse, Artist, Album, Settings, Library (liked songs, playlists, setlists with a key per song) and Stage mode (big text, key for the service, screen kept awake). The admin site, the Android app and iOS are not built yet. Until the admin site exists, songs and audio can only be added with SQL and the Storage upload.
 
 ## What is in this folder
 
 | Path | What it is | Checked |
 |---|---|---|
-| `supabase/migrations/0001..0007` | Tables, visibility rules, security, public API, listening time, hosted audio, audio rights | Run on a real Supabase stack in CI, and on plain Postgres 16 |
+| `supabase/migrations/0001..0008` | Tables, visibility rules, security, public API, listening time, hosted audio, audio rights, library rules | Run on a real Supabase stack in CI, and on plain Postgres 16 |
 | `supabase/seed.sql` | Fake development data (placeholder lyrics, a placeholder admin) | Run on a real Supabase stack in CI |
 | `supabase/tests/` | 94 assertions and 36 must-fail checks (users cannot read agreements, prices, end dates or hidden songs, or make themselves admin) | Pass on both; deliberate breakages are caught |
-| `src/lib/` | ChordPro parsing and transposing, YouTube link reading, share links, play queue, audio-link cache, listening-time reporter | 27 tests pass, strict TypeScript clean |
-| `src/app/`, `src/components/` | The website: `/login`, `/get`, and inside the app frame `/` (Home), `/browse`, `/artist/[slug]`, `/album/[slug]`, `/song/[slug]`, `/settings` | Built and type-checked in CI; browser-tested (see below) |
+| `src/lib/` | ChordPro parsing and transposing, YouTube link reading, share links, play queue, audio-link cache, listening-time reporter, Stage rules | 30 tests pass, strict TypeScript clean |
+| `src/app/`, `src/components/` | The website: `/login`, `/get`, and inside the app frame `/` (Home), `/browse`, `/artist/[slug]`, `/album/[slug]`, `/song/[slug]`, `/library`, `/library/[id]`, `/settings`, and without the frame `/stage/setlist/[id]`, `/stage/song/[slug]` | Built and type-checked in CI; browser-tested (see below) |
 | `e2e/` | Playwright tests that drive the built site and call the API against a real Supabase stack | Pass in CI |
 | `.github/workflows/checks.yml` | Runs everything above on every push | |
 | `docs/DECISIONS.md` | Rules you decided, and what is still open | |
 
-What the browser tests cover: a visitor who is not signed in is sent to login; Home shows only live songs and only posters inside their window; Settings changes which posters appear; artist, album and Browse pages hide what must be hidden (unavailable artists show a name only, a listener count appears only from 10 people); a song shows lyrics, transposes, links out to YouTube, switches versions, and can be liked; real audio plays through the mini player, which keeps playing across pages, moves to the next song and pauses; listening time counts only while the song is playing and audible; the audio bucket is private (no public or anonymous access, no link for a hidden song, only admins upload); hidden and unknown songs return the same "not available" page; and the API refuses anonymous or ordinary users anything they should not have (agreements, hidden lyrics, admin views, making themselves admin).
+What the browser tests cover: a visitor who is not signed in is sent to login; Home shows only live songs and only posters inside their window; Settings changes which posters appear; artist, album and Browse pages hide what must be hidden (unavailable artists show a name only, a listener count appears only from 10 people); a song shows lyrics, transposes, links out to YouTube, switches versions, and can be liked; real audio plays through the mini player, which keeps playing across pages, moves to the next song and pauses; listening time counts only while the song is playing and audible; the audio bucket is private (no public or anonymous access, no link for a hidden song, only admins upload); a setlist can be made, filled from song pages, reordered, given a key per song, renamed and deleted; lists are private to their owner; a song that stops being available keeps its slot and never shows its title; Stage mode moves through a setlist with the key chosen for the service, text size, chords toggle and a screen that stays on; hidden and unknown songs return the same "not available" page; and the API refuses anonymous or ordinary users anything they should not have (agreements, hidden lyrics, admin views, making themselves admin).
 
 Not checked: Google sign-in (needs your Google Cloud client), email confirmation (switched off in the local stack), whether the YouTube link opens the YouTube app on a phone, whether audio keeps playing with the screen off, and anything else on a phone.
 
@@ -34,7 +34,7 @@ Not checked: Google sign-in (needs your Google Cloud client), email confirmation
 ## First run on Supabase
 
 1. Create a project at supabase.com. Pick the region closest to your users.
-2. Open **SQL editor** and run these seven files in order, each in a new query: `0001_schema.sql`, `0002_rules.sql`, `0003_security.sql`, `0004_public_api.sql`, `0005_listening.sql`, `0006_audio.sql`, `0007_audio_rights.sql`.
+2. Open **SQL editor** and run these eight files in order, each in a new query: `0001_schema.sql`, `0002_rules.sql`, `0003_security.sql`, `0004_public_api.sql`, `0005_listening.sql`, `0006_audio.sql`, `0007_audio_rights.sql`, `0008_library.sql`.
 3. For a throwaway test project only, run `seed.sql` to get sample data. **Never run it on the real project.** Its placeholder admin cannot log in.
 4. Sign up once through the site (or **Authentication → Users → Add user**), copy your user id, and make yourself admin:
    ```sql
