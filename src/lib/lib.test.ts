@@ -327,3 +327,37 @@ test('formatClock', () => {
   assert.equal(formatClock(-5), '0:00');
   assert.equal(formatClock(Infinity), '0:00');
 });
+
+import { clampAdjust, clampSize, stageIndex, stageKeyLabel, stageSemitones, swipeDirection } from './stage.ts';
+
+test('Stage: the key chosen in the setlist plus the change made on stage', () => {
+  assert.equal(stageSemitones('G', null, 0), 0);
+  assert.equal(stageSemitones('G', 'G', 0), 0);
+  assert.equal(stageSemitones('G', 'A', 0), 2);
+  assert.equal(stageSemitones('G', 'F', 0), 10, 'down a tone is up ten');
+  assert.equal(stageSemitones('G', 'A', -1), 1);
+  assert.equal(stageSemitones(null, 'A', 2), 2, 'no key on the song: only the stage change applies');
+  assert.equal(stageKeyLabel('G', 2), 'A');
+  assert.equal(stageKeyLabel('G', 10), 'F');
+  assert.equal(stageKeyLabel('Em', 3), 'Gm');
+  assert.equal(stageKeyLabel(null, 3), null);
+});
+
+test('Stage: limits for size, key change and moving through the setlist', () => {
+  assert.equal(clampAdjust(9), 6);
+  assert.equal(clampAdjust(-9), -6);
+  assert.equal(clampSize(0.2), 1.2);
+  assert.equal(clampSize(9), 4);
+  assert.equal(clampSize(2.04), 2);
+  assert.equal(stageIndex(0, -1, 5), 0, 'cannot go before the first');
+  assert.equal(stageIndex(4, 1, 5), 4, 'cannot go past the last');
+  assert.equal(stageIndex(2, 1, 5), 3);
+  assert.equal(stageIndex(0, 1, 1), 0);
+});
+
+test('Stage: a swipe must be long and mostly sideways', () => {
+  assert.equal(swipeDirection(-120, 10), 1, 'left swipe goes to the next song');
+  assert.equal(swipeDirection(120, 10), -1, 'right swipe goes back');
+  assert.equal(swipeDirection(-30, 0), 0, 'too short');
+  assert.equal(swipeDirection(-100, 80), 0, 'mostly vertical: that is scrolling');
+});

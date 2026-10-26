@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { parseChordPro, prefersFlats, transposeKey, transposeLines } from '@/lib/chordpro';
 import { buildShareUrl, shareMessage, type ShareKind } from '@/lib/share';
+import LyricsBody from '@/components/LyricsBody';
 import { createClient } from '@/lib/supabase/client';
 import type { LyricsVersion, Song } from '@/lib/types';
+import AddToList from './AddToList';
 import PlayerPanel from './PlayerPanel';
 
 const VERSION_LABEL: Record<LyricsVersion['version'], string> = {
@@ -103,7 +105,9 @@ export default function SongView({ song, queue, lyrics, initiallyLiked, userId, 
         </button>
         <button type="button" className="btn" onClick={() => share('app')}>Share app link</button>
         <button type="button" className="btn" onClick={() => share('web')}>Share web link</button>
+        <Link href={`/stage/song/${song.slug}`} className="btn">Stage mode</Link>
       </div>
+      <AddToList songId={song.id} userId={userId} />
       {status ? <p className="notice" role="status">{status}</p> : null}
 
       {lyricsFailed ? (
@@ -145,25 +149,7 @@ export default function SongView({ song, queue, lyrics, initiallyLiked, userId, 
             </div>
           </div>
 
-          <div className="lyrics" style={{ '--lyric-size': `${size}rem` } as React.CSSProperties}>
-            {lines.map((line, i) => {
-              if (line.type === 'blank') return <div key={i} className="lyric-gap" />;
-              if (line.type === 'section') return <div key={i} className="lyric-section">{line.label}</div>;
-              if (!chordsOn) {
-                return <p key={i} className="lyric-line">{line.segments.map((s) => s.text).join('') || ' '}</p>;
-              }
-              return (
-                <p key={i} className="lyric-line">
-                  {line.segments.map((s, j) => (
-                    <span key={j} className="seg">
-                      <span className="seg-chord">{s.chord ?? ' '}</span>
-                      <span className="seg-text">{s.text || ' '}</span>
-                    </span>
-                  ))}
-                </p>
-              );
-            })}
-          </div>
+          <LyricsBody lines={lines} chordsOn={chordsOn} sizeRem={size} />
         </>
       )}
     </article>

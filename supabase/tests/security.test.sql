@@ -667,4 +667,82 @@ select test_helpers.expect_error($q$update public.songs set audio_path = 'd00000
 select test_helpers.expect_error($q$update public.songs set audio_path = 'd0000000-0000-0000-0000-000000000001/../x.mp3' where id = 'd0000000-0000-0000-0000-000000000001'$q$, '23514');
 rollback;
 
+-- ============================================================ library: adding, ordering, limits
+begin;
+insert into public.playlists (id, user_id, name) values ('99999999-2222-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'Belongs to user two');
+insert into public.playlist_items (id, playlist_id, song_id, position)
+  values ('99999999-3333-0000-0000-000000000001', '99999999-2222-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001', 1);
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$
+declare
+  pl uuid := '99999999-1111-0000-0000-000000000001';
+  a uuid; b uuid; c uuid; d uuid;
+begin
+  insert into public.playlists (id, user_id, name, kind, service_date)
+    values (pl, '11111111-1111-1111-1111-111111111111', 'Sunday', 'setlist', '2030-01-06');
+  a := public.add_to_playlist(pl, 'd0000000-0000-0000-0000-000000000001');
+  b := public.add_to_playlist(pl, 'd0000000-0000-0000-0000-000000000004');
+  c := public.add_to_playlist(pl, 'd0000000-0000-0000-0000-000000000001'); -- the same song twice is allowed
+  assert (select array_agg("position" order by "position") from public.my_playlist_items(pl)) = array[1, 2, 3], 'positions follow the order added';
+
+  perform public.reorder_playlist(pl, array[c, a, b]);
+  assert (select array_agg(item_id order by "position") from public.my_playlist_items(pl)) = array[c, a, b], 'reorder puts the items in the order given';
+
+  update public.playlist_items set key_override = 'F#m' where id = a;
+  assert (select key_override from public.my_playlist_items(pl) where item_id = a) = 'F#m', 'a key can be set per item';
+
+  delete from public.playlist_items where id = a;
+  d := public.add_to_playlist(pl, 'd0000000-0000-0000-0000-000000000004');
+  assert (select "position" from public.my_playlist_items(pl) where item_id = d) = 4, 'the next song goes after the highest position, even after a removal';
+  perform public.reorder_playlist(pl, array[d, c, b]);
+  assert (select array_agg("position" order by "position") from public.my_playlist_items(pl)) = array[1, 2, 3], 'reorder tidies the numbering';
+  raise notice 'ok: add, reorder and remove';
+end $$;
+
+select test_helpers.expect_error($q$select public.add_to_playlist('99999999-1111-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002')$q$, '42501'); -- hidden song
+select test_helpers.expect_error($q$select public.add_to_playlist('99999999-2222-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001')$q$, 'P0002'); -- someone else's list
+select test_helpers.expect_error($q$select public.reorder_playlist('99999999-2222-0000-0000-000000000001', array['99999999-3333-0000-0000-000000000001']::uuid[])$q$, 'P0002');
+select test_helpers.expect_error($q$select public.reorder_playlist('99999999-1111-0000-0000-000000000001', array['99999999-3333-0000-0000-000000000001']::uuid[])$q$, '22023'); -- not this list's item, and too few
+select test_helpers.expect_error($q$select public.reorder_playlist('99999999-1111-0000-0000-000000000001', (select array_agg(item_id order by "position") || (array_agg(item_id order by "position"))[1] from public.my_playlist_items('99999999-1111-0000-0000-000000000001')))$q$, '22023'); -- one item twice
+select test_helpers.expect_error($q$select public.reorder_playlist('99999999-1111-0000-0000-000000000001', (select array_agg(item_id) from (select item_id from public.my_playlist_items('99999999-1111-0000-0000-000000000001') order by "position" limit 2) x))$q$, '22023'); -- an item missing
+select test_helpers.expect_error($q$select public.reorder_playlist('99999999-1111-0000-0000-000000000001', (select array[arr[1], arr[1], arr[3]] from (select array_agg(item_id order by "position") as arr from public.my_playlist_items('99999999-1111-0000-0000-000000000001')) q))$q$, '22023'); -- right length, but one item twice and one left out
+select test_helpers.expect_error($q$update public.playlist_items set key_override = 'H#' where playlist_id = '99999999-1111-0000-0000-000000000001'$q$, '23514');
+select test_helpers.expect_error($q$update public.playlist_items set key_override = 'C7' where playlist_id = '99999999-1111-0000-0000-000000000001'$q$, '23514');
+select test_helpers.expect_error($q$insert into public.playlists (user_id, name, kind, service_date) values ('11111111-1111-1111-1111-111111111111', 'x', 'playlist', '2030-01-01')$q$, '23514'); -- a date belongs to a setlist
+select test_helpers.expect_error($q$insert into public.playlists (user_id, name) values ('11111111-1111-1111-1111-111111111111', '')$q$, '23514');
+reset role;
+
+set local role anon;
+select test_helpers.expect_error($q$select public.add_to_playlist('99999999-1111-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001')$q$, '42501');
+select test_helpers.expect_error($q$select public.reorder_playlist('99999999-1111-0000-0000-000000000001', array[]::uuid[])$q$, '42501');
+reset role;
+rollback;
+
+begin;
+-- limits: 100 lists per person, 200 songs per list
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  insert into public.playlists (user_id, name) select '11111111-1111-1111-1111-111111111111', 'List ' || g from generate_series(1, 100) g;
+  assert (select count(*) from public.playlists) = 100, 'a hundred lists are allowed';
+  raise notice 'ok: 100 lists';
+end $$;
+select test_helpers.expect_error($q$insert into public.playlists (user_id, name) values ('11111111-1111-1111-1111-111111111111', 'One too many')$q$, '54000');
+reset role;
+
+select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true);
+set local role authenticated;
+do $$
+declare pl uuid := '99999999-4444-0000-0000-000000000001';
+begin
+  insert into public.playlists (id, user_id, name) values (pl, '22222222-2222-2222-2222-222222222222', 'Another person can still make lists');
+  insert into public.playlist_items (playlist_id, song_id, position) select pl, 'd0000000-0000-0000-0000-000000000001', g from generate_series(1, 200) g;
+  assert (select count(*) from public.playlist_items where playlist_id = pl) = 200, 'two hundred songs are allowed';
+  raise notice 'ok: 200 songs; the 100-list limit is per person';
+end $$;
+select test_helpers.expect_error($q$select public.add_to_playlist('99999999-4444-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001')$q$, '54000');
+reset role;
+rollback;
+
 select 'database tests finished' as result;

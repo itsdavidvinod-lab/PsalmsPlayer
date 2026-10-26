@@ -40,3 +40,6 @@ export const ExternalIcon = ({ size = 18 }: IconProps) => (
     <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
   </svg>
 );
+export const LibraryIcon = ({ size = 22 }: IconProps) => (
+  <svg {...svg(size)} fill="currentColor"><path d="M4 4h3.5v16H4zM9.5 4H13v16H9.5zM15 5.2l3.4-.9 3 14.5-3.4.9z" /></svg>
+);

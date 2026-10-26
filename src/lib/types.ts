@@ -76,3 +76,30 @@ export type Album = {
   artist_slug: string;
   artist_name: string;
 };
+
+export type Playlist = {
+  id: string;
+  name: string;
+  kind: 'playlist' | 'setlist';
+  service_date: string | null;
+};
+
+/** One slot of a playlist or setlist. `song` is null when the song is not available right now: the slot keeps its place. */
+export type PlaylistRow = {
+  item_id: string;
+  position: number;
+  key_override: string | null;
+  song: Song | null;
+};
+
+/** One screen of Stage mode: a song with its lyrics, or a slot whose song is not available right now. */
+export type StageItem = {
+  id: string;
+  songId: string | null;
+  available: boolean;
+  title: string | null;
+  artist: string | null;
+  baseKey: string | null;
+  keyOverride: string | null;
+  lyrics: LyricsVersion[];
+};

@@ -7,13 +7,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { APP_NAME } from '@/lib/brand';
 import { BrandMark } from './Header';
-import { HomeIcon, SearchIcon, SettingsIcon } from './icons';
+import { HomeIcon, LibraryIcon, SearchIcon, SettingsIcon } from './icons';
 import MiniPlayer from './player/MiniPlayer';
 import { PlayerProvider, usePlayer } from './player/PlayerProvider';
 
 const NAV = [
   { href: '/', label: 'Home', Icon: HomeIcon },
   { href: '/browse', label: 'Browse', Icon: SearchIcon },
+  { href: '/library', label: 'Library', Icon: LibraryIcon },
   { href: '/settings', label: 'Settings', Icon: SettingsIcon },
 ];
 
