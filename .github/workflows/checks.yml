@@ -107,6 +107,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Browser and API tests
         run: npx playwright test
+        env:
+          E2E_PGURL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       - name: Stop Supabase
         if: always()
         run: supabase stop --no-backup

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { expect, type Page } from '@playwright/test';
 
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
@@ -52,4 +53,12 @@ export async function createApiUser(request: import('@playwright/test').APIReque
   expect(res.ok(), 'API sign-up should work on the local stack').toBeTruthy();
   const { token, userId } = await passwordToken(request, email);
   return { token, userId, email };
+}
+
+export const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Runs one SQL statement as the database owner (psql must be installed). Only for checking results, never for setup that the app itself should do. */
+export function sql(query: string): string {
+  const url = process.env.E2E_PGURL ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+  return execFileSync('psql', [url, '-At', '-v', 'ON_ERROR_STOP=1', '-c', query], { encoding: 'utf8' }).trim();
 }

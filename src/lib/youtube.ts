@@ -26,8 +26,9 @@ export function extractYoutubeId(input: string): string | null {
   return id && ID_RE.test(id) ? id : null;
 }
 
-/** Address of the embeddable player. Uses the privacy-friendly domain and keeps related videos to the same channel. */
+/** Address of the embeddable player. Uses the privacy-friendly domain and keeps related videos to the same channel.
+ *  enablejsapi lets the site learn whether the video is playing, which is how listening time is measured. */
 export function youtubeEmbedUrl(id: string): string {
   if (!ID_RE.test(id)) throw new Error('Invalid YouTube id');
-  return `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1`;
+  return `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
 }

@@ -61,6 +61,8 @@ select test_helpers.expect_error($q$select * from public.requests$q$,     '42501
 select test_helpers.expect_error($q$select * from public.posters$q$,      '42501');
 select test_helpers.expect_error($q$select * from public.audit_log$q$,    '42501');
 select test_helpers.expect_error($q$select * from public.play_events$q$,  '42501');
+select test_helpers.expect_error($q$select * from public.listen_sessions$q$, '42501');
+select test_helpers.expect_error($q$select * from public.record_listen(null, 'd0000000-0000-0000-0000-000000000001', 10)$q$, '42501');
 select test_helpers.expect_error($q$select * from public.profiles$q$,     '42501');
 select test_helpers.expect_error($q$select * from public.song_credits$q$, '42501');
 select test_helpers.expect_error($q$select * from public.get_lyrics('d0000000-0000-0000-0000-000000000001')$q$, '42501');
@@ -398,33 +400,159 @@ end $$;
 rollback;
 
 begin;
--- 3 recent listeners, then below the minimum
 insert into auth.users (id, email) select ('33333333-0000-0000-0000-' || lpad(g::text, 12, '0'))::uuid, 'l' || g || '@example.invalid' from generate_series(1, 12) g;
+-- 12 people opened lyrics: that is reading, not listening, so it must not count
 insert into public.play_events (user_id, song_id, kind)
-  select ('33333333-0000-0000-0000-' || lpad(g::text, 12, '0'))::uuid, 'd0000000-0000-0000-0000-000000000001', 'play' from generate_series(1, 3) g;
+  select ('33333333-0000-0000-0000-' || lpad(g::text, 12, '0'))::uuid, 'd0000000-0000-0000-0000-000000000001', 'lyrics_open' from generate_series(1, 12) g;
+-- 3 real listeners (40 s each), then below the minimum
+insert into public.listen_sessions (user_id, song_id, listened_s, qualified_at)
+  select ('33333333-0000-0000-0000-' || lpad(g::text, 12, '0'))::uuid, 'd0000000-0000-0000-0000-000000000001', 40, now() from generate_series(1, 3) g;
 set local role anon;
 do $$ begin
-  assert public.artist_monthly_listeners('a0000000-0000-0000-0000-000000000001') is null, 'below the minimum the number is hidden';
+  assert public.artist_monthly_listeners('a0000000-0000-0000-0000-000000000001') is null, 'below the minimum the number is hidden (lyrics opens do not count)';
   raise notice 'ok: monthly listeners hidden below minimum';
 end $$;
 reset role;
--- 9 more recent listeners (12 total), plus 5 old events that must not count
-insert into public.play_events (user_id, song_id, kind)
-  select ('33333333-0000-0000-0000-' || lpad(g::text, 12, '0'))::uuid, 'd0000000-0000-0000-0000-000000000004', 'lyrics_open' from generate_series(4, 12) g;
-insert into public.play_events (user_id, song_id, kind, created_at)
-  select '22222222-2222-2222-2222-222222222222', 'd0000000-0000-0000-0000-000000000001', 'play', now() - interval '40 days' from generate_series(1, 5);
+-- 9 more real listeners on another song of the same artist (12 total), plus things that must not count:
+-- someone who listened under 30 s, a qualified listen 40 days ago, and an admin who listened a lot
+insert into public.listen_sessions (user_id, song_id, listened_s, qualified_at)
+  select ('33333333-0000-0000-0000-' || lpad(g::text, 12, '0'))::uuid, 'd0000000-0000-0000-0000-000000000004', 35, now() from generate_series(4, 12) g;
+insert into public.listen_sessions (user_id, song_id, listened_s, qualified_at) values
+  ('22222222-2222-2222-2222-222222222222', 'd0000000-0000-0000-0000-000000000001', 12, null),
+  ('22222222-2222-2222-2222-222222222222', 'd0000000-0000-0000-0000-000000000001', 90, now() - interval '40 days'),
+  ('00000000-0000-0000-0000-0000000000aa', 'd0000000-0000-0000-0000-000000000001', 600, now());
 set local role anon;
 do $$ begin
-  assert public.artist_monthly_listeners('a0000000-0000-0000-0000-000000000001') = 12, '12 distinct users in 30 days, old events ignored, repeats not double counted';
+  assert public.artist_monthly_listeners('a0000000-0000-0000-0000-000000000001') = 12, '12 distinct people with 30+ s in 30 days; short, old, repeated and admin listens do not count';
   assert public.artist_monthly_listeners('a0000000-0000-0000-0000-000000000002') is null, 'unavailable artist shows no number';
   assert (select count(*) from public.trending_songs('{ta}', 'IN-TN')) = 1, 'trending respects language';
-  assert (select slug from public.trending_songs('{}', null) limit 1) = 'placeholder-single', 'the song with the most plays in the last 7 days ranks first';
+  assert (select slug from public.trending_songs('{}', null) limit 1) = 'placeholder-single', 'the song with the most listeners in the last 7 days ranks first';
   assert (select count(*) from public.trending_songs('{}', 'LK')) = 0, 'trending respects region';
   assert (select count(*) from public.trending_songs('{}', 'IN-KL')) = 2, 'same-country region matches';
   raise notice 'ok: monthly listeners and trending';
 end $$;
 rollback;
 
+-- ============================================================ record_listen: time cannot be forged
+begin;
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$
+declare r record; sid uuid;
+begin
+  select * into r from public.record_listen(null, 'd0000000-0000-0000-0000-000000000001', 20);
+  assert r.total_s = 0 and r.qualified = false, 'a new session only starts the clock';
+  sid := r.session_id;
+  select * into r from public.record_listen(sid, 'd0000000-0000-0000-0000-000000000001', 20);
+  assert r.total_s <= 1, 'claiming 20 s with no time passed is capped to the time that passed';
+  perform set_config('test.sid', sid::text, true);
+  perform set_config('test.before', r.total_s::text, true);
+  raise notice 'ok: new session and instant claim';
+end $$;
+-- pretend 60 s went by; a report of 100 s is still limited to 20 s per report
+reset role;
+update public.listen_sessions set last_beat_at = now() - interval '60 seconds' where id = current_setting('test.sid')::uuid;
+set local role authenticated;
+do $$
+declare r record; before_s int := current_setting('test.before')::int;
+begin
+  select * into r from public.record_listen(current_setting('test.sid')::uuid, 'd0000000-0000-0000-0000-000000000001', 100);
+  assert r.total_s - before_s = 20, 'one report credits at most 20 s';
+  assert r.qualified = false, 'about 21 s is not yet a listen';
+  raise notice 'ok: per-report cap';
+end $$;
+reset role;
+update public.listen_sessions set last_beat_at = now() - interval '20 seconds' where id = current_setting('test.sid')::uuid;
+set local role authenticated;
+do $$
+declare r record;
+begin
+  select * into r from public.record_listen(current_setting('test.sid')::uuid, 'd0000000-0000-0000-0000-000000000001', 20);
+  assert r.total_s between 40 and 42 and r.qualified = true, 'passing 30 s makes it a listen';
+  perform set_config('test.before', r.total_s::text, true);
+  -- a second session on another song starts now and shares the person's clock
+  perform public.record_listen(null, 'd0000000-0000-0000-0000-000000000004', 0);
+  raise notice 'ok: qualification';
+end $$;
+-- 20 s later the first session reports again, but the person's other session has just reported: no time is left to credit
+reset role;
+update public.listen_sessions set last_beat_at = now() - interval '20 seconds' where id = current_setting('test.sid')::uuid;
+set local role authenticated;
+do $$
+declare r record;
+begin
+  select * into r from public.record_listen(current_setting('test.sid')::uuid, 'd0000000-0000-0000-0000-000000000001', 20);
+  assert r.total_s - current_setting('test.before')::int <= 1, 'parallel sessions cannot add up to more than real time';
+  raise notice 'ok: shared clock';
+end $$;
+-- users cannot read or write the table directly
+do $$ begin
+  assert (select count(*) from public.listen_sessions) = 0, 'a normal user sees no listening rows, not even their own';
+end $$;
+select test_helpers.expect_error($q$insert into public.listen_sessions (user_id, song_id, listened_s, qualified_at) values ('11111111-1111-1111-1111-111111111111','d0000000-0000-0000-0000-000000000001', 99, now())$q$, '42501');
+select test_helpers.expect_error($q$update public.listen_sessions set listened_s = 86400$q$, '42501');
+select test_helpers.expect_error($q$delete from public.listen_sessions$q$, '42501');
+rollback;
+
+begin;
+-- hidden songs record nothing; another person's session id cannot be reused; daily cap; session flood limit
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$
+declare r record; sid uuid;
+begin
+  assert not exists (select 1 from public.record_listen(null, 'd0000000-0000-0000-0000-000000000002', 0)), 'hidden song: no session';
+  select * into r from public.record_listen(null, 'd0000000-0000-0000-0000-000000000001', 0);
+  sid := r.session_id;
+  perform set_config('test.sid', sid::text, true);
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true);
+set local role authenticated;
+do $$
+declare r record;
+begin
+  select * into r from public.record_listen(current_setting('test.sid')::uuid, 'd0000000-0000-0000-0000-000000000001', 20);
+  assert r.session_id <> current_setting('test.sid')::uuid and r.total_s = 0, 'someone else''s session id starts a fresh session instead';
+  raise notice 'ok: hidden song and foreign session';
+end $$;
+reset role;
+rollback;
+
+begin;
+-- daily cap: after 8 hours in a day nothing more is credited
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$
+declare r record;
+begin
+  select * into r from public.record_listen(null, 'd0000000-0000-0000-0000-000000000001', 0);
+  perform set_config('test.sid', r.session_id::text, true);
+end $$;
+reset role;
+update public.listen_sessions set listened_s = 28800, qualified_at = now(), last_beat_at = now() - interval '20 seconds'
+ where id = current_setting('test.sid')::uuid;
+set local role authenticated;
+do $$
+declare r record;
+begin
+  select * into r from public.record_listen(current_setting('test.sid')::uuid, 'd0000000-0000-0000-0000-000000000001', 20);
+  assert r.total_s = 28800, 'no credit after 8 hours in one day';
+  raise notice 'ok: daily cap';
+end $$;
+rollback;
+
+begin;
+-- session flood: at most 120 new sessions per hour per person
+insert into public.listen_sessions (user_id, song_id)
+  select '11111111-1111-1111-1111-111111111111', 'd0000000-0000-0000-0000-000000000001' from generate_series(1, 120);
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert not exists (select 1 from public.record_listen(null, 'd0000000-0000-0000-0000-000000000001', 0)), 'the 121st session in an hour is refused';
+  raise notice 'ok: session limit';
+end $$;
+rollback;
 begin;
 insert into auth.users (id, email) values ('44444444-0000-0000-0000-000000000001', 'x@example.invalid'), ('44444444-0000-0000-0000-000000000002', 'y@example.invalid');
 insert into public.song_likes (user_id, song_id) values

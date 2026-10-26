@@ -145,3 +145,41 @@ test('safeNextPath only allows paths on this site', () => {
   assert.equal(safeNextPath(null), '/');
   assert.equal(safeNextPath('', '/library'), '/library');
 });
+
+import { ListenMeter, MAX_STEP_MS } from './listen.ts';
+
+function clock(start = 0) {
+  let t = start;
+  return { now: () => t, advance: (ms: number) => { t += ms; } };
+}
+
+test('ListenMeter counts only while playing and audible', () => {
+  const c = clock();
+  const m = new ListenMeter(c.now);
+  c.advance(10_000);
+  assert.equal(m.take(), 0, 'nothing counted before play starts');
+  m.set(true);
+  c.advance(15_400);
+  assert.equal(m.take(), 15);
+  m.set(false); // paused or muted
+  c.advance(60_000);
+  assert.equal(m.take(), 0, 'paused time is not counted');
+  m.set(true);
+  c.advance(3_000);
+  m.set(true); // repeated calls change nothing
+  c.advance(2_000);
+  assert.equal(m.take(), 5, 'the 0.4 s remainder from before carries over (0.4 + 5.0 = 5.4 s)');
+});
+
+test('ListenMeter keeps the sub-second remainder and never counts a sleeping device as hours of listening', () => {
+  const c = clock();
+  const m = new ListenMeter(c.now);
+  m.set(true);
+  c.advance(1_500);
+  assert.equal(m.take(), 1);
+  c.advance(600);
+  assert.equal(m.take(), 1, '0.5 s remainder + 0.6 s = 1.1 s');
+  c.advance(8 * 3600 * 1000); // laptop asleep, then the poll fires once
+  assert.equal(m.take(), MAX_STEP_MS / 1000, 'one step is capped');
+  assert.equal(m.take(), 0);
+});

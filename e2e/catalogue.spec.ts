@@ -2,7 +2,7 @@
 // where nobody has opened this artist's songs yet. Re-running locally against the same database will fail that check;
 // run `supabase db reset` first.
 import { expect, test } from '@playwright/test';
-import { SUPABASE_URL, apiHeaders, createApiUser, signUpAndIn, uniqueEmail } from './helpers';
+import { SUPABASE_URL, apiHeaders, createApiUser, signUpAndIn, sleep, uniqueEmail } from './helpers';
 
 const HIDDEN_TITLES = ['Placeholder Song Two', 'Placeholder Song Three', 'Placeholder Hymn', 'Placeholder Takedown'];
 const SONG_ONE_ID = 'd0000000-0000-0000-0000-000000000001';
@@ -86,24 +86,50 @@ test('Browse lists live songs and artists, hides the rest, and survives odd sear
   for (const t of HIDDEN_TITLES) await expect(page.getByText(t)).toHaveCount(0);
 });
 
-test('monthly listeners appear once 10 different signed-in people have opened the artist\'s songs', async ({ page, request }) => {
-  for (let i = 0; i < 10; i++) {
-    const u = await createApiUser(request, `listener${i}`);
-    const res = await request.post(`${SUPABASE_URL}/rest/v1/rpc/record_play`, {
-      headers: apiHeaders(u.token),
-      data: { p_song: SONG_ONE_ID, p_kind: 'lyrics_open' },
+test('monthly listeners count people who really listened for 30+ seconds, not people who opened lyrics', async ({ page, request }) => {
+  test.setTimeout(180_000);
+  const range = (n: number) => Array.from({ length: n }, (_, i) => i);
+  type Beat = { session_id: string; total_s: number; qualified: boolean };
+  const beat = async (token: string, session: string | null, seconds: number): Promise<Beat> => {
+    const res = await request.post(`${SUPABASE_URL}/rest/v1/rpc/record_listen`, {
+      headers: apiHeaders(token),
+      data: { p_session: session, p_song: SONG_ONE_ID, p_seconds: seconds },
     });
-    expect(res.ok(), 'record_play should accept a signed-in listener').toBeTruthy();
-  }
-  // The same person opening the song again within 30 minutes must not count twice.
-  const again = await createApiUser(request, 'repeat');
-  for (let i = 0; i < 3; i++) {
-    await request.post(`${SUPABASE_URL}/rest/v1/rpc/record_play`, { headers: apiHeaders(again.token), data: { p_song: SONG_ONE_ID, p_kind: 'lyrics_open' } });
-  }
+    expect(res.ok(), 'record_listen should accept a signed-in listener').toBeTruthy();
+    return ((await res.json()) as Beat[])[0];
+  };
+
+  // Twelve people open the lyrics. Reading is not listening: they must not become listeners.
+  const readers = await Promise.all(range(12).map((i) => createApiUser(request, `reader${i}`)));
+  await Promise.all(
+    readers.map((u) => request.post(`${SUPABASE_URL}/rest/v1/rpc/record_play`, { headers: apiHeaders(u.token), data: { p_song: SONG_ONE_ID, p_kind: 'lyrics_open' } })),
+  );
+
+  // Ten people press play and keep listening. One more person runs three sessions at once to try to speed time up.
+  const listeners = await Promise.all(range(10).map((i) => createApiUser(request, `listener${i}`)));
+  const cheat = await createApiUser(request, 'cheat');
+  const started = await Promise.all(listeners.map((u) => beat(u.token, null, 0)));
+  const cheatSessions = await Promise.all(range(3).map(() => beat(cheat.token, null, 0)));
+
+  // Claiming 20 seconds the moment a session starts earns (almost) nothing.
+  const instant = await beat(listeners[0].token, started[0].session_id, 20);
+  expect(instant.total_s, 'time that has not passed cannot be claimed').toBeLessThanOrEqual(1);
+
+  await sleep(16_000);
+  // Everyone reports 16 seconds. The cheat reports 16 seconds on all three sessions at the same instant.
+  const second = await Promise.all([
+    ...listeners.map((u, i) => beat(u.token, started[i].session_id, 16)),
+    ...cheatSessions.map((s) => beat(cheat.token, s.session_id, 16)),
+  ]);
+  const cheatTotal = second.slice(10).reduce((sum, b) => sum + b.total_s, 0);
+  expect(cheatTotal, `three parallel sessions must share one clock (credited ${cheatTotal} s for 16 s of real time)`).toBeLessThanOrEqual(20);
+
+  await sleep(16_000);
+  const third = await Promise.all(listeners.map((u, i) => beat(u.token, started[i].session_id, 16)));
+  for (const b of third) expect(b.qualified, `a listener with ${b.total_s} s should now count`).toBeTruthy();
 
   await signUpAndIn(page, uniqueEmail('listeners'));
   await page.goto('/artist/grace-worship');
-  const text = await page.getByText(/monthly listeners/).innerText();
-  const n = Number(text.replace(/[^\d]/g, ''));
-  expect(n, text).toBe(11); // ten listeners + the one who opened it three times, counted once
+  // 10 real listeners. The 12 readers, the cheat (under 30 s) and anyone else do not count.
+  await expect(page.getByText(/monthly listeners/)).toHaveText('10 monthly listeners');
 });

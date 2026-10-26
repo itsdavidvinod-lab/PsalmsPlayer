@@ -6,7 +6,7 @@ import { parseChordPro, prefersFlats, transposeKey, transposeLines } from '@/lib
 import { buildShareUrl, shareMessage, type ShareKind } from '@/lib/share';
 import { createClient } from '@/lib/supabase/client';
 import type { LyricsVersion, Song } from '@/lib/types';
-import { youtubeEmbedUrl } from '@/lib/youtube';
+import SongPlayer from './SongPlayer';
 
 const VERSION_LABEL: Record<LyricsVersion['version'], string> = {
   original: 'Original',
@@ -93,18 +93,7 @@ export default function SongView({ song, lyrics, initiallyLiked, userId, lyricsF
         </p>
       </div>
 
-      {song.youtube_id ? (
-        <div className="video">
-          <iframe
-            src={youtubeEmbedUrl(song.youtube_id)}
-            title={`${song.title} on YouTube`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            loading="lazy"
-          />
-        </div>
-      ) : null}
+      {song.youtube_id ? <SongPlayer songId={song.id} youtubeId={song.youtube_id} title={song.title} /> : null}
 
       <div className="toolbar">
         <button type="button" className="btn" onClick={toggleLike} aria-pressed={liked}>
