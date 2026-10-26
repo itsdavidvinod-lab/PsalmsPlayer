@@ -6,6 +6,9 @@ import {
 } from './chordpro.ts';
 import { extractYoutubeId, youtubeWatchUrl } from './youtube.ts';
 import { buildShareUrl, safeNextPath } from './share.ts';
+import {
+  visibilityLabel, slugify, isValidSlug, isHttpsUrl, isUuid, parseOptionalInt, daysLeftLabel, explainAdminError,
+} from './admin-text.ts';
 
 test('transposeChord moves roots and keeps quality and bass', () => {
   assert.equal(transposeChord('G', 2), 'A');
@@ -360,4 +363,57 @@ test('Stage: a swipe must be long and mostly sideways', () => {
   assert.equal(swipeDirection(120, 10), -1, 'right swipe goes back');
   assert.equal(swipeDirection(-30, 0), 0, 'too short');
   assert.equal(swipeDirection(-100, 80), 0, 'mostly vertical: that is scrolling');
+});
+
+test('Admin: reasons, addresses and links are checked the same way the database does', () => {
+  assert.equal(visibilityLabel('live'), 'Live');
+  assert.equal(visibilityLabel('agreement_inactive'), 'No verified agreement in force');
+  assert.equal(visibilityLabel('taken_down'), 'Taken down by an admin');
+  assert.equal(visibilityLabel('something_new'), 'something_new', 'an unknown code is shown as it is, never hidden');
+  assert.equal(visibilityLabel(null), 'Unknown');
+
+  assert.equal(slugify('Grace Worship Team'), 'grace-worship-team');
+  assert.equal(slugify('  Café & Choir!! '), 'cafe-choir');
+  assert.equal(slugify('தமிழ்'), '', 'no Latin letters: the admin must type the address');
+  assert.equal(slugify('a'.repeat(120)).length, 80);
+  assert.equal(slugify('x'.repeat(79) + ' y'), 'x'.repeat(79), 'a cut never leaves a trailing hyphen');
+
+  assert.equal(isValidSlug('grace-worship'), true);
+  assert.equal(isValidSlug('Grace'), false);
+  assert.equal(isValidSlug('grace--worship'), false);
+  assert.equal(isValidSlug('-grace'), false);
+  assert.equal(isValidSlug(''), false);
+  assert.equal(isValidSlug('a'.repeat(81)), false);
+
+  assert.equal(isHttpsUrl('https://example.org/a.jpg'), true);
+  assert.equal(isHttpsUrl('http://example.org/a.jpg'), false);
+  assert.equal(isHttpsUrl('javascript:alert(1)'), false);
+  assert.equal(isHttpsUrl('data:image/png;base64,AAAA'), false);
+  assert.equal(isHttpsUrl('https://localhost/x'), false);
+  assert.equal(isHttpsUrl('not a url'), false);
+
+  assert.equal(isUuid('a0000000-0000-0000-0000-000000000001'), true);
+  assert.equal(isUuid('a0000000-0000-0000-0000-00000000000'), false);
+  assert.equal(isUuid("1' or '1'='1"), false);
+});
+
+test('Admin: optional numbers, day counts and error messages', () => {
+  assert.deepEqual(parseOptionalInt('', 1900, 2100), { ok: true, value: null });
+  assert.deepEqual(parseOptionalInt(' 2024 ', 1900, 2100), { ok: true, value: 2024 });
+  assert.deepEqual(parseOptionalInt('1899', 1900, 2100), { ok: false });
+  assert.deepEqual(parseOptionalInt('20x4', 1900, 2100), { ok: false });
+  assert.deepEqual(parseOptionalInt('20.5', 1900, 2100), { ok: false });
+
+  assert.equal(daysLeftLabel(null), 'No agreement in force');
+  assert.equal(daysLeftLabel(0), 'Expires today');
+  assert.equal(daysLeftLabel(1), '1 day left');
+  assert.equal(daysLeftLabel(12), '12 days left');
+  assert.equal(daysLeftLabel(-1), 'Expired 1 day ago');
+  assert.equal(daysLeftLabel(-3), 'Expired 3 days ago');
+
+  assert.match(explainAdminError({ code: '23505' }), /already uses/);
+  assert.match(explainAdminError({ code: '23514', message: 'Unknown genre: x' }), /Unknown genre: x/);
+  assert.match(explainAdminError({ code: '42501' }), /Not allowed/);
+  assert.match(explainAdminError({ message: 'boom' }), /boom/);
+  assert.equal(explainAdminError({}), 'Could not save.');
 });

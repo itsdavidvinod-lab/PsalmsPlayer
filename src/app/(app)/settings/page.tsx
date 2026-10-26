@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { Language, Profile, Region } from '@/lib/types';
@@ -27,6 +28,11 @@ export default async function SettingsPage() {
     <div>
       <h1 style={{ fontSize: '1.6rem', margin: '8px 0 4px' }}>Settings</h1>
       <p className="muted">{user.email}</p>
+      {profile.role === 'admin' ? (
+        <p>
+          <Link href="/admin" className="btn">Open the admin site</Link>
+        </p>
+      ) : null}
       {failed ? <p className="error" role="alert">Settings could not be loaded. Please refresh in a moment.</p> : null}
       <SettingsForm
         userId={user.id}
