@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import Header from '@/components/Header';
 import { createClient } from '@/lib/supabase/server';
 import type { Language, Profile, Region } from '@/lib/types';
 import SettingsForm from './SettingsForm';
@@ -25,8 +24,7 @@ export default async function SettingsPage() {
   const failed = Boolean(profileRes.error || languagesRes.error || regionsRes.error);
 
   return (
-    <div className="wrap">
-      <Header />
+    <div>
       <h1 style={{ fontSize: '1.6rem', margin: '8px 0 4px' }}>Settings</h1>
       <p className="muted">{user.email}</p>
       {failed ? <p className="error" role="alert">Settings could not be loaded. Please refresh in a moment.</p> : null}

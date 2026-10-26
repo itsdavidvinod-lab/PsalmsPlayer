@@ -2,8 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import Cover from '@/components/Cover';
-import Header from '@/components/Header';
-import SongRow from '@/components/SongRow';
+import SongList from '@/components/SongRow';
 import { createClient } from '@/lib/supabase/server';
 import type { Artist, Language, Song } from '@/lib/types';
 
@@ -44,8 +43,7 @@ export default async function BrowsePage({ searchParams }: { searchParams: Promi
   const artists = (artistsRes.data ?? []) as Artist[];
 
   return (
-    <div className="wrap">
-      <Header />
+    <div>
       <h1 style={{ fontSize: '1.6rem', margin: '8px 0 0' }}>Browse</h1>
       <form className="search" role="search" action="/browse" method="get">
         <input className="input" type="search" name="q" defaultValue={q} placeholder="Search songs and artists" aria-label="Search songs and artists" maxLength={60} />
@@ -80,11 +78,7 @@ export default async function BrowsePage({ searchParams }: { searchParams: Promi
       {songs.length > 0 ? (
         <section className="section" aria-labelledby="songs">
           <h2 id="songs">Songs</h2>
-          <div className="song-list">
-            {songs.map((s) => (
-              <SongRow key={s.id} song={s} />
-            ))}
-          </div>
+          <SongList songs={songs} />
         </section>
       ) : null}
 

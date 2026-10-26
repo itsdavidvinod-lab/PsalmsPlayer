@@ -54,12 +54,14 @@ test('choosing language and region in Settings changes the posters on Home', asy
   await expect(page.locator('.poster-cap strong')).toHaveText(['Poster both', 'Poster everyone']);
 });
 
-test('a live song shows lyrics, transposes, offers the video and can be liked', async ({ page }) => {
+test('a live song shows lyrics, transposes, links out to YouTube and can be liked', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('song'));
   await page.goto('/song/placeholder-song-one');
   await expect(page.getByRole('heading', { name: 'Placeholder Song One' })).toBeVisible();
   await expect(page.getByText('Placeholder line one of the')).toBeVisible();
-  await expect(page.locator('iframe[src*="youtube-nocookie.com/embed/dQw4w9WgXcQ"]')).toHaveCount(1);
+  // YouTube is a link out only: nothing from YouTube is embedded in the page.
+  await expect(page.locator('iframe')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Watch on YouTube' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
   // Transpose from G up two semitones to A; the first chord on screen follows.
   await expect(page.locator('.seg-chord').first()).toHaveText('G');
@@ -83,11 +85,12 @@ test('a live song shows lyrics, transposes, offers the video and can be liked', 
   await expect(page.getByRole('button', { name: '♡ Like' })).toBeVisible();
 });
 
-test('a live song whose YouTube link failed its check has no video', async ({ page }) => {
+test('a live song whose YouTube link failed its check has no YouTube link', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('single'));
   await page.goto('/song/placeholder-single');
   await expect(page.getByRole('heading', { name: 'Placeholder Single' })).toBeVisible();
   await expect(page.locator('iframe')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Watch on YouTube' })).toHaveCount(0);
   expect(await page.content()).not.toContain('abcdefghijk');
 });
 

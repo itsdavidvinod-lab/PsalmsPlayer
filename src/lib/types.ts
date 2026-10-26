@@ -22,6 +22,8 @@ export type Song = {
   album_title: string | null;
   youtube_id: string | null;
   like_count: number;
+  /** True when an audio file is hosted for the song. The file's path itself is never sent to the browser. */
+  has_audio: boolean;
 };
 
 export type Poster = {

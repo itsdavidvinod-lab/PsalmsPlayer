@@ -6,7 +6,7 @@ import { parseChordPro, prefersFlats, transposeKey, transposeLines } from '@/lib
 import { buildShareUrl, shareMessage, type ShareKind } from '@/lib/share';
 import { createClient } from '@/lib/supabase/client';
 import type { LyricsVersion, Song } from '@/lib/types';
-import SongPlayer from './SongPlayer';
+import PlayerPanel from './PlayerPanel';
 
 const VERSION_LABEL: Record<LyricsVersion['version'], string> = {
   original: 'Original',
@@ -16,13 +16,15 @@ const VERSION_LABEL: Record<LyricsVersion['version'], string> = {
 
 type Props = {
   song: Song;
+  /** The songs that play after this one when it is started from this page. */
+  queue: Song[];
   lyrics: LyricsVersion[];
   initiallyLiked: boolean;
   userId: string;
   lyricsFailed: boolean;
 };
 
-export default function SongView({ song, lyrics, initiallyLiked, userId, lyricsFailed }: Props) {
+export default function SongView({ song, queue, lyrics, initiallyLiked, userId, lyricsFailed }: Props) {
   const [versionIdx, setVersionIdx] = useState(0);
   const [semitones, setSemitones] = useState(0);
   const [showChords, setShowChords] = useState(true);
@@ -93,7 +95,7 @@ export default function SongView({ song, lyrics, initiallyLiked, userId, lyricsF
         </p>
       </div>
 
-      {song.youtube_id ? <SongPlayer songId={song.id} youtubeId={song.youtube_id} title={song.title} /> : null}
+      <PlayerPanel song={song} queue={queue} />
 
       <div className="toolbar">
         <button type="button" className="btn" onClick={toggleLike} aria-pressed={liked}>

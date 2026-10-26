@@ -3,11 +3,18 @@
 ## Chosen
 - Stack: Next.js (TypeScript) for the website and admin, wrapped with Capacitor for the Android app, then iOS.
 - Backend: Supabase (Postgres, login, file storage, row-level security).
-- Login at launch: email and Google. Phone OTP later if needed.
+- Login: Google only (the Email provider is switched off in the hosted Supabase project; that setting is the real enforcement). Any Google account works; there is no restriction to gmail.com. Phone OTP later if needed.
 - Build order: website for users and admin first, then the Android APK, then iOS.
 - Website: Next.js 15 (App Router) with the Supabase browser/server clients. Every page except login, the sign-in callback and the public `/get` landing page requires a login (a choice made while building; say if browsing should be public).
 - Hidden songs and unknown addresses return the same "not available" page, so nobody can tell that a hidden song exists.
 - A share "app link" goes to `/get`, which for now points people to the web because the apps are not published.
+
+## Player and media (decided with the owner)
+- The product centres on lyrics and the music player. The look follows Spotify: dark, a tab bar on phones, a sidebar on wide screens, and a mini player that stays on every page. Tapping the mini player opens the song page, which holds the lyrics.
+- Admins upload the audio file themselves (any common format: MP3, M4A/AAC, WAV, OGG/Opus, FLAC, WebM; up to 100 MB each). Files are streamed to signed-in users through one-hour links, and only while the song is live.
+- YouTube is a link out only: a "Watch on YouTube" link in the song page and the mini player opens YouTube (the YouTube app on a phone). Nothing from YouTube is embedded, and our audio pauses when the link is tapped.
+- Dark theme only for now; all colours are variables, so a light theme is a second block of values.
+- Songs without an audio file are lyrics-only: they show a "Lyrics" tag and no play button.
 
 ## Product rules
 - Catalogue is curated by the owner. Songs and lyrics are uploaded for artists under a signed agreement. Uploading is free of cost.
@@ -18,12 +25,12 @@
 - Buyers pay for eligibility to be shown, not views. If it cannot be shown, the full amount is refunded.
 - Region and language live in Settings. Posters are shown by region and language: both, either, or everyone.
 - Monthly listeners = distinct signed-in people (admins excluded) who played a song by the artist, audibly, for at least 30 seconds in the last 30 days. Hidden below 10. Trending uses the same listening time over 7 days. Opening lyrics does not count.
-- How listening time is kept honest: the song page reports play time from the YouTube player every 15 s; the database credits only what the clock allows (shared across all of a person's sessions, one report at a time, 20 s per report, 8 h per day, 120 new sessions per hour). Muted or paused video does not count.
+- How listening time is kept honest: the player reports play time from the audio element every 15 s; the database credits only what the clock allows (shared across all of a person's sessions, one report at a time, 20 s per report, 8 h per day, 120 new sessions per hour). Muted, paused or buffering audio does not count.
 
 ## Open
 - Tamil and other Indian-language lyrics use the device's own font for now. Check them on real phones and add a web font if any look wrong.
 - Listening time is reported by the browser, so someone who writes a script that waits in real time on many real accounts can still inflate a count. Email confirmation and a CAPTCHA on sign-up (Supabase settings) are the defence; the choice is still open. Hosted audio with signed streaming would make it much harder, at a hosting cost.
-- The Android app plays YouTube inside a WebView; whether the player reports state correctly there, and whether it keeps playing with the screen off, must be tested on a device.
+- The Android app plays the hosted audio inside a WebView; whether it keeps playing, and keeps reporting listening time, with the screen off must be tested on a device. If timers stop with the screen off, listening time is under-counted (safe direction), and a native audio plugin may be needed.
 - Sign-up sends a confirmation email on the hosted project (turn it on in Supabase) but not on the local stack. Pick the production setting before launch.
 - What is refunded when a poster is taken down after part of its run (for example day 12 of 15).
 - How a requester is verified before a poster or song goes live (the database only stores that it was done).
@@ -31,6 +38,6 @@
 - Who watches the expiry list. The database exposes `v_expiry_watch`; nothing sends reminders yet.
 - Whether unavailable setlist slots should keep the song title. Today they show position only.
 - Playlist versus setlist: kept as one list type with a kind flag. Confirm that is what you want.
-- Equalizer: only possible for audio the app hosts. YouTube embeds cannot be equalized.
+- Equalizer: possible now that the app hosts the audio. Not built.
 - Offline Stage mode in the Android app: needs a local copy of the user's setlist lyrics and a purge when a song is hidden.
 - Tax and invoicing for promotion income, and a lawyer's review of the agreement.

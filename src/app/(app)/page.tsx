@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import Header from '@/components/Header';
-import SongRow from '@/components/SongRow';
+import SongList from '@/components/SongRow';
 import { createClient } from '@/lib/supabase/server';
 import type { Poster, Profile, Song } from '@/lib/types';
 
@@ -23,11 +22,7 @@ function SongSection({ title, songs }: { title: string; songs: Song[] }) {
   return (
     <section className="section" aria-labelledby={`h-${title}`}>
       <h2 id={`h-${title}`}>{title}</h2>
-      <div className="song-list">
-        {songs.map((s) => (
-          <SongRow key={s.id} song={s} />
-        ))}
-      </div>
+      <SongList songs={songs} />
     </section>
   );
 }
@@ -64,8 +59,7 @@ export default async function HomePage() {
   const nothingToShow = posters.length + trending.length + mostLiked.length + suggested.length === 0;
 
   return (
-    <div className="wrap">
-      <Header />
+    <div>
       <h1 style={{ fontSize: '1.6rem', margin: '8px 0 12px' }}>
         {profile.display_name ? `Welcome, ${profile.display_name}` : 'Welcome'}
       </h1>

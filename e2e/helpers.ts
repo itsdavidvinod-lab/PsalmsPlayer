@@ -62,3 +62,63 @@ export function sql(query: string): string {
   const url = process.env.E2E_PGURL ?? 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
   return execFileSync('psql', [url, '-At', '-v', 'ON_ERROR_STOP=1', '-c', query], { encoding: 'utf8' }).trim();
 }
+
+export const SONG_ONE_ID = 'd0000000-0000-0000-0000-000000000001'; // live, on the album "Morning Light", has a (working) YouTube link
+export const SONG_TWO_ID = 'd0000000-0000-0000-0000-000000000002'; // hidden: its artist's agreement is incomplete
+export const SINGLE_ID = 'd0000000-0000-0000-0000-000000000004'; // live, no album, its YouTube link failed its check
+
+/** A silent mono 8-bit WAV file. Tiny, valid, and playable in headless Chromium. */
+export function silentWav(seconds: number, sampleRate = 8000): Buffer {
+  const dataLen = seconds * sampleRate;
+  const buf = Buffer.alloc(44 + dataLen, 0x80); // 8-bit PCM silence is 0x80
+  buf.write('RIFF', 0);
+  buf.writeUInt32LE(36 + dataLen, 4);
+  buf.write('WAVE', 8);
+  buf.write('fmt ', 12);
+  buf.writeUInt32LE(16, 16);
+  buf.writeUInt16LE(1, 20); // PCM
+  buf.writeUInt16LE(1, 22); // mono
+  buf.writeUInt32LE(sampleRate, 24);
+  buf.writeUInt32LE(sampleRate, 28); // bytes per second
+  buf.writeUInt16LE(1, 32); // bytes per sample frame
+  buf.writeUInt16LE(8, 34); // bits per sample
+  buf.write('data', 36);
+  buf.writeUInt32LE(dataLen, 40);
+  return buf;
+}
+
+let adminCache: { token: string; userId: string } | null = null;
+
+/** An administrator, made the way the real one will be: a normal account whose profile role is then set in the database. */
+export async function adminUser(request: import('@playwright/test').APIRequestContext): Promise<{ token: string; userId: string }> {
+  if (adminCache) return adminCache;
+  const u = await createApiUser(request, 'audio-admin');
+  sql(`update public.profiles set role = 'admin' where id = '${u.userId}'`);
+  adminCache = { token: u.token, userId: u.userId };
+  return adminCache;
+}
+
+/** Gives a song a hosted audio file the way the admin site will: upload to the private bucket, then record the path on the song.
+ *  Safe to call twice; the second call does nothing. Returns the storage path. */
+export async function ensureAudio(request: import('@playwright/test').APIRequestContext, songId: string, seconds = 120): Promise<string> {
+  const existing = sql(`select coalesce(audio_path, '') from public.songs where id = '${songId}'`);
+  if (existing) return existing;
+  const admin = await adminUser(request);
+  const path = `${songId}/e2e-silence.wav`;
+  const wav = silentWav(seconds);
+  const res = await request.post(`${SUPABASE_URL}/storage/v1/object/audio/${path}`, {
+    headers: { apikey: ANON_KEY, Authorization: `Bearer ${admin.token}`, 'Content-Type': 'audio/wav', 'x-upsert': 'true' },
+    data: wav,
+  });
+  expect(res.ok(), `admin upload to the audio bucket failed: ${res.status()} ${await res.text()}`).toBeTruthy();
+  sql(`update public.songs set audio_path = '${path}', audio_mime = 'audio/wav', audio_bytes = ${wav.length} where id = '${songId}'`);
+  return path;
+}
+
+/** Seconds the page's audio element has played to, or -1 when there is none. */
+export async function audioTime(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const el = document.querySelector('audio');
+    return el ? el.currentTime : -1;
+  });
+}

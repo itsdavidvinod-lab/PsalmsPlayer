@@ -2,8 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import Cover from '@/components/Cover';
-import Header from '@/components/Header';
-import SongRow from '@/components/SongRow';
+import SongList from '@/components/SongRow';
 import { createClient } from '@/lib/supabase/server';
 import type { Album, Artist, Song } from '@/lib/types';
 
@@ -26,8 +25,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
   // An artist whose agreement is not in force keeps a name and a placeholder. The reason (and any date) is never shown.
   if (!artist.available) {
     return (
-      <div className="wrap">
-        <Header />
+      <div>
         <div className="hero">
           <Cover url={null} name={artist.name} size={96} round />
           <div>
@@ -58,8 +56,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
   const listeners = typeof listenersRes.data === 'number' ? listenersRes.data : null;
 
   return (
-    <div className="wrap">
-      <Header />
+    <div>
       <div className="hero">
         <Cover url={artist.photo_url} name={artist.name} size={96} round />
         <div>
@@ -79,11 +76,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
       {songs.length > 0 ? (
         <section className="section" aria-labelledby="popular">
           <h2 id="popular">Popular songs</h2>
-          <div className="song-list">
-            {songs.map((s) => (
-              <SongRow key={s.id} song={s} />
-            ))}
-          </div>
+          <SongList songs={songs} />
         </section>
       ) : null}
 

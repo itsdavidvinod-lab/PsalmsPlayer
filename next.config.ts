@@ -10,7 +10,7 @@ const config: NextConfig = {
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
-          // YouTube embeds need a referrer to play, so do not use "no-referrer".
+          // Sign-in and Storage links work with the default origin-only referrer for cross-site requests.
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],

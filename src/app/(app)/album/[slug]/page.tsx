@@ -2,8 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import Cover from '@/components/Cover';
-import Header from '@/components/Header';
-import SongRow from '@/components/SongRow';
+import SongList from '@/components/SongRow';
 import { createClient } from '@/lib/supabase/server';
 import type { Album, Song } from '@/lib/types';
 
@@ -28,8 +27,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ slug: st
   const songs = (data ?? []) as Song[];
 
   return (
-    <div className="wrap">
-      <Header />
+    <div>
       <div className="hero">
         <Cover url={album.cover_url} name={album.title} size={96} />
         <div>
@@ -43,11 +41,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ slug: st
 
       <section className="section" aria-label="Tracks">
         {songs.length > 0 ? (
-          <div className="song-list">
-            {songs.map((s) => (
-              <SongRow key={s.id} song={s} />
-            ))}
-          </div>
+          <SongList songs={songs} />
         ) : (
           <div className="card empty">No songs from this album are available right now.</div>
         )}

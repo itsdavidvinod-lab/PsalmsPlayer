@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   parseChordPro, transposeChord, transposeKey, transposeLines, semitonesBetween, prefersFlats, stripChords, toPlainText,
 } from './chordpro.ts';
-import { extractYoutubeId, youtubeEmbedUrl } from './youtube.ts';
+import { extractYoutubeId, youtubeWatchUrl } from './youtube.ts';
 import { buildShareUrl, safeNextPath } from './share.ts';
 
 test('transposeChord moves roots and keeps quality and bass', () => {
@@ -125,9 +125,10 @@ test('extractYoutubeId rejects everything else', () => {
   assert.equal(extractYoutubeId('not a url at all'), null);
 });
 
-test('embed URL is built only from a valid id', () => {
-  assert.match(youtubeEmbedUrl('dQw4w9WgXcQ'), /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?/);
-  assert.throws(() => youtubeEmbedUrl('x"><script>'));
+test('the YouTube link-out is built only from a valid id', () => {
+  assert.equal(youtubeWatchUrl('dQw4w9WgXcQ'), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  assert.throws(() => youtubeWatchUrl('x"><script>'));
+  assert.throws(() => youtubeWatchUrl('dQw4w9WgXcQ&autoplay=1'));
 });
 
 test('share links: app link and web login link', () => {
@@ -182,4 +183,147 @@ test('ListenMeter keeps the sub-second remainder and never counts a sleeping dev
   c.advance(8 * 3600 * 1000); // laptop asleep, then the poll fires once
   assert.equal(m.take(), MAX_STEP_MS / 1000, 'one step is capped');
   assert.equal(m.take(), 0);
+});
+
+import { ListenReporter, BEAT_MS } from './listen-reporter.ts';
+import { nextIndex, playableQueue, previousStep } from './queue.ts';
+import { SignedUrlCache } from './signed-url-cache.ts';
+import { formatClock } from './format.ts';
+
+type Call = { session: string | null; song: string; seconds: number };
+
+function recorder(answer: (n: number) => Promise<string | null> | string | null = () => 'S1') {
+  const calls: Call[] = [];
+  const rpc = async (session: string | null, song: string, seconds: number) => {
+    calls.push({ session, song, seconds });
+    return answer(calls.length);
+  };
+  return { calls, rpc };
+}
+
+test('ListenReporter: silence and muted time are never reported', async () => {
+  const c = clock();
+  const r = recorder();
+  const rep = new ListenReporter('song-1', r.rpc, c.now);
+  for (let i = 0; i < 60; i++) { c.advance(1000); rep.tick(false); }
+  await rep.settled();
+  assert.equal(r.calls.length, 0, 'not even a session is opened before anything plays');
+});
+
+test('ListenReporter: opens a session at the first moment of play, reports every 15 s and on pause', async () => {
+  const c = clock();
+  const r = recorder();
+  const rep = new ListenReporter('song-1', r.rpc, c.now);
+  for (let i = 1; i <= 40; i++) { c.advance(1000); rep.tick(true); }
+  c.advance(1000);
+  rep.tick(false); // paused
+  await rep.settled();
+
+  assert.deepEqual(r.calls[0], { session: null, song: 'song-1', seconds: 0 }, 'first call opens the session and credits nothing');
+  const reports = r.calls.slice(1);
+  assert.ok(reports.every((x) => x.session === 'S1' && x.seconds > 0 && x.seconds <= BEAT_MS / 1000 + 1), 'every report belongs to the session and is a beat or less');
+  assert.ok(reports.length >= 3, 'two beats and the remainder on pause');
+  const total = reports.reduce((n, x) => n + x.seconds, 0);
+  assert.equal(total, 40, '40 s of ticks that counted (the clock starts at the first counted tick) are all reported');
+});
+
+test('ListenReporter: pausing and muting stop the clock; resuming continues in the same session', async () => {
+  const c = clock();
+  const r = recorder();
+  const rep = new ListenReporter('song-1', r.rpc, c.now);
+  for (let i = 0; i < 10; i++) { c.advance(1000); rep.tick(true); }
+  for (let i = 0; i < 120; i++) { c.advance(1000); rep.tick(false); } // two minutes muted
+  for (let i = 0; i < 5; i++) { c.advance(1000); rep.tick(true); }
+  c.advance(1000);
+  rep.tick(false);
+  await rep.settled();
+  const total = r.calls.reduce((n, x) => n + x.seconds, 0);
+  assert.ok(total >= 13 && total <= 15, `about 15 s were heard, reported ${total}`);
+  assert.equal(r.calls.filter((x) => x.session === null).length, 1, 'one session for the whole song');
+});
+
+test('ListenReporter: if the session cannot be opened nothing is credited, and a failure never breaks later reports', async () => {
+  const c = clock();
+  let first = true;
+  const r = recorder(async () => {
+    if (first) { first = false; throw new Error('offline'); }
+    return 'S2';
+  });
+  const rep = new ListenReporter('song-1', r.rpc, c.now);
+  for (let i = 0; i < 20; i++) { c.advance(1000); rep.tick(true); }
+  c.advance(1000);
+  rep.tick(false);
+  await rep.settled();
+  assert.ok(r.calls.every((x) => x.session === null || x.seconds > 0), 'sanity');
+  assert.ok(r.calls.filter((x) => x.seconds > 0).every((x) => x.session !== null), 'seconds are never sent without a session');
+});
+
+test('ListenReporter.end() reports what was heard', async () => {
+  const c = clock();
+  const r = recorder();
+  const rep = new ListenReporter('song-1', r.rpc, c.now);
+  for (let i = 0; i < 8; i++) { c.advance(1000); rep.tick(true); }
+  c.advance(500);
+  await rep.end();
+  const total = r.calls.reduce((n, x) => n + x.seconds, 0);
+  assert.ok(total >= 7 && total <= 8, `reported ${total}`);
+});
+
+test('play queue: songs without a hosted file are skipped and the start follows', () => {
+  const songs = [
+    { id: 'a', has_audio: false },
+    { id: 'b', has_audio: true },
+    { id: 'c', has_audio: false },
+    { id: 'd', has_audio: true },
+  ];
+  assert.deepEqual(playableQueue(songs, 'd'), { queue: [songs[1], songs[3]], index: 1 });
+  assert.equal(playableQueue(songs, 'a'), null, 'a song with no audio cannot start a queue');
+  assert.equal(playableQueue(songs, 'zzz'), null);
+  assert.equal(nextIndex(2, 0), 1);
+  assert.equal(nextIndex(2, 1), null, 'the end of the queue');
+});
+
+test('Previous restarts after 3 seconds and goes back otherwise', () => {
+  assert.deepEqual(previousStep(2, 10), { restart: true, index: 2 });
+  assert.deepEqual(previousStep(2, 1), { restart: false, index: 1 });
+  assert.deepEqual(previousStep(0, 1), { restart: true, index: 0 }, 'the first song just restarts');
+  assert.deepEqual(previousStep(2, 3), { restart: false, index: 1 }, 'exactly 3 seconds still goes back');
+});
+
+test('SignedUrlCache reuses links for 50 minutes, shares one request, and never keeps a failure', async () => {
+  const c = clock();
+  let n = 0;
+  let fail = false;
+  const cache = new SignedUrlCache(async (id) => {
+    n++;
+    if (fail) return null;
+    return `https://files.example/${id}?t=${n}`;
+  }, c.now);
+
+  const [a, b] = await Promise.all([cache.get('s1'), cache.get('s1')]);
+  assert.equal(a, b);
+  assert.equal(n, 1, 'two simultaneous requests make one call');
+  c.advance(49 * 60_000);
+  assert.equal(await cache.get('s1'), a, 'still fresh at 49 minutes');
+  c.advance(2 * 60_000);
+  assert.notEqual(await cache.get('s1'), a, 'renewed after 50 minutes');
+  assert.equal(n, 2);
+
+  cache.invalidate('s1');
+  fail = true;
+  assert.equal(await cache.get('s1'), null);
+  fail = false;
+  assert.ok(await cache.get('s1'), 'a failure is not remembered');
+
+  const thrower = new SignedUrlCache(async () => { throw new Error('network'); }, c.now);
+  assert.equal(await thrower.get('x'), null, 'a thrown error becomes "no link"');
+});
+
+test('formatClock', () => {
+  assert.equal(formatClock(0), '0:00');
+  assert.equal(formatClock(65.9), '1:05');
+  assert.equal(formatClock(3725), '1:02:05');
+  assert.equal(formatClock(Number.NaN), '0:00');
+  assert.equal(formatClock(-5), '0:00');
+  assert.equal(formatClock(Infinity), '0:00');
 });
