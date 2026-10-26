@@ -6,7 +6,7 @@ import {
   isChordName, isKnownDirective,
 } from './chordpro.ts';
 import { checkChordPro } from './lyrics-check.ts';
-import { AUDIO_MAX_BYTES, checkAudioFile, audioObjectName, audioHostingState } from './audio-file.ts';
+import { AUDIO_MAX_BYTES, checkAudioFile, audioObjectName, audioHostingState, durationSeconds, audioDisplayName, mmss, sizeLabel, indiaToday } from './audio-file.ts';
 import { extractYoutubeId, youtubeWatchUrl } from './youtube.ts';
 import { buildShareUrl, safeNextPath } from './share.ts';
 import {
@@ -504,4 +504,30 @@ test('Admin audio: whether the agreement in force lets the file play', () => {
   assert.equal(audioHostingState([], '2026-10-27').reason, 'No verified agreement is in force for this artist.');
   assert.equal(audioHostingState([{ ...ok, allow_audio_hosting: false }, ok], '2026-10-27').ok, true, 'any agreement in force that allows it is enough');
   assert.equal(audioHostingState([{ ...ok, starts_on: null }], '2026-10-27').ok, false);
+});
+
+test('Admin audio: durations, names, sizes and the India date', () => {
+  assert.equal(durationSeconds(2.61), 3);
+  assert.equal(durationSeconds(411.4), 411);
+  assert.equal(durationSeconds(0.2), null, 'under half a second rounds to zero, which the database refuses');
+  assert.equal(durationSeconds(0), null);
+  assert.equal(durationSeconds(-5), null);
+  assert.equal(durationSeconds(Number.NaN), null);
+  assert.equal(durationSeconds(Number.POSITIVE_INFINITY), null, 'a stream with no known end');
+  assert.equal(durationSeconds(25 * 3600), null);
+
+  assert.equal(audioDisplayName('d0000000-0000-0000-0000-000000000001/nanna-kadege-abc.mp3'), 'nanna-kadege-abc.mp3');
+  assert.equal(audioDisplayName('plain.mp3'), 'plain.mp3');
+  assert.equal(mmss(0), '0:00');
+  assert.equal(mmss(65), '1:05');
+  assert.equal(mmss(411), '6:51');
+  assert.equal(sizeLabel(9_873_856), '9.4 MB');
+  assert.equal(sizeLabel(50 * 1024 * 1024), '50 MB');
+  assert.equal(sizeLabel(300), '1 KB');
+  assert.equal(sizeLabel(512 * 1024), '512 KB');
+
+  // 21:00 UTC on the 26th is already 02:30 on the 27th in India.
+  assert.equal(indiaToday(new Date('2026-10-26T21:00:00Z')), '2026-10-27');
+  assert.equal(indiaToday(new Date('2026-10-26T18:29:59Z')), '2026-10-26');
+  assert.equal(indiaToday(new Date('2026-10-26T18:30:00Z')), '2026-10-27');
 });

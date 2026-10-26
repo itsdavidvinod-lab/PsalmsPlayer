@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAdmin } from '@/lib/admin';
 import { loadSongChoices } from '@/lib/admin-data';
-import type { AdminCredit, AdminLyrics, AdminSong } from '@/lib/admin-types';
+import type { AdminAudio, AdminCredit, AdminLyrics, AdminSong } from '@/lib/admin-types';
+import { audioHostingState, indiaToday, type AgreementTerms } from '@/lib/audio-file';
 import { isUuid, visibilityHint, visibilityLabel } from '@/lib/admin-text';
+import AudioSection from '../../AudioSection';
 import CreditsSection from '../../CreditsSection';
 import LyricsEditor from '../../LyricsEditor';
 import SongForm from '../../SongForm';
@@ -18,7 +20,7 @@ export default async function AdminSongPage({ params }: { params: Promise<{ id: 
   if (!isUuid(id)) notFound();
   const { supabase } = await requireAdmin(`/admin/songs/${id}`);
 
-  const [songRes, visRes, creditsRes, lyricsRes, choices] = await Promise.all([
+  const [songRes, visRes, creditsRes, lyricsRes, audioRes, choices] = await Promise.all([
     supabase
       .from('songs')
       .select('id, artist_id, album_id, slug, title, language_code, musical_key, tempo_bpm, track_no, genres, occasions, moods, youtube_id, youtube_status, youtube_checked_at, is_published, hidden_by_admin, hidden_note, published_at')
@@ -27,6 +29,7 @@ export default async function AdminSongPage({ params }: { params: Promise<{ id: 
     supabase.rpc('admin_song_visibility', { p_song: id }),
     supabase.from('song_credits').select('id, song_id, person_name, role, contact, consent_status, consent_ref, consent_expires_on').eq('song_id', id).order('created_at'),
     supabase.from('lyrics').select('id, version, language_code, body').eq('song_id', id),
+    supabase.from('songs').select('audio_path, audio_mime, audio_bytes, duration_s').eq('id', id).maybeSingle(),
     loadSongChoices(supabase),
   ]);
   if (!songRes.data) notFound();
@@ -35,8 +38,11 @@ export default async function AdminSongPage({ params }: { params: Promise<{ id: 
   const visibility = typeof visRes.data === 'string' ? visRes.data : null;
   const credits = (creditsRes.data ?? []) as AdminCredit[];
   const lyrics = (lyricsRes.data ?? []) as AdminLyrics[];
+  const audio = (audioRes.data ?? { audio_path: null, audio_mime: null, audio_bytes: null, duration_s: null }) as AdminAudio;
+  const agreementsRes = await supabase.from('agreements').select('status, starts_on, expires_on, allow_audio_hosting').eq('artist_id', song.artist_id);
+  const hosting = audioHostingState((agreementsRes.data ?? []) as AgreementTerms[], indiaToday(new Date()));
   const artistName = choices.artists.find((a) => a.id === song.artist_id)?.name ?? 'Artist';
-  const failed = Boolean(visRes.error || creditsRes.error || lyricsRes.error || choices.failed);
+  const failed = Boolean(visRes.error || creditsRes.error || lyricsRes.error || audioRes.error || agreementsRes.error || choices.failed);
   const live = visibility === 'live';
 
   return (
@@ -82,6 +88,11 @@ export default async function AdminSongPage({ params }: { params: Promise<{ id: 
       <section className="section" aria-labelledby="lyrics">
         <h2 id="lyrics">Lyrics</h2>
         <LyricsEditor songId={song.id} songLanguage={song.language_code} rows={lyrics} languages={choices.languages} />
+      </section>
+
+      <section className="section" aria-labelledby="recording">
+        <h2 id="recording">Recording</h2>
+        <AudioSection songId={song.id} audio={audio} hosting={hosting} />
       </section>
 
       <section className="section" aria-labelledby="youtube">

@@ -135,3 +135,12 @@ export async function signInAsAdmin(page: Page): Promise<{ email: string; userId
 
 export const GRACE_ID = 'a0000000-0000-0000-0000-000000000001'; // published, agreement in force (audio hosting allowed)
 export const SHALOM_ID = 'a0000000-0000-0000-0000-000000000002'; // published, agreement expired
+
+/** A silent MP3: whole MPEG-1 Layer III frames (128 kbps, 44.1 kHz, stereo) with nothing in them. 417 bytes and about 26 ms each.
+ *  Tiny, valid, and its length (frames x 26 ms) can be worked out from the file size alone, as a browser does for such files. */
+export function silentMp3(frames: number): Buffer {
+  const frameBytes = 417;
+  const buf = Buffer.alloc(frameBytes * frames, 0);
+  for (let i = 0; i < frames; i++) buf.set([0xff, 0xfb, 0x90, 0x00], i * frameBytes);
+  return buf;
+}

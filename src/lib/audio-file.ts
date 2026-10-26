@@ -1,7 +1,7 @@
 // Which audio files the admin site accepts, and what they are called in storage. Pure, so it is tested with the other shared logic.
 import { slugify } from './admin-text.ts';
 
-/** The free Supabase plan refuses files over 50 MB. A paid plan can raise this with NEXT_PUBLIC_AUDIO_MAX_MB. */
+/** The free Supabase plan refuses files over 50 MB. On a paid plan raise this number (the bucket itself allows 100 MB). */
 export const AUDIO_MAX_BYTES = 50 * 1024 * 1024;
 
 export type AudioMime = 'audio/mpeg' | 'audio/mp4' | 'audio/aac';
@@ -44,4 +44,33 @@ export function audioHostingState(agreements: AgreementTerms[], today: string): 
   if (inForce.length === 0) return { ok: false, reason: 'No verified agreement is in force for this artist.' };
   if (!inForce.some((a) => a.allow_audio_hosting)) return { ok: false, reason: 'The agreement in force does not allow audio hosting.' };
   return { ok: true, reason: 'The agreement in force allows audio hosting.' };
+}
+
+/** The length of a recording as the whole seconds the database stores, or null when the browser could not read it. */
+export function durationSeconds(raw: number): number | null {
+  if (!Number.isFinite(raw) || raw <= 0) return null;
+  const whole = Math.round(raw);
+  return whole >= 1 && whole <= 24 * 3600 ? whole : null;
+}
+
+/** The file name an admin recognises: the stored name without its folder. */
+export function audioDisplayName(path: string): string {
+  const slash = path.lastIndexOf('/');
+  return slash >= 0 ? path.slice(slash + 1) : path;
+}
+
+/** "3:07" for a length in seconds. */
+export function mmss(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+export function sizeLabel(bytes: number): string {
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${megabytes(bytes)} MB`;
+}
+
+/** Today's date (YYYY-MM-DD) in India, which is how the database reads "valid through the end of that day". */
+export function indiaToday(now: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
 }

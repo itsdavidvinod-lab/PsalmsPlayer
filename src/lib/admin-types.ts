@@ -111,3 +111,11 @@ export type AdminLyrics = {
 
 export type ArtistOption = { id: string; name: string };
 export type AlbumOption = { id: string; artist_id: string; title: string };
+
+/** The hosted recording of a song (columns of songs). All null when none is uploaded. */
+export type AdminAudio = {
+  audio_path: string | null;
+  audio_mime: string | null;
+  audio_bytes: number | null;
+  duration_s: number | null;
+};
