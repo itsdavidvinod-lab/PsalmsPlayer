@@ -77,11 +77,16 @@ test('a live song shows lyrics, transposes, links out to YouTube and can be like
   await page.getByRole('button', { name: 'Meaning' }).click();
   await expect(page.getByText('Placeholder meaning line one')).toBeVisible();
 
+  // The button changes at once and saves in the background: wait for the save before reloading, or the reload can cancel it.
+  const saved = page.waitForResponse((r) => r.url().includes('/rest/v1/song_likes') && r.request().method() === 'POST');
   await page.getByRole('button', { name: '♡ Like' }).click();
+  expect((await saved).ok(), 'the like is saved').toBeTruthy();
   await expect(page.getByRole('button', { name: '♥ Liked' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('button', { name: '♥ Liked' })).toBeVisible();
+  const removed = page.waitForResponse((r) => r.url().includes('/rest/v1/song_likes') && r.request().method() === 'DELETE');
   await page.getByRole('button', { name: '♥ Liked' }).click();
+  expect((await removed).ok(), 'the like is removed').toBeTruthy();
   await expect(page.getByRole('button', { name: '♡ Like' })).toBeVisible();
 });
 
