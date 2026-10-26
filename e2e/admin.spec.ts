@@ -1,20 +1,11 @@
 // Admin site: who can open it, what the dashboard shows, and creating and editing artists and albums.
 // Runs on the real Supabase stack. Anything created here is deleted again so the other specs see the seed data only.
-import { expect, test, type Page } from '@playwright/test';
-import { signUpAndIn, sql, uniqueEmail } from './helpers';
+import { expect, test } from '@playwright/test';
+import { signInAsAdmin, signUpAndIn, sql, uniqueEmail } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
 const SEED_ARTIST_ID = 'a0000000-0000-0000-0000-000000000001';
-
-/** A normal account made an admin the way the real one is: the role is set in the database, never through the site. */
-async function signInAsAdmin(page: Page): Promise<{ email: string; userId: string }> {
-  const email = uniqueEmail('admin-ui');
-  await signUpAndIn(page, email);
-  const userId = sql(`select id from auth.users where email = '${email}'`);
-  sql(`update public.profiles set role = 'admin' where id = '${userId}'`);
-  return { email, userId };
-}
 
 test.afterAll(() => {
   sql(`delete from public.artists where slug like 'e2e-artist-%'`);

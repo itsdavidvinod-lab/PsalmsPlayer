@@ -38,14 +38,21 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
   await expect(titles).toHaveText(['Placeholder Song One', 'Placeholder Single']);
 
   // Reorder: the new order survives a reload (it is saved, not just shown).
-  await page.getByRole('button', { name: 'Move Placeholder Single up' }).click();
+  // The page updates at once and saves in the background, so wait for the save before reloading.
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/rpc/reorder_playlist') && r.ok()),
+    page.getByRole('button', { name: 'Move Placeholder Single up' }).click(),
+  ]);
   await expect(titles).toHaveText(['Placeholder Single', 'Placeholder Song One']);
   await page.reload();
   await expect(titles).toHaveText(['Placeholder Single', 'Placeholder Song One']);
   await expect(page.getByRole('button', { name: 'Move Placeholder Single up' })).toBeDisabled();
 
   // A key for this service only: the song itself is not changed.
-  await page.getByLabel('Key for Placeholder Song One').selectOption('A');
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/rest/v1/playlist_items') && r.request().method() === 'PATCH' && r.ok()),
+    page.getByLabel('Key for Placeholder Song One').selectOption('A'),
+  ]);
   await page.reload();
   await expect(page.getByLabel('Key for Placeholder Song One')).toHaveValue('A');
 
@@ -58,7 +65,10 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
   await expect(page.getByText('Setlist · 2030-01-13 · 2 songs')).toBeVisible();
 
   // Remove a song.
-  await page.getByRole('button', { name: 'Remove Placeholder Single' }).click();
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/rest/v1/playlist_items') && r.request().method() === 'DELETE' && r.ok()),
+    page.getByRole('button', { name: 'Remove Placeholder Single' }).click(),
+  ]);
   await expect(titles).toHaveText(['Placeholder Song One']);
   await page.reload();
   await expect(titles).toHaveText(['Placeholder Song One']);

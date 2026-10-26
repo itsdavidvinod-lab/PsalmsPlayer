@@ -122,3 +122,16 @@ export async function audioTime(page: Page): Promise<number> {
     return el ? el.currentTime : -1;
   });
 }
+
+/** A normal account made an admin the way the real one is: the role is set in the database, never through the site.
+ *  The browser ends up signed in on Home; the role is read on every request, so /admin works at once. */
+export async function signInAsAdmin(page: Page): Promise<{ email: string; userId: string }> {
+  const email = uniqueEmail('admin-ui');
+  await signUpAndIn(page, email);
+  const userId = sql(`select id from auth.users where email = '${email}'`);
+  sql(`update public.profiles set role = 'admin' where id = '${userId}'`);
+  return { email, userId };
+}
+
+export const GRACE_ID = 'a0000000-0000-0000-0000-000000000001'; // published, agreement in force (audio hosting allowed)
+export const SHALOM_ID = 'a0000000-0000-0000-0000-000000000002'; // published, agreement expired

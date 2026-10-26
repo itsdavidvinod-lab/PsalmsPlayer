@@ -3,11 +3,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseChordPro, transposeChord, transposeKey, transposeLines, semitonesBetween, prefersFlats, stripChords, toPlainText,
+  isChordName, isKnownDirective,
 } from './chordpro.ts';
+import { checkChordPro } from './lyrics-check.ts';
 import { extractYoutubeId, youtubeWatchUrl } from './youtube.ts';
 import { buildShareUrl, safeNextPath } from './share.ts';
 import {
   visibilityLabel, slugify, isValidSlug, isHttpsUrl, isUuid, parseOptionalInt, daysLeftLabel, explainAdminError,
+  visibilityHint, youtubeStatusLabel, KEY_CHOICES, isMusicalKey,
 } from './admin-text.ts';
 
 test('transposeChord moves roots and keeps quality and bass', () => {
@@ -416,4 +419,46 @@ test('Admin: optional numbers, day counts and error messages', () => {
   assert.match(explainAdminError({ code: '42501' }), /Not allowed/);
   assert.match(explainAdminError({ message: 'boom' }), /boom/);
   assert.equal(explainAdminError({}), 'Could not save.');
+});
+
+test('Admin: the lyrics checker warns about typos and never blocks', () => {
+  assert.equal(isChordName('G'), true);
+  assert.equal(isChordName('C#m7'), true);
+  assert.equal(isChordName('Bb/D'), true);
+  assert.equal(isChordName('N.C.'), true);
+  for (const ok of ['Gadd9', 'Cmaj7', 'F7(b9)', 'Em7b5', 'A7sus4', 'D/F#', 'Dm', 'Fsus2', 'Abdim']) assert.equal(isChordName(ok), true, ok);
+  assert.equal(isChordName('H'), false);
+  assert.equal(isChordName('Gx'), false);
+  assert.equal(isChordName(''), false);
+  assert.equal(isKnownDirective('comment'), true);
+  assert.equal(isKnownDirective('SOC'), true);
+  assert.equal(isKnownDirective('define'), false);
+
+  assert.deepEqual(checkChordPro('{comment: Verse 1}\n[G]Line of [C]lyrics\n\n{soc}\n[D]Chorus [G/B]line\n{eoc}'), []);
+  assert.deepEqual(checkChordPro('[G]Fine\r\n[Em7]Also fine'), []);
+  assert.deepEqual(checkChordPro('[G Line without a close'), [{ line: 1, message: 'A chord bracket [ is never closed.' }]);
+  assert.deepEqual(checkChordPro('Line] stray'), [{ line: 1, message: 'A closing bracket ] has no opening [.' }]);
+  assert.deepEqual(checkChordPro('[[G]]x'), [{ line: 1, message: 'A chord bracket [ is opened twice.' }]);
+  assert.deepEqual(checkChordPro('[]x'), [{ line: 1, message: 'There is an empty chord [].' }]);
+  assert.deepEqual(checkChordPro('[Hm]x'), [{ line: 1, message: '"Hm" does not look like a chord.' }]);
+  assert.deepEqual(checkChordPro('{define: x}\n[G]x'), [{ line: 1, message: 'The directive {define} is not supported and will be ignored.' }]);
+  assert.deepEqual(checkChordPro('{comment: unfinished\n[G]x'), [{ line: 1, message: 'A directive starts with { but does not end with }.' }]);
+  assert.deepEqual(checkChordPro('   \n'), [{ line: 0, message: 'There are no lyric lines yet.' }]);
+  assert.equal(checkChordPro('[G]a\n[Q]b\n[C]c')[0].line, 2, 'the line number points at the mistake');
+});
+
+test('Admin: hints, link status words and key choices', () => {
+  assert.match(visibilityHint('no_writer'), /writer/i);
+  assert.match(visibilityHint('agreement_inactive'), /agreement/i);
+  assert.equal(visibilityHint('live'), '');
+  assert.equal(visibilityHint(null), '');
+  assert.match(youtubeStatusLabel('ok'), /shown to users/);
+  assert.match(youtubeStatusLabel('channel_mismatch'), /hidden/);
+  assert.equal(youtubeStatusLabel('new_status'), 'new_status');
+  assert.equal(KEY_CHOICES.length, 24);
+  assert.equal(new Set(KEY_CHOICES).size, 24);
+  assert.ok(KEY_CHOICES.every(isMusicalKey), 'every offered key is accepted by the database rule');
+  assert.equal(isMusicalKey('C7'), false);
+  assert.equal(isMusicalKey('g'), false);
+  assert.equal(isMusicalKey(''), false);
 });

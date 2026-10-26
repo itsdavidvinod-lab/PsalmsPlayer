@@ -67,7 +67,7 @@ export default async function AdminDashboard() {
         ) : (
           <div className="grid-list">
             {hidden.map((s) => (
-              <Link key={s.id} href={`/admin/artists/${s.artist_id}`} className="row-link">
+              <Link key={s.id} href={`/admin/songs/${s.id}`} className="row-link">
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="song-title">{s.title}</div>
                   <div className="small muted">{s.artist_name}</div>

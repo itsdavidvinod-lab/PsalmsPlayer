@@ -87,3 +87,54 @@ export function explainAdminError(error: AdminError): string {
       return `Could not save${error.message ? `: ${error.message}` : ''}.`;
   }
 }
+
+const HINTS: Record<string, string> = {
+  taken_down: 'Switch off "Taken down" below to bring it back.',
+  not_published: 'Tick "Published" below when the song is ready.',
+  artist_not_published: 'Publish the artist first.',
+  agreement_inactive: 'The artist needs a verified agreement that is in date.',
+  no_writer: 'Add a writer under Credits.',
+  consent_missing: 'Every writer and owner needs consent marked as granted under Credits.',
+  consent_expired: 'A consent date has passed. Renew it under Credits.',
+};
+
+/** What to do about a hidden song. Empty for a live song. */
+export function visibilityHint(code: string | null | undefined): string {
+  return code ? HINTS[code] ?? '' : '';
+}
+
+const YOUTUBE_LABELS: Record<string, string> = {
+  unchecked: 'Not checked yet',
+  ok: 'OK: shown to users',
+  channel_mismatch: 'Wrong channel: hidden from users',
+  not_embeddable: 'Cannot be embedded: still shown as a link',
+  missing: 'Video is gone: hidden from users',
+};
+
+export function youtubeStatusLabel(status: string): string {
+  return YOUTUBE_LABELS[status] ?? status;
+}
+
+/** The song key choices in the order a picker shows them: major keys, then minor keys, spelled the usual way. */
+export const KEY_CHOICES: string[] = [
+  'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B',
+  'Am', 'A#m', 'Bm', 'Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m',
+];
+
+/** The same key shape the database accepts for a song or a setlist item. */
+export function isMusicalKey(value: string): boolean {
+  return /^[A-G][#b]?m?$/.test(value);
+}
+
+export const CREDIT_ROLES = [
+  { value: 'writer', label: 'Writer' },
+  { value: 'owner', label: 'Owner' },
+  { value: 'performer', label: 'Performer' },
+  { value: 'translator', label: 'Translator' },
+] as const;
+
+export const CONSENT_STATUSES = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'granted', label: 'Granted' },
+  { value: 'revoked', label: 'Revoked' },
+] as const;

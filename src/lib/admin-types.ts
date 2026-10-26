@@ -61,3 +61,53 @@ export type ExpiryRow = {
   expires_on: string;
   days_left: number;
 };
+
+export type YoutubeStatus = 'unchecked' | 'ok' | 'channel_mismatch' | 'not_embeddable' | 'missing';
+
+export type AdminSong = {
+  id: string;
+  artist_id: string;
+  album_id: string | null;
+  slug: string;
+  title: string;
+  language_code: string;
+  musical_key: string | null;
+  tempo_bpm: number | null;
+  track_no: number | null;
+  genres: string[];
+  occasions: string[];
+  moods: string[];
+  youtube_id: string | null;
+  youtube_status: YoutubeStatus;
+  youtube_checked_at: string | null;
+  is_published: boolean;
+  hidden_by_admin: boolean;
+  hidden_note: string | null;
+  published_at: string | null;
+};
+
+export type CreditRole = 'writer' | 'owner' | 'performer' | 'translator';
+export type ConsentStatus = 'pending' | 'granted' | 'revoked';
+
+export type AdminCredit = {
+  id: string;
+  song_id: string;
+  person_name: string;
+  role: CreditRole;
+  contact: string | null;
+  consent_status: ConsentStatus;
+  consent_ref: string | null;
+  consent_expires_on: string | null;
+};
+
+export type LyricsVersionName = 'original' | 'romanized' | 'meaning';
+
+export type AdminLyrics = {
+  id: string;
+  version: LyricsVersionName;
+  language_code: string | null;
+  body: string;
+};
+
+export type ArtistOption = { id: string; name: string };
+export type AlbumOption = { id: string; artist_id: string; title: string };

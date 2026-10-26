@@ -66,17 +66,20 @@ export default async function AdminArtistPage({ params }: { params: Promise<{ id
 
       <section className="section" aria-labelledby="songs">
         <h2 id="songs">Songs</h2>
+        <p style={{ margin: '0 0 12px' }}>
+          <Link href={`/admin/songs/new?artist=${artist.id}`} className="btn btn-primary">Add a song</Link>
+        </p>
         {songs.length === 0 ? (
           <p className="muted small">No songs yet.</p>
         ) : (
           <div className="grid-list">
             {songs.map((s) => (
-              <div key={s.id} className="row-link">
+              <Link key={s.id} href={`/admin/songs/${s.id}`} className="row-link">
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="song-title">{s.title}</div>
                 </div>
                 <span className={s.visibility === 'live' ? 'pill' : 'pill pill-quiet'}>{visibilityLabel(s.visibility)}</span>
-              </div>
+              </Link>
             ))}
           </div>
         )}

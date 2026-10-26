@@ -745,4 +745,34 @@ select test_helpers.expect_error($q$select public.add_to_playlist('99999999-4444
 reset role;
 rollback;
 
+-- ============================================================ admin guards (0009)
+begin;
+-- Song One is Grace Worship's, on Grace Worship's album. Evening Hymns (c...02) belongs to Shalom Choir.
+select test_helpers.expect_error($q$update public.songs set album_id = 'c0000000-0000-0000-0000-000000000002' where id = 'd0000000-0000-0000-0000-000000000001'$q$, '23514');
+select test_helpers.expect_error($q$update public.songs set artist_id = 'a0000000-0000-0000-0000-000000000002' where id = 'd0000000-0000-0000-0000-000000000001'$q$, '23514'); -- moving the song away while it keeps Grace's album
+select test_helpers.expect_error($q$insert into public.songs (artist_id, album_id, slug, title, language_code) values ('a0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000002', 'guard-test', 'Guard test', 'ta')$q$, '23514');
+do $$ begin
+  -- allowed: the song's own album, no album, and moving artist together with a clean album
+  update public.songs set album_id = 'c0000000-0000-0000-0000-000000000001' where id = 'd0000000-0000-0000-0000-000000000001';
+  update public.songs set album_id = null, artist_id = 'a0000000-0000-0000-0000-000000000002' where id = 'd0000000-0000-0000-0000-000000000001';
+  update public.songs set album_id = 'c0000000-0000-0000-0000-000000000002' where id = 'd0000000-0000-0000-0000-000000000001';
+  insert into public.songs (artist_id, album_id, slug, title, language_code) values ('a0000000-0000-0000-0000-000000000002', null, 'guard-ok', 'Guard ok', 'ml');
+  raise notice 'ok: a song and its album stay with one artist';
+end $$;
+select test_helpers.expect_error($q$update public.songs set musical_key = 'H' where id = 'd0000000-0000-0000-0000-000000000001'$q$, '23514');
+select test_helpers.expect_error($q$update public.songs set musical_key = 'C7' where id = 'd0000000-0000-0000-0000-000000000001'$q$, '23514');
+select test_helpers.expect_error($q$update public.songs set musical_key = 'g' where id = 'd0000000-0000-0000-0000-000000000001'$q$, '23514');
+do $$ begin
+  update public.songs set musical_key = 'F#' where id = 'd0000000-0000-0000-0000-000000000001';
+  update public.songs set musical_key = 'Bb' where id = 'd0000000-0000-0000-0000-000000000001';
+  update public.songs set musical_key = 'Am' where id = 'd0000000-0000-0000-0000-000000000001';
+  update public.songs set musical_key = null where id = 'd0000000-0000-0000-0000-000000000001';
+  raise notice 'ok: key names';
+end $$;
+-- the guard function is not part of the public API
+set local role authenticated;
+select test_helpers.expect_error($q$select public.guard_song_album()$q$, '42501');
+reset role;
+rollback;
+
 select 'database tests finished' as result;

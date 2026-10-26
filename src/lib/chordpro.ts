@@ -63,6 +63,15 @@ export function semitonesBetween(from: string, to: string): number {
   return mod12(NOTE_INDEX[b[1]] - NOTE_INDEX[a[1]]);
 }
 
+// Stricter than CHORD_RE (which moves anything that starts like a chord): the quality may only use the usual symbols.
+const STRICT_CHORD_RE = /^[A-G][#b]?(?:maj|min|dim|aug|sus|add|[mM+\-°ø()#b\d,])*(?:\/[A-G][#b]?)?$/;
+
+/** True for text that looks like a chord (G, C#m7, Bb/D, N.C.). Used by the admin editor to warn about typos; the parser itself accepts anything in brackets. */
+export function isChordName(text: string): boolean {
+  const t = text.trim();
+  return t === 'N.C.' || STRICT_CHORD_RE.test(t);
+}
+
 const CHORD_IN_LINE = /\[([^\]]*)\]/g;
 
 function parseLyricsLine(raw: string): Line {
@@ -92,6 +101,12 @@ const META_KEYS: Record<string, string> = {
   title: 'title', t: 'title', subtitle: 'subtitle', st: 'subtitle', artist: 'artist',
   key: 'key', tempo: 'tempo', capo: 'capo',
 };
+
+/** True for the directive names the parser understands. Others are ignored, which the admin editor warns about. */
+export function isKnownDirective(name: string): boolean {
+  const n = name.toLowerCase();
+  return n in META_KEYS || n === 'comment' || n === 'c' || n === 'ci' || n === 'cb' || n in SECTION_STARTS || SECTION_ENDS.has(n);
+}
 
 export function parseChordPro(src: string): ParsedSong {
   const meta: Record<string, string> = {};
