@@ -16,6 +16,13 @@
 - Dark theme only for now; all colours are variables, so a light theme is a second block of values.
 - Songs without an audio file are lyrics-only: they show a "Lyrics" tag and no play button. The same happens when the artist's agreement does not allow audio hosting (a separate right from lyrics, chords, translations and video): the file stays uploaded but is not served until the flag is ticked.
 
+## Library and Stage mode (decided while building)
+- A list is a playlist (for listening) or a setlist (for a service, with an optional service date and a key per song). Limits: 100 lists per person, 200 songs per list.
+- A song that becomes unavailable (hidden, agreement ended) stays in the list as an empty slot, so positions never shift. The slot shows no title.
+- A setlist's key per song changes only that setlist; the song itself is never changed. In Stage mode the key can be nudged up or down by up to six semitones for the day, and that nudge is not saved.
+- Stage mode is a separate full-screen view with no player bar: opening it from the app stops any music that was playing. Text size is remembered on the device only.
+- Songs can also be opened in Stage mode one at a time from their page.
+
 ## Product rules
 - Catalogue is curated by the owner. Songs and lyrics are uploaded for artists under a signed agreement. Uploading is free of cost.
 - Agreements are accepted only from the official email (never WhatsApp or chat). In the database a verified agreement needs a document reference and a verifier.
@@ -39,5 +46,6 @@
 - Whether unavailable setlist slots should keep the song title. Today they show position only.
 - Playlist versus setlist: kept as one list type with a kind flag. Confirm that is what you want.
 - Equalizer: possible now that the app hosts the audio. Not built.
-- Offline Stage mode in the Android app: needs a local copy of the user's setlist lyrics and a purge when a song is hidden.
+- Offline Stage mode in the Android app: needs a local copy of the user's setlist lyrics and a purge when a song is hidden. Today Stage mode needs a connection.
+- Sharing a setlist with a band (a read-only link, or a copy for another person) is not built; lists are private to their owner.
 - Tax and invoicing for promotion income, and a lawyer's review of the agreement.
