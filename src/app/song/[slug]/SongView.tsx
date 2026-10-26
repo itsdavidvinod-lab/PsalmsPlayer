@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { parseChordPro, prefersFlats, transposeKey, transposeLines } from '@/lib/chordpro';
 import { buildShareUrl, shareMessage, type ShareKind } from '@/lib/share';
@@ -82,8 +83,13 @@ export default function SongView({ song, lyrics, initiallyLiked, userId, lyricsF
       <div className="song-head section">
         <h1>{song.title}</h1>
         <p className="muted" style={{ margin: '4px 0 0' }}>
-          {song.artist_name}
-          {song.album_title ? ` · ${song.album_title}` : ''}
+          <Link href={`/artist/${song.artist_slug}`} className="inline">{song.artist_name}</Link>
+          {song.album_title && song.album_slug ? (
+            <>
+              {' · '}
+              <Link href={`/album/${song.album_slug}`} className="inline">{song.album_title}</Link>
+            </>
+          ) : null}
         </p>
       </div>
 

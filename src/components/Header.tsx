@@ -13,16 +13,20 @@ export function BrandMark() {
 
 export default function Header() {
   return (
-    <header className="header">
-      <Link href="/" className="brand">
-        <BrandMark />
-        <span>{APP_NAME}</span>
-      </Link>
-      <nav className="header-actions" aria-label="Account">
-        <Link href="/settings" className="btn btn-ghost">Settings</Link>
+    <header>
+      <div className="header">
+        <Link href="/" className="brand">
+          <BrandMark />
+          <span>{APP_NAME}</span>
+        </Link>
         <form action="/auth/signout" method="post">
           <button type="submit" className="btn btn-ghost">Sign out</button>
         </form>
+      </div>
+      <nav className="nav" aria-label="Main">
+        <Link href="/">Home</Link>
+        <Link href="/browse">Browse</Link>
+        <Link href="/settings">Settings</Link>
       </nav>
     </header>
   );

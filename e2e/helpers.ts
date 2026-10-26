@@ -41,3 +41,15 @@ export async function passwordToken(request: import('@playwright/test').APIReque
   const body = (await res.json()) as { access_token: string; user: { id: string } };
   return { token: body.access_token, userId: body.user.id };
 }
+
+/** Creates an account straight through the auth API (local Supabase has email confirmation off) and returns its token. */
+export async function createApiUser(request: import('@playwright/test').APIRequestContext, tag: string): Promise<{ token: string; userId: string; email: string }> {
+  const email = uniqueEmail(tag);
+  const res = await request.post(`${SUPABASE_URL}/auth/v1/signup`, {
+    headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
+    data: { email, password: PASSWORD },
+  });
+  expect(res.ok(), 'API sign-up should work on the local stack').toBeTruthy();
+  const { token, userId } = await passwordToken(request, email);
+  return { token, userId, email };
+}

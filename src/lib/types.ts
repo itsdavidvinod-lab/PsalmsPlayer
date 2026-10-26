@@ -50,3 +50,27 @@ export type Profile = {
 
 export type Language = { code: string; name: string; native_name: string | null };
 export type Region = { code: string; name: string; country_code: string };
+
+export type Artist = {
+  id: string;
+  slug: string;
+  name: string;
+  available: boolean;
+  bio: string | null;
+  photo_url: string | null;
+  language_codes: string[];
+  region_code: string | null;
+  genres: string[];
+};
+
+export type Album = {
+  id: string;
+  slug: string;
+  title: string;
+  kind: string;
+  release_year: number | null;
+  cover_url: string | null;
+  artist_id: string;
+  artist_slug: string;
+  artist_name: string;
+};
