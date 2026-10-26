@@ -6,7 +6,7 @@ Where the build stands: the database and its rules (step 1) and most of the user
 
 | Path | What it is | Checked |
 |---|---|---|
-| `supabase/migrations/0001..0004` | Tables, visibility rules, security, public API | Run on a real Supabase stack in CI, and on plain Postgres 16 |
+| `supabase/migrations/0001..0005` | Tables, visibility rules, security, public API, listening time | Run on a real Supabase stack in CI, and on plain Postgres 16 |
 | `supabase/seed.sql` | Fake development data (placeholder lyrics, a placeholder admin) | Run on a real Supabase stack in CI |
 | `supabase/tests/` | 94 assertions and 36 must-fail checks (users cannot read agreements, prices, end dates or hidden songs, or make themselves admin) | Pass on both; deliberate breakages are caught |
 | `src/lib/` | ChordPro parsing and transposing, YouTube link reading, share links | 16 tests pass, strict TypeScript clean |
@@ -34,7 +34,7 @@ Not checked: Google sign-in (needs your Google Cloud client), email confirmation
 ## First run on Supabase
 
 1. Create a project at supabase.com. Pick the region closest to your users.
-2. Open **SQL editor** and run these four files in order, each in a new query: `0001_schema.sql`, `0002_rules.sql`, `0003_security.sql`, `0004_public_api.sql`.
+2. Open **SQL editor** and run these five files in order, each in a new query: `0001_schema.sql`, `0002_rules.sql`, `0003_security.sql`, `0004_public_api.sql`, `0005_listening.sql`.
 3. For a throwaway test project only, run `seed.sql` to get sample data. **Never run it on the real project.** Its placeholder admin cannot log in.
 4. Sign up once through the site (or **Authentication → Users → Add user**), copy your user id, and make yourself admin:
    ```sql

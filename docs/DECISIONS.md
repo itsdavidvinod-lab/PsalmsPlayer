@@ -17,11 +17,13 @@
 - Promotion and song requests arrive by WhatsApp or email and are logged by an admin. Prices are agreed in the chat and recorded in the admin ledger only.
 - Buyers pay for eligibility to be shown, not views. If it cannot be shown, the full amount is refunded.
 - Region and language live in Settings. Posters are shown by region and language: both, either, or everyone.
-- Monthly listeners = distinct signed-in users who played or opened a song by the artist in the last 30 days, counted in the app. Hidden below 10.
+- Monthly listeners = distinct signed-in people (admins excluded) who played a song by the artist, audibly, for at least 30 seconds in the last 30 days. Hidden below 10. Trending uses the same listening time over 7 days. Opening lyrics does not count.
+- How listening time is kept honest: the song page reports play time from the YouTube player every 15 s; the database credits only what the clock allows (shared across all of a person's sessions, one report at a time, 20 s per report, 8 h per day, 120 new sessions per hour). Muted or paused video does not count.
 
 ## Open
 - Tamil and other Indian-language lyrics use the device's own font for now. Check them on real phones and add a web font if any look wrong.
-- Plays inside the YouTube embed are invisible to the site, so listener and trending numbers count "lyrics opened" only. Real play counts need the YouTube player API or hosted audio.
+- Listening time is reported by the browser, so someone who writes a script that waits in real time on many real accounts can still inflate a count. Email confirmation and a CAPTCHA on sign-up (Supabase settings) are the defence; the choice is still open. Hosted audio with signed streaming would make it much harder, at a hosting cost.
+- The Android app plays YouTube inside a WebView; whether the player reports state correctly there, and whether it keeps playing with the screen off, must be tested on a device.
 - Sign-up sends a confirmation email on the hosted project (turn it on in Supabase) but not on the local stack. Pick the production setting before launch.
 - What is refunded when a poster is taken down after part of its run (for example day 12 of 15).
 - How a requester is verified before a poster or song goes live (the database only stores that it was done).
