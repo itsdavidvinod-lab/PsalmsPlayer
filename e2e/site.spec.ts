@@ -123,8 +123,12 @@ test('the API refuses what the screens never offer', async ({ request }) => {
   });
   expect(await hiddenLyrics.text()).not.toContain('Hidden placeholder');
 
-  const agreements = await request.get(`${SUPABASE_URL}/rest/v1/agreements?select=*`, { headers: apiHeaders(token) });
-  expect(denied(agreements.status())).toBeTruthy();
+  // Admin-only tables: a normal user gets either a refusal or no rows at all. Never data.
+  for (const table of ['songs', 'lyrics', 'agreements', 'requests', 'posters', 'song_credits', 'audit_log', 'play_events']) {
+    const res = await request.get(`${SUPABASE_URL}/rest/v1/${table}?select=*`, { headers: apiHeaders(token) });
+    const rows = res.ok() ? ((await res.json()) as unknown[]).length : 0;
+    expect(denied(res.status()) || rows === 0, `a normal user must not read ${table} (got ${res.status()}, ${rows} rows)`).toBeTruthy();
+  }
 
   const promote = await request.patch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
     headers: apiHeaders(token),
