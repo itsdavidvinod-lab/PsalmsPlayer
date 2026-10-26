@@ -19,13 +19,13 @@ test('an available artist shows songs, albums and bio, but no listener count bel
   for (const t of HIDDEN_TITLES) await expect(page.getByText(t)).toHaveCount(0);
   await expect(page.getByText('monthly listeners')).toHaveCount(0);
 
-  await page.getByRole('link', { name: /Morning Light/ }).click();
+  await page.locator('a[href="/album/morning-light"]').click();
   await expect(page).toHaveURL(/\/album\/morning-light$/);
   await expect(page.getByRole('heading', { name: 'Morning Light', level: 1 })).toBeVisible();
   // Songs Two and Three belong to this album but are hidden, so only Song One is listed.
   await expect(page.getByText('Placeholder Song One', { exact: true })).toBeVisible();
   for (const t of HIDDEN_TITLES) await expect(page.getByText(t)).toHaveCount(0);
-  await page.getByRole('link', { name: 'Grace Worship Team' }).click();
+  await page.locator('a[href="/artist/grace-worship"]').click();
   await expect(page).toHaveURL(/\/artist\/grace-worship$/);
 });
 
@@ -51,8 +51,8 @@ test('an artist with an expired agreement shows as Unavailable with nothing else
 test('Browse lists live songs and artists, hides the rest, and survives odd search text', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('browse'));
   await page.goto('/browse');
-  await expect(page.getByRole('link', { name: /Grace Worship Team/ })).toBeVisible();
-  const shalom = page.getByRole('link', { name: /Shalom Choir/ });
+  await expect(page.locator('a[href="/artist/grace-worship"]')).toBeVisible();
+  const shalom = page.locator('a[href="/artist/shalom-choir"]');
   await expect(shalom).toContainText('Unavailable');
   await expect(page.getByText('Draft Artist')).toHaveCount(0);
   await expect(page.getByText('Placeholder Song One', { exact: true })).toBeVisible();
@@ -71,7 +71,7 @@ test('Browse lists live songs and artists, hides the rest, and survives odd sear
   await page.goto('/browse?language=ml');
   await expect(page.getByText('Nothing found.')).toBeVisible();
   await page.goto('/browse?language=ta');
-  await expect(page.getByRole('link', { name: /Grace Worship Team/ })).toBeVisible();
+  await expect(page.locator('a[href="/artist/grace-worship"]')).toBeVisible();
 
   for (const q of ["x' or 1=1 --", '100%', '_', '"; drop table songs; --', '<script>alert(1)</script>']) {
     const res = await page.goto(`/browse?q=${encodeURIComponent(q)}`);
