@@ -14,13 +14,13 @@ export function apiHeaders(token?: string): Record<string, string> {
   return { apikey: ANON_KEY, Authorization: `Bearer ${token ?? ANON_KEY}`, 'Content-Type': 'application/json' };
 }
 
-/** Creates an account through the real sign-up form, then makes sure the browser ends up signed in on Home. */
+/** Creates a test account through the test-build email form, then makes sure the browser ends up signed in on Home. */
 export async function signUpAndIn(page: Page, email: string): Promise<void> {
   await page.goto('/login');
-  await page.getByRole('button', { name: 'Create an account' }).click();
+  await page.getByRole('button', { name: 'Create a test account' }).click();
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await page.getByRole('button', { name: 'Create test account', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('confirmation link');
 
   // Local Supabase has email confirmation switched off, so the sign-up may already have started a session.
@@ -28,7 +28,7 @@ export async function signUpAndIn(page: Page, email: string): Promise<void> {
   if (new URL(page.url()).pathname === '/login') {
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('button', { name: 'Sign in with email', exact: true }).click();
   }
   await expect(page).toHaveURL(/localhost:3000\/$/);
 }

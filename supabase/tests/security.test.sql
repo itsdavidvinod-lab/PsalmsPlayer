@@ -571,4 +571,67 @@ do $$ begin
 end $$;
 rollback;
 
+-- ============================================================ hosted audio
+begin;
+-- S1 live, S2 hidden (a writer has not consented), S4 live. Give all three a file.
+update public.songs set audio_path = id::text || '/track.mp3', audio_mime = 'audio/mpeg', audio_bytes = 1000
+ where id in ('d0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000004');
+insert into storage.objects (bucket_id, name) values
+  ('audio', 'd0000000-0000-0000-0000-000000000001/track.mp3'),
+  ('audio', 'd0000000-0000-0000-0000-000000000002/track.mp3'),
+  ('audio', 'd0000000-0000-0000-0000-000000000004/track.mp3');
+
+set local role anon;
+do $$ begin
+  assert (select count(*) from storage.objects) = 0, 'anonymous visitors see no audio files';
+  assert (select has_audio from public.v_songs where slug = 'placeholder-song-one') = true, 'the catalogue says a song has audio';
+  assert (select has_audio from public.v_songs where slug = 'placeholder-single') = true, 'second live song has audio';
+  raise notice 'ok: audio invisible to anonymous visitors';
+end $$;
+select test_helpers.expect_error($q$select audio_path from public.v_songs$q$, '42703');
+select test_helpers.expect_error($q$select public.song_audio_path('d0000000-0000-0000-0000-000000000001')$q$, '42501');
+reset role;
+
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert public.song_audio_path('d0000000-0000-0000-0000-000000000001') = 'd0000000-0000-0000-0000-000000000001/track.mp3', 'a signed-in user gets the path of a live song';
+  assert public.song_audio_path('d0000000-0000-0000-0000-000000000002') is null, 'a hidden song gives no path';
+  assert public.song_audio_path('d0000000-0000-0000-0000-000000000003') is null, 'a song with no file gives no path';
+  assert (select count(*) from storage.objects) = 2, 'a signed-in user can read the files of live songs only';
+  assert not exists (select 1 from storage.objects where name like 'd0000000-0000-0000-0000-000000000002/%'), 'the hidden song''s file is not readable';
+  raise notice 'ok: audio readable only for live songs';
+end $$;
+select test_helpers.expect_error($q$insert into storage.objects (bucket_id, name) values ('audio', 'd0000000-0000-0000-0000-000000000001/evil.mp3')$q$, '42501');
+do $$ declare n int; begin update public.songs set audio_path = 'x/y.mp3'; get diagnostics n = row_count; assert n = 0, 'a normal user cannot change any song'; end $$;
+reset role;
+
+-- the artist's agreement ends: the file stops being readable at once, no clean-up needed
+update public.agreements set expires_on = public.app_today() - 1 where id = 'b0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from storage.objects) = 0, 'expired agreement: no file is readable';
+  assert public.song_audio_path('d0000000-0000-0000-0000-000000000001') is null, 'expired agreement: no path';
+  raise notice 'ok: audio stops with the agreement';
+end $$;
+reset role;
+rollback;
+
+begin;
+-- admins can add and remove files; nobody else can. The path must stay inside the song's own folder.
+update public.songs set audio_path = id::text || '/track.mp3' where id = 'd0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
+set local role authenticated;
+do $$ begin
+  insert into storage.objects (bucket_id, name) values ('audio', 'd0000000-0000-0000-0000-000000000001/track.mp3');
+  assert (select count(*) from storage.objects) = 1, 'admin can add and see a file';
+  delete from storage.objects where name = 'd0000000-0000-0000-0000-000000000001/track.mp3';
+  assert (select count(*) from storage.objects) = 0, 'admin can remove a file';
+  raise notice 'ok: admin manages audio files';
+end $$;
+select test_helpers.expect_error($q$update public.songs set audio_path = 'd0000000-0000-0000-0000-000000000009/track.mp3' where id = 'd0000000-0000-0000-0000-000000000001'$q$, '23514');
+select test_helpers.expect_error($q$update public.songs set audio_path = 'd0000000-0000-0000-0000-000000000001/../x.mp3' where id = 'd0000000-0000-0000-0000-000000000001'$q$, '23514');
+rollback;
+
 select 'database tests finished' as result;

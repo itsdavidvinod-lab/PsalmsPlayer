@@ -15,6 +15,20 @@ test('a visitor who is not signed in is sent to the login page', async ({ page }
   await expect(page.getByRole('link', { name: 'Open this song' })).toBeVisible();
 });
 
+test('the Google button starts a Google sign-in that returns to the callback and the page asked for', async ({ page }) => {
+  let authorizeUrl = '';
+  await page.route('**/auth/v1/authorize**', (route) => {
+    authorizeUrl = route.request().url();
+    return route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>google stub</body></html>' });
+  });
+  await page.goto('/login?next=%2Fsong%2Fplaceholder-song-one');
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  await expect(page.getByText('google stub')).toBeVisible();
+  const u = new URL(authorizeUrl);
+  expect(u.searchParams.get('provider')).toBe('google');
+  expect(u.searchParams.get('redirect_to')).toBe('http://localhost:3000/auth/callback?next=%2Fsong%2Fplaceholder-song-one');
+});
+
 test('Home shows only live songs and only posters that are running', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('home'));
   for (const title of ['Placeholder Song One', 'Placeholder Single']) {
