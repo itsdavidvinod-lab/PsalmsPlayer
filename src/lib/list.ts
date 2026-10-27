@@ -87,3 +87,12 @@ export function toggleChip(selection: ChipSelection, chip: Chip): ChipSelection 
 export function songCountLabel(n: number): string {
   return `${n} ${n === 1 ? 'song' : 'songs'}`;
 }
+
+/** The two numbers under an artist's name: "1,234 monthly listeners", "1 like". Indian digit grouping, singular for one. */
+export function listenersLabel(n: number): string {
+  return `${n.toLocaleString('en-IN')} monthly ${n === 1 ? 'listener' : 'listeners'}`;
+}
+
+export function likesLabel(n: number): string {
+  return `${n.toLocaleString('en-IN')} ${n === 1 ? 'like' : 'likes'}`;
+}

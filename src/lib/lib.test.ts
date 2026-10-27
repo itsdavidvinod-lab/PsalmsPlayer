@@ -15,7 +15,7 @@ import { buildShareUrl, safeNextPath } from './share.ts';
 import { COVER_PALETTE, coverBackground, coverColors, heroBackground, initialOf } from './cover.ts';
 import { timeAgo } from './relative-time.ts';
 import { FILTER_KINDS, cleanQuery, hasSearch, parseSearch, searchHref } from './search.ts';
-import { NO_CHIPS, isFiltering, listChips, matchesChips, matchesFind, songCountLabel, sortSlots, toggleChip, visibleSlots, type Slot } from './list.ts';
+import { NO_CHIPS, isFiltering, listChips, matchesChips, matchesFind, songCountLabel, listenersLabel, likesLabel, sortSlots, toggleChip, visibleSlots, type Slot } from './list.ts';
 import { makeLabels } from './labels.ts';
 import { displayImageUrl, driveFileId } from './image-url.ts';
 import { nextSlide, slideFromScroll } from './carousel.ts';
@@ -1001,6 +1001,15 @@ test('visibleSlots drops empty slots only when finding or filtering', () => {
   assert.deepEqual(visibleSlots(slots, 'et', NO_CHIPS, 'custom').map((s) => s.id), ['b']);
   assert.equal(isFiltering('  ', NO_CHIPS), false);
   assert.equal(isFiltering('', { language: ['ta'], genre: [] }), true);
+});
+
+test('listenersLabel and likesLabel have the right grammar and digit grouping', () => {
+  assert.equal(listenersLabel(0), '0 monthly listeners');
+  assert.equal(listenersLabel(1), '1 monthly listener');
+  assert.equal(listenersLabel(1234567), '12,34,567 monthly listeners');
+  assert.equal(likesLabel(0), '0 likes');
+  assert.equal(likesLabel(1), '1 like');
+  assert.equal(likesLabel(2500), '2,500 likes');
 });
 
 test('songCountLabel has the right grammar', () => {

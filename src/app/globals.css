@@ -217,7 +217,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { .poster-dot { transition: none; } }
 .artist-strip { display: flex; gap: 10px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; margin-left: -12px; margin-right: -12px; padding: 0 12px; }
 .artist-strip::-webkit-scrollbar { display: none; }
-.artist-chip { flex: 0 0 68px; display: block; min-width: 0; text-align: center; }
+/* A name is never cut off: the chip grows to fit it (up to 120px), and a longer name wraps onto more lines. */
+.artist-chip { flex: 0 0 auto; display: block; width: max-content; min-width: 68px; max-width: 120px; text-align: center; }
 .artist-chip .cover { margin: 0 2px; }
 .page-head-home h1 { font-size: 15px; line-height: 20px; }
 .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--tint); color: var(--primary); font-size: 0.8rem; font-weight: 600; }
@@ -565,6 +566,7 @@ textarea.input { min-height: 96px; resize: vertical; }
 .card-row:hover, .add-row:hover { background: var(--card-2); }
 .card-row-text { flex: 1 1 auto; min-width: 0; display: block; }
 .card-row-title { display: block; font-size: 13px; font-weight: 600; line-height: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-row-title-wrap { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 .card-row-sub { display: block; font-size: 11px; line-height: 15px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-tile, .add-tile, .list-tile {
   flex: 0 0 40px; width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; background: var(--tint); color: var(--muted);
@@ -613,9 +615,7 @@ textarea.input { min-height: 96px; resize: vertical; }
 .artist-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 8px; margin-top: 10px; }
 .artist-cell { display: block; min-width: 0; text-align: center; }
 .artist-cell .cover { margin: 0 auto; }
-.artist-cell-name {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: 6px; font-size: 11px; font-weight: 600; line-height: 14px;
-}
+.artist-cell-name { display: block; margin-top: 6px; font-size: 11px; font-weight: 600; line-height: 14px; overflow-wrap: anywhere; }
 .see-more { display: flex; justify-content: flex-end; }
 .see-more a { display: inline-flex; align-items: center; height: 44px; padding: 0 2px 0 12px; font-size: 12px; font-weight: 700; }
 
@@ -643,7 +643,7 @@ textarea.input { min-height: 96px; resize: vertical; }
   overflow-wrap: anywhere;
 }
 .artist-body { max-width: 760px; margin: 0 auto; padding: 0 12px; }
-.artist-listeners { margin: 6px 4px 0; font-size: 12px; line-height: 16px; color: var(--muted); }
+.artist-stats { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 6px 4px 0; font-size: 12px; line-height: 16px; color: var(--muted); }
 .artist-actions { display: flex; align-items: center; gap: 8px; padding: 10px 4px; }
 .artist-actions-gap { flex: 1 1 auto; }
 .follow-btn {

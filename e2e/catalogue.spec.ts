@@ -9,7 +9,7 @@ const SONG_ONE_ID = 'd0000000-0000-0000-0000-000000000001';
 
 test.describe.configure({ mode: 'serial' });
 
-test('an available artist shows songs, albums and bio, but no listener count below 10', async ({ page }) => {
+test('an available artist shows songs, albums, bio and the exact listener and like counts, even when small', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('artist'));
   await page.goto('/artist/grace-worship');
   await expect(page.getByRole('heading', { name: 'Grace Worship Team', level: 1 })).toBeVisible();
@@ -17,7 +17,9 @@ test('an available artist shows songs, albums and bio, but no listener count bel
   await expect(page.getByText('Placeholder Song One', { exact: true })).toBeVisible();
   await expect(page.getByText('Placeholder Single', { exact: true })).toBeVisible();
   for (const t of HIDDEN_TITLES) await expect(page.getByText(t)).toHaveCount(0);
-  await expect(page.getByText('monthly listeners')).toHaveCount(0);
+  // The exact numbers are public to every signed-in person, however small (nobody has listened yet here).
+  await expect(page.getByText(/^\d[\d,]* monthly listeners?$/)).toBeVisible();
+  await expect(page.getByText(/^\d[\d,]* likes?$/)).toBeVisible();
 
   await page.locator('a[href="/album/morning-light"]').click();
   await expect(page).toHaveURL(/\/album\/morning-light$/);

@@ -9,7 +9,7 @@ import { heroBackground } from '@/lib/cover';
 import { displayImageUrl } from '@/lib/image-url';
 import { formatClock } from '@/lib/format';
 import { loadLabels } from '@/lib/labels';
-import { songCountLabel } from '@/lib/list';
+import { likesLabel, listenersLabel, songCountLabel } from '@/lib/list';
 import { createClient } from '@/lib/supabase/server';
 import type { Album, Artist, Song } from '@/lib/types';
 import { FollowButton, PlayControls } from './ArtistActions';
@@ -77,15 +77,17 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
       .order('published_at', { ascending: false })
       .limit(100),
     supabase.from('v_albums').select('*').eq('artist_id', artist.id).order('release_year', { ascending: false }),
-    supabase.rpc('artist_monthly_listeners', { p_artist: artist.id }),
+    // p_min 0: the exact number is shown to every signed-in person, however small (an unavailable artist never reaches this line).
+    supabase.rpc('artist_monthly_listeners', { p_artist: artist.id, p_min: 0 }),
     supabase.rpc('my_liked_songs').eq('artist_id', artist.id).select('id'),
     loadLabels(supabase),
   ]);
   if (songsRes.error || albumsRes.error) console.error('artist: load failed', songsRes.error ?? albumsRes.error);
   const songs = (songsRes.data ?? []) as Song[];
   const albums = (albumsRes.data ?? []) as Album[];
-  // Null when fewer than 10 people listened, so tiny numbers are never shown.
   const listeners = typeof listenersRes.data === 'number' ? listenersRes.data : null;
+  // Likes on all of the artist's live songs (the list above holds up to 100 songs).
+  const totalLikes = songs.reduce((sum, s) => sum + (s.like_count ?? 0), 0);
   const likedCount = Array.isArray(likedRes.data) ? likedRes.data.length : 0;
 
   const popular = songs.slice(0, POPULAR_SHOWN);
@@ -98,7 +100,10 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
     <div className="artist-page">
       <Hero name={artist.name} photo={artist.photo_url} />
       <div className="artist-body">
-        {listeners !== null ? <p className="artist-listeners">{listeners.toLocaleString('en-IN')} monthly listeners</p> : null}
+        <p className="artist-stats">
+          {listeners !== null ? <span className="artist-listeners">{listenersLabel(listeners)}</span> : null}
+          <span className="artist-likes">{likesLabel(totalLikes)}</span>
+        </p>
 
         <div className="artist-actions">
           <FollowButton artistId={artist.id} userId={user.id} initial={following} />

@@ -8,7 +8,7 @@ export function ArtistRow({ artist, sub }: { artist: Pick<Artist, 'slug' | 'name
     <Link href={`/artist/${artist.slug}`} className="card-row">
       <Cover url={artist.available ? artist.photo_url : null} name={artist.name} size={40} round />
       <span className="card-row-text">
-        <span className="card-row-title">{artist.name}</span>
+        <span className="card-row-title card-row-title-wrap">{artist.name}</span>
         {artist.available ? <span className="card-row-sub">{sub ?? 'Artist'}</span> : <span className="card-row-sub">Unavailable</span>}
       </span>
     </Link>
