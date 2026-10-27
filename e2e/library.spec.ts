@@ -100,9 +100,11 @@ test('a quick new playlist from a song page, and the Library shows it next to Li
 
   // "Add to list" is in the ⋮ menu.
   await page.getByRole('button', { name: 'More options for Placeholder Song One' }).click();
-  await page.getByRole('button', { name: 'Add to list' }).click();
-  await page.getByLabel('New playlist').fill('Morning songs');
-  await page.getByRole('button', { name: 'Create and add' }).click();
+  // The song page also has its own "Add to list" button, so the menu item is found inside the open menu.
+  const menu = page.getByRole('dialog', { name: 'Options for Placeholder Song One' });
+  await menu.getByRole('button', { name: 'Add to list' }).click();
+  await menu.getByLabel('New playlist').fill('Morning songs');
+  await menu.getByRole('button', { name: 'Create and add' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Added to Morning songs.' })).toBeVisible();
 
   await page.goto('/library');
