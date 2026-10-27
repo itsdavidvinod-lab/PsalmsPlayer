@@ -74,7 +74,7 @@ function AgreementForm({ artistId, adminId, agreement }: { artistId: string; adm
   }
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); void persist(false); }} style={{ marginTop: 12 }}>
+    <form onSubmit={(e) => { e.preventDefault(); void persist(false); }} className="adm-form" style={{ marginTop: 12 }}>
       <div className="field">
         <label htmlFor={`${idp}-status`}>Status</label>
         <select id={`${idp}-status`} className="input" value={status} onChange={(e) => { setStatus(e.target.value as AgreementStatus); setConfirmRevoke(false); }}>

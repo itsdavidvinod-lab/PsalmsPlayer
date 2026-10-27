@@ -63,7 +63,7 @@ function CreditForm({ songId, credit }: { songId: string; credit: AdminCredit | 
   }
 
   return (
-    <form onSubmit={save} style={{ marginTop: 12 }}>
+    <form onSubmit={save} className="adm-form" style={{ marginTop: 12 }}>
       <div className="field">
         <label htmlFor={`${idp}-person`}>Person</label>
         <input id={`${idp}-person`} className="input" required maxLength={120} value={person} onChange={(e) => setPerson(e.target.value)} />

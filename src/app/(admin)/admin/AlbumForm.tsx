@@ -53,7 +53,7 @@ export default function AlbumForm({ artistId, album }: { artistId: string; album
   }
 
   return (
-    <form onSubmit={submit} style={{ marginTop: 12 }}>
+    <form onSubmit={submit} className="adm-form" style={{ marginTop: 12 }}>
       <div className="field">
         <label htmlFor={`${idp}-title`}>Album title</label>
         <input

@@ -9,6 +9,7 @@ import { indiaToday, isUuid, visibilityHint, visibilityLabel } from '@/lib/admin
 import AudioSection from '../../AudioSection';
 import CreditsSection from '../../CreditsSection';
 import LyricsEditor from '../../LyricsEditor';
+import PageHead from '../../PageHead';
 import SongForm from '../../SongForm';
 import YoutubeSection from '../../YoutubeSection';
 
@@ -47,15 +48,19 @@ export default async function AdminSongPage({ params }: { params: Promise<{ id: 
 
   return (
     <div>
-      <p className="small" style={{ margin: '16px 0 0' }}>
-        <Link href="/admin/songs" className="inline">Songs</Link>
-        {' · '}
-        <Link href={`/admin/artists/${song.artist_id}`} className="inline">{artistName}</Link>
-      </p>
-      <h1 style={{ fontSize: '1.6rem', margin: '4px 0 12px' }}>{song.title}</h1>
-      {failed ? <p className="error" role="alert">Some parts of this page could not be loaded. Please refresh.</p> : null}
+      <PageHead
+        title={song.title}
+        crumbs={
+          <>
+            <Link href="/admin/songs" className="inline">Songs</Link>
+            {' · '}
+            <Link href={`/admin/artists/${song.artist_id}`} className="inline">{artistName}</Link>
+          </>
+        }
+      />
+      {failed ? <p className="error adm-banner" role="alert">Some parts of this page could not be loaded. Please refresh.</p> : null}
 
-      <div className={live ? 'ok' : 'notice'} role="status" aria-label="Song status">
+      <div className={`${live ? 'ok' : 'notice'} adm-banner`} role="status" aria-label="Song status">
         <strong>{live ? 'Live: users can find this song.' : `Not live: ${visibilityLabel(visibility)}.`}</strong>
         {!live && visibilityHint(visibility) ? <span> {visibilityHint(visibility)}</span> : null}
         {live ? (
@@ -66,39 +71,45 @@ export default async function AdminSongPage({ params }: { params: Promise<{ id: 
         ) : null}
       </div>
 
-      <section className="section" aria-labelledby="details">
-        <h2 id="details">Details</h2>
-        <SongForm
-          song={song}
-          initialArtistId={song.artist_id}
-          artists={choices.artists}
-          albums={choices.albums}
-          languages={choices.languages}
-          genres={choices.genres}
-          occasions={choices.occasions}
-          moods={choices.moods}
-        />
-      </section>
+      <div className="adm-cols">
+        <div className="adm-main-col">
+          <section className="section" aria-labelledby="details">
+            <h2 id="details">Details</h2>
+            <SongForm
+              song={song}
+              initialArtistId={song.artist_id}
+              artists={choices.artists}
+              albums={choices.albums}
+              languages={choices.languages}
+              genres={choices.genres}
+              occasions={choices.occasions}
+              moods={choices.moods}
+            />
+          </section>
 
-      <section className="section" aria-labelledby="credits">
-        <h2 id="credits">Credits and consent</h2>
-        <CreditsSection songId={song.id} credits={credits} />
-      </section>
+          <section className="section" aria-labelledby="lyrics">
+            <h2 id="lyrics">Lyrics</h2>
+            <LyricsEditor songId={song.id} songLanguage={song.language_code} rows={lyrics} languages={choices.languages} />
+          </section>
+        </div>
 
-      <section className="section" aria-labelledby="lyrics">
-        <h2 id="lyrics">Lyrics</h2>
-        <LyricsEditor songId={song.id} songLanguage={song.language_code} rows={lyrics} languages={choices.languages} />
-      </section>
+        <div className="adm-side-col">
+          <section className="section" aria-labelledby="recording">
+            <h2 id="recording">Recording</h2>
+            <AudioSection songId={song.id} audio={audio} hosting={hosting} />
+          </section>
 
-      <section className="section" aria-labelledby="recording">
-        <h2 id="recording">Recording</h2>
-        <AudioSection songId={song.id} audio={audio} hosting={hosting} />
-      </section>
+          <section className="section" aria-labelledby="youtube">
+            <h2 id="youtube">YouTube link</h2>
+            <YoutubeSection songId={song.id} youtubeId={song.youtube_id} status={song.youtube_status} />
+          </section>
 
-      <section className="section" aria-labelledby="youtube">
-        <h2 id="youtube">YouTube link</h2>
-        <YoutubeSection songId={song.id} youtubeId={song.youtube_id} status={song.youtube_status} />
-      </section>
+          <section className="section" aria-labelledby="credits">
+            <h2 id="credits">Credits and consent</h2>
+            <CreditsSection songId={song.id} credits={credits} />
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

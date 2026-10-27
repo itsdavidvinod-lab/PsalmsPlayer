@@ -88,8 +88,14 @@ export default function PosterForm({ poster, requests, languages, regions, initi
     router.refresh();
   }
 
+  const shown = imageOk ? displayImageUrl(image, 1000) ?? image.trim() : null;
+
   return (
-    <form onSubmit={submit} className="card">
+    <div className="adm-cols">
+    <div className="adm-main-col">
+    <section className="section" aria-labelledby="poster-details">
+    <h2 id="poster-details">Poster</h2>
+    <form onSubmit={submit} className="card adm-form">
       <div className="field">
         <label htmlFor="poster-title">Title</label>
         <input id="poster-title" className="input" maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -104,10 +110,6 @@ export default function PosterForm({ poster, requests, languages, regions, initi
         <label htmlFor="poster-image">Image link</label>
         <input id="poster-image" className="input" inputMode="url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://" />
         <span className="small muted">A secure (https) address of the poster image. A Google Drive share link works if &ldquo;anyone with the link&rdquo; can view the file.</span>
-        {imageOk ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={displayImageUrl(image, 1000) ?? image.trim()} alt={`Preview of ${title || 'the poster'}`} style={{ marginTop: 8, maxWidth: '100%', maxHeight: 220, borderRadius: 8 }} />
-        ) : null}
       </div>
       <div className="field">
         <label htmlFor="poster-youtube">YouTube link (optional)</label>
@@ -160,7 +162,35 @@ export default function PosterForm({ poster, requests, languages, regions, initi
         </select>
       </div>
       <button type="submit" className="btn btn-primary" disabled={busy}>{poster ? 'Save poster' : 'Create poster'}</button>
-      {msg ? <p className={msg.ok ? 'ok' : 'error'} role={msg.ok ? 'status' : 'alert'} style={{ marginTop: 12 }}>{msg.text}</p> : null}
+      {msg ? <p className={msg.ok ? 'ok' : 'error'} role={msg.ok ? 'status' : 'alert'}>{msg.text}</p> : null}
     </form>
+    </section>
+    </div>
+    <div className="adm-side-col">
+      <section className="section" aria-labelledby="poster-preview">
+        <h2 id="poster-preview">How it looks on Home</h2>
+        <div className="poster-preview">
+          <div className="poster-preview-title">Home</div>
+          <div className="poster-preview-slide">
+            {shown ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={shown} alt={`Preview of ${title || 'the poster'}`} />
+            ) : (
+              <span>Add an image link to see the poster here.</span>
+            )}
+          </div>
+          <div className="poster-preview-dots" aria-hidden="true">
+            <span className="poster-dot poster-dot-on" />
+            <span className="poster-dot" />
+            <span className="poster-dot" />
+          </div>
+          <div className="poster-preview-bar" aria-hidden="true" />
+        </div>
+        <p className="small muted" style={{ margin: '16px 0 0' }}>
+          The picture is cropped to the Home slide. Tapping it opens the YouTube link, when there is one.
+        </p>
+      </section>
+    </div>
+    </div>
   );
 }

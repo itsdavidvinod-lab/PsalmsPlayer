@@ -100,7 +100,7 @@ export default function LyricsEditor({ songId, songLanguage, rows, languages }: 
       </div>
       <p className="small muted" style={{ marginTop: 0 }}>{current.help}</p>
 
-      <form onSubmit={save}>
+      <form onSubmit={save} className="adm-form">
         <div className="field">
           <label htmlFor="lyrics-body">{`${current.label} lyrics (ChordPro)`}</label>
           <textarea

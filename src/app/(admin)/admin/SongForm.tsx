@@ -95,7 +95,7 @@ export default function SongForm({ song, initialArtistId, artists, albums, langu
   }
 
   return (
-    <form onSubmit={submit} className="card">
+    <form onSubmit={submit} className="card adm-form">
       <div className="field">
         <label htmlFor="song-title">Title</label>
         <input

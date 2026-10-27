@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { requireAdmin } from '@/lib/admin';
 import { loadPosterChoices } from '@/lib/admin-data';
 import { isUuid } from '@/lib/admin-text';
+import PageHead from '../../PageHead';
 import PosterForm from '../../PosterForm';
 
 export const metadata: Metadata = { title: 'New poster · Admin' };
@@ -15,9 +16,8 @@ export default async function NewPoster({ searchParams }: { searchParams: Promis
 
   return (
     <div>
-      <p className="small" style={{ margin: '16px 0 0' }}><Link href="/admin/posters" className="inline">Posters</Link></p>
-      <h1 style={{ fontSize: '1.6rem', margin: '4px 0 12px' }}>New poster</h1>
-      {choices.failed ? <p className="error" role="alert">Some choices could not be loaded. Please refresh.</p> : null}
+      <PageHead title="New poster" crumbs={<Link href="/admin/posters" className="inline">Posters</Link>} />
+      {choices.failed ? <p className="error adm-banner" role="alert">Some choices could not be loaded. Please refresh.</p> : null}
       <PosterForm
         poster={null}
         requests={choices.requests}

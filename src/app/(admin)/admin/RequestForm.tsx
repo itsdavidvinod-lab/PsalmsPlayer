@@ -64,7 +64,7 @@ export default function RequestForm({ request }: { request: AdminRequest | null 
   }
 
   return (
-    <form onSubmit={submit} className="card">
+    <form onSubmit={submit} className="card adm-form">
       <div className="field">
         <label htmlFor="req-kind">What it is for</label>
         <select id="req-kind" className="input" value={kind} onChange={(e) => setKind(e.target.value as RequestKind)}>

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { requireAdmin } from '@/lib/admin';
 import { loadSongChoices } from '@/lib/admin-data';
 import { isUuid } from '@/lib/admin-text';
+import PageHead from '../../PageHead';
 import SongForm from '../../SongForm';
 
 export const metadata: Metadata = { title: 'New song · Admin' };
@@ -15,19 +16,21 @@ export default async function NewSong({ searchParams }: { searchParams: Promise<
 
   return (
     <div>
-      <p className="small" style={{ margin: '16px 0 0' }}><Link href="/admin/songs" className="inline">Songs</Link></p>
-      <h1 style={{ fontSize: '1.6rem', margin: '4px 0 12px' }}>New song</h1>
-      {choices.failed ? <p className="error" role="alert">Some choices could not be loaded. Please refresh.</p> : null}
-      <SongForm
-        song={null}
-        initialArtistId={artist && isUuid(artist) && choices.artists.some((a) => a.id === artist) ? artist : ''}
-        artists={choices.artists}
-        albums={choices.albums}
-        languages={choices.languages}
-        genres={choices.genres}
-        occasions={choices.occasions}
-        moods={choices.moods}
-      />
+      <PageHead title="New song" crumbs={<Link href="/admin/songs" className="inline">Songs</Link>} />
+      {choices.failed ? <p className="error adm-banner" role="alert">Some choices could not be loaded. Please refresh.</p> : null}
+      <section className="section" aria-labelledby="details" style={{ marginTop: 0 }}>
+        <h2 id="details">Details</h2>
+        <SongForm
+          song={null}
+          initialArtistId={artist && isUuid(artist) && choices.artists.some((a) => a.id === artist) ? artist : ''}
+          artists={choices.artists}
+          albums={choices.albums}
+          languages={choices.languages}
+          genres={choices.genres}
+          occasions={choices.occasions}
+          moods={choices.moods}
+        />
+      </section>
     </div>
   );
 }

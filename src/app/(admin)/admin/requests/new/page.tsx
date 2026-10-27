@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/admin';
+import PageHead from '../../PageHead';
 import RequestForm from '../../RequestForm';
 
 export const metadata: Metadata = { title: 'New request · Admin' };
@@ -10,9 +11,11 @@ export default async function NewRequest() {
   await requireAdmin('/admin/requests/new');
   return (
     <div>
-      <p className="small" style={{ margin: '16px 0 0' }}><Link href="/admin/requests" className="inline">Requests</Link></p>
-      <h1 style={{ fontSize: '1.6rem', margin: '4px 0 12px' }}>New request</h1>
-      <RequestForm request={null} />
+      <PageHead title="New request" crumbs={<Link href="/admin/requests" className="inline">Requests</Link>} />
+      <section className="section" aria-labelledby="req-details" style={{ marginTop: 0 }}>
+        <h2 id="req-details">Request</h2>
+        <RequestForm request={null} />
+      </section>
     </div>
   );
 }

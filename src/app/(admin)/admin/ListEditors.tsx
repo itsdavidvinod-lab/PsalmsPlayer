@@ -57,7 +57,7 @@ function RowEditor({ idp, title, code, fields, onSave, onDelete }: {
       <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
         {title} <span className="pill pill-quiet">{code}</span>
       </summary>
-      <form onSubmit={save} style={{ marginTop: 12 }}>
+      <form onSubmit={save} className="adm-form" style={{ marginTop: 12 }}>
         <p className="small muted">Code: <strong>{code}</strong> (a code never changes)</p>
         {fields.map((f) => (
           <div className="field" key={f.key}>
@@ -110,7 +110,7 @@ function AddForm({ idp, heading, button, fields, onAdd, onReset }: {
   return (
     <details className="card" style={{ marginTop: 8 }}>
       <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{heading}</summary>
-      <form onSubmit={add} style={{ marginTop: 12 }}>
+      <form onSubmit={add} className="adm-form" style={{ marginTop: 12 }}>
         {fields.map((f) => (
           <div className="field" key={f.key}>
             <label htmlFor={`${idp}-${f.key}`}>{f.label}</label>
@@ -267,7 +267,7 @@ function AddTag({ kind }: { kind: TagKind }) {
 /** The five controlled lists. Everything an artist, song, listener or poster can be tagged with comes from here. */
 export default function ListEditors({ languages, regions, tags }: { languages: LanguageRow[]; regions: RegionRow[]; tags: TagRow[] }) {
   return (
-    <div>
+    <div className="adm-grid-2">
       <section className="section" aria-labelledby="lists-languages">
         <h2 id="lists-languages">Languages</h2>
         <div className="grid-list">{languages.map((l) => <LanguageItem key={l.code} row={l} />)}</div>

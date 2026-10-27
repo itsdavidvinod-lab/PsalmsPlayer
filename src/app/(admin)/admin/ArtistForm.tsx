@@ -73,7 +73,7 @@ export default function ArtistForm({ artist, languages, regions, genres }: {
   }
 
   return (
-    <form onSubmit={submit} className="card">
+    <form onSubmit={submit} className="card adm-form">
       <div className="field">
         <label htmlFor="artist-name">Name</label>
         <input id="artist-name" className="input" required maxLength={120} value={name} onChange={(e) => changeName(e.target.value)} />

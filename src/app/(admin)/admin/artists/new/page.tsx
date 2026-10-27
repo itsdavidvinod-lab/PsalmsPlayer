@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { requireAdmin } from '@/lib/admin';
 import type { Option } from '@/lib/admin-types';
 import ArtistForm from '../../ArtistForm';
+import PageHead from '../../PageHead';
 
 export const metadata: Metadata = { title: 'New artist · Admin' };
 export const dynamic = 'force-dynamic';
@@ -23,10 +24,12 @@ export default async function NewArtist() {
 
   return (
     <div>
-      <p className="small" style={{ margin: '16px 0 0' }}><Link href="/admin/artists" className="inline">Artists</Link></p>
-      <h1 style={{ fontSize: '1.6rem', margin: '4px 0 12px' }}>New artist</h1>
-      {langRes.error || regionRes.error || tagRes.error ? <p className="error" role="alert">Some choices could not be loaded. Please refresh.</p> : null}
-      <ArtistForm artist={null} languages={languages} regions={regions} genres={genres} />
+      <PageHead title="New artist" crumbs={<Link href="/admin/artists" className="inline">Artists</Link>} />
+      {langRes.error || regionRes.error || tagRes.error ? <p className="error adm-banner" role="alert">Some choices could not be loaded. Please refresh.</p> : null}
+      <section className="section" aria-labelledby="profile" style={{ marginTop: 0 }}>
+        <h2 id="profile">Profile</h2>
+        <ArtistForm artist={null} languages={languages} regions={regions} genres={genres} />
+      </section>
     </div>
   );
 }

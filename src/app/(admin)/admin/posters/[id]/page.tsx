@@ -6,6 +6,7 @@ import { loadPosterChoices } from '@/lib/admin-data';
 import type { AdminPoster } from '@/lib/admin-types';
 import { isUuid } from '@/lib/admin-text';
 import { posterPhase } from '@/lib/ledger';
+import PageHead from '../../PageHead';
 import PosterForm from '../../PosterForm';
 
 export const metadata: Metadata = { title: 'Poster · Admin' };
@@ -34,18 +35,22 @@ export default async function AdminPosterPage({ params }: { params: Promise<{ id
 
   return (
     <div>
-      <p className="small" style={{ margin: '16px 0 0' }}>
-        <Link href="/admin/posters" className="inline">Posters</Link>
-        {poster.request_id ? (
+      <PageHead
+        title={poster.title}
+        crumbs={
           <>
-            {' · '}
-            <Link href={`/admin/requests/${poster.request_id}`} className="inline">Its request</Link>
+            <Link href="/admin/posters" className="inline">Posters</Link>
+            {poster.request_id ? (
+              <>
+                {' · '}
+                <Link href={`/admin/requests/${poster.request_id}`} className="inline">Its request</Link>
+              </>
+            ) : null}
           </>
-        ) : null}
-      </p>
-      <h1 style={{ fontSize: '1.6rem', margin: '4px 0 12px' }}>{poster.title}</h1>
-      {posterRes.error || choices.failed ? <p className="error" role="alert">Some parts of this page could not be loaded. Please refresh.</p> : null}
-      <div className={phase === 'showing' ? 'ok' : 'notice'} role="status" aria-label="Poster status">
+        }
+      />
+      {posterRes.error || choices.failed ? <p className="error adm-banner" role="alert">Some parts of this page could not be loaded. Please refresh.</p> : null}
+      <div className={`${phase === 'showing' ? 'ok' : 'notice'} adm-banner`} role="status" aria-label="Poster status">
         <strong>{phaseText}</strong>
       </div>
       <PosterForm poster={poster} requests={choices.requests} languages={choices.languages} regions={choices.regions} initialRequestId="" />

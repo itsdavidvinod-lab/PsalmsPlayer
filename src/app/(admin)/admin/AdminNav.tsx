@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { AdminIcon, type AdminIconName } from './AdminIcons';
 
-const LINKS = [
-  { href: '/admin', label: 'Dashboard' },
-  { href: '/admin/artists', label: 'Artists' },
-  { href: '/admin/songs', label: 'Songs' },
-  { href: '/admin/requests', label: 'Requests' },
-  { href: '/admin/posters', label: 'Posters' },
-  { href: '/admin/lists', label: 'Lists' },
+const LINKS: { href: string; label: string; icon: AdminIconName }[] = [
+  { href: '/admin', label: 'Dashboard', icon: 'dashboard' },
+  { href: '/admin/artists', label: 'Artists', icon: 'artists' },
+  { href: '/admin/songs', label: 'Songs', icon: 'songs' },
+  { href: '/admin/requests', label: 'Requests', icon: 'requests' },
+  { href: '/admin/posters', label: 'Posters', icon: 'posters' },
+  { href: '/admin/lists', label: 'Lists', icon: 'lists' },
 ];
 
 export default function AdminNav() {
@@ -19,6 +20,7 @@ export default function AdminNav() {
     <nav className="admin-nav" aria-label="Admin">
       {LINKS.map((l) => (
         <Link key={l.href} href={l.href} aria-current={active(l.href) ? 'page' : undefined}>
+          <AdminIcon name={l.icon} />
           {l.label}
         </Link>
       ))}
