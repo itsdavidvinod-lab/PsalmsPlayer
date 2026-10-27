@@ -220,5 +220,5 @@ test('the album choice follows the artist, the song list can be searched, and th
   await page.locator('#song-search').fill('');
   await page.locator('#song-show').selectOption('hidden');
   await expect(page.getByRole('link', { name: /Placeholder Song One/ })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /Placeholder Song Two/ })).toContainText('A writer or owner has not given consent');
+  await expect(page.getByRole('row', { name: /Placeholder Song Two/ })).toContainText('A writer or owner has not given consent');
 });

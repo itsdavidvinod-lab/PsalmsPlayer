@@ -513,6 +513,31 @@ a.inline { color: var(--primary); font-weight: 600; text-decoration: underline; 
 .adm-rows .song-title { font-size: 14px; line-height: 20px; }
 .adm-rows .empty { padding: 20px; text-align: left; }
 
+/* Tables of records (Artists, Songs, Posters, Requests): one row per record, the whole row opens it */
+.adm-tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
+.adm-search { position: relative; flex: 1 1 280px; max-width: 440px; }
+.adm-search svg { position: absolute; left: 14px; top: 12px; color: var(--muted); pointer-events: none; }
+.adm-search .input { padding-left: 44px; }
+.adm-tools select.input { width: 200px; max-width: 100%; }
+.adm-count { margin: 0 0 12px; font-size: 13px; line-height: 18px; color: var(--muted); }
+.adm-table-wrap { background: var(--card); border-radius: 16px; overflow-x: auto; }
+.adm-table { width: 100%; min-width: 720px; border-collapse: collapse; }
+.adm-table th {
+  text-align: left; padding: 14px 16px; font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.adm-table td { padding: 12px 16px; font-size: 13px; line-height: 18px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.adm-table tbody tr { position: relative; }
+.adm-table tbody tr:last-child td { border-bottom: 0; }
+.adm-table tbody tr:hover { background: #1a1a1a; }
+.adm-table tr[hidden] { display: none; }
+.adm-name { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.adm-name::after { content: ''; position: absolute; inset: 0; }
+.adm-name-text { min-width: 0; }
+.adm-name-title { display: block; font-size: 14px; line-height: 20px; font-weight: 700; }
+.adm-name-sub { display: block; font-size: 12px; line-height: 16px; color: var(--muted); }
+.adm-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+
 /* The Lists page: five cards side by side on a laptop */
 .adm-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 24px; align-items: start; }
 .adm-grid-2 > .section { margin-top: 0; }

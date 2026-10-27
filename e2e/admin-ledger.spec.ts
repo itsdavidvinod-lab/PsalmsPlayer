@@ -55,7 +55,7 @@ test('a request is recorded with money in rupees (stored as paise), checked, and
 
   // The list shows it with the amount, which only admins can see.
   await page.goto('/admin/requests');
-  const row = page.getByRole('link').filter({ hasText: contact });
+  const row = page.getByRole('row').filter({ hasText: contact });
   await expect(row).toContainText('Verified');
   await expect(row).toContainText('₹1,500.50');
   await expect(row).toContainText('Paid');
@@ -133,7 +133,7 @@ test('a poster needs its request verified and recorded, follows its India-time w
 
   // The poster list says what each poster is doing.
   await page.goto('/admin/posters');
-  await expect(page.getByRole('link').filter({ hasText: title })).toContainText('Showing now');
+  await expect(page.getByRole('row').filter({ hasText: title })).toContainText('Showing now');
 
   // A refund switches the poster off in the same save, and it cannot be approved again under that request.
   await page.goto(`/admin/requests/${requestId}`);
