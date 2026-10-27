@@ -30,7 +30,11 @@ export function useSongMenu(): SongMenuApi {
   return value;
 }
 
-function MenuSheet({ song, userId, onClose, notify }: { song: MenuSong; userId: string | null; onClose: () => void; notify: (text: string) => void }) {
+/** What is inside a song's menu: its title, an optional block of extra rows (the song page puts the lyrics options there),
+ *  then Share link, Add to list, Stage mode and Watch on YouTube. Used inside a Sheet. */
+export function SongMenuBody({
+  song, userId, onClose, notify, before,
+}: { song: MenuSong; userId: string | null; onClose: () => void; notify: (text: string) => void; before?: React.ReactNode }) {
   const player = usePlayer();
   const [view, setView] = useState<'menu' | 'add'>('menu');
 
@@ -42,7 +46,7 @@ function MenuSheet({ song, userId, onClose, notify }: { song: MenuSong; userId: 
   }
 
   return (
-    <Sheet label={`Options for ${song.title}`} onClose={onClose}>
+    <>
       <div className="sheet-head">
         <Cover url={null} name={song.title} size={44} />
         <div className="sheet-head-text">
@@ -51,41 +55,44 @@ function MenuSheet({ song, userId, onClose, notify }: { song: MenuSong; userId: 
         </div>
       </div>
       {view === 'menu' ? (
-        <ul className="plain-list sheet-list">
-          <li>
-            <button type="button" className="sheet-item" onClick={() => void share()}>
-              <ShareIcon /> <span>Share link</span>
-            </button>
-          </li>
-          {userId ? (
+        <>
+          {before}
+          <ul className="plain-list sheet-list">
             <li>
-              <button type="button" className="sheet-item" onClick={() => setView('add')}>
-                <ListPlusIcon /> <span>Add to list</span>
+              <button type="button" className="sheet-item" onClick={() => void share()}>
+                <ShareIcon /> <span>Share link</span>
               </button>
             </li>
-          ) : null}
-          <li>
-            <Link href={`/stage/song/${song.slug}`} className="sheet-item" onClick={onClose}>
-              <StageIcon /> <span>Stage mode</span>
-            </Link>
-          </li>
-          {song.youtube_id ? (
+            {userId ? (
+              <li>
+                <button type="button" className="sheet-item" onClick={() => setView('add')}>
+                  <ListPlusIcon /> <span>Add to list</span>
+                </button>
+              </li>
+            ) : null}
             <li>
-              <a
-                href={youtubeWatchUrl(song.youtube_id)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="sheet-item"
-                onClick={() => {
-                  player.pause();
-                  onClose();
-                }}
-              >
-                <ExternalIcon size={22} /> <span>Watch on YouTube</span>
-              </a>
+              <Link href={`/stage/song/${song.slug}`} className="sheet-item" onClick={onClose}>
+                <StageIcon /> <span>Stage mode</span>
+              </Link>
             </li>
-          ) : null}
-        </ul>
+            {song.youtube_id ? (
+              <li>
+                <a
+                  href={youtubeWatchUrl(song.youtube_id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="sheet-item"
+                  onClick={() => {
+                    player.pause();
+                    onClose();
+                  }}
+                >
+                  <ExternalIcon size={22} /> <span>Watch on YouTube</span>
+                </a>
+              </li>
+            ) : null}
+          </ul>
+        </>
       ) : userId ? (
         <div className="sheet-body">
           <button type="button" className="sheet-back" onClick={() => setView('menu')}>
@@ -94,7 +101,7 @@ function MenuSheet({ song, userId, onClose, notify }: { song: MenuSong; userId: 
           <AddToListPanel songId={song.id} userId={userId} />
         </div>
       ) : null}
-    </Sheet>
+    </>
   );
 }
 
@@ -117,7 +124,11 @@ export function SongMenuProvider({ userId, children }: { userId: string | null; 
   return (
     <SongMenuContext.Provider value={api}>
       {children}
-      {song ? <MenuSheet song={song} userId={userId} onClose={() => setSong(null)} notify={notify} /> : null}
+      {song ? (
+        <Sheet label={`Options for ${song.title}`} onClose={() => setSong(null)}>
+          <SongMenuBody song={song} userId={userId} onClose={() => setSong(null)} notify={notify} />
+        </Sheet>
+      ) : null}
       {message ? <div className="toast" role="status">{message}</div> : null}
     </SongMenuContext.Provider>
   );

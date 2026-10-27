@@ -90,8 +90,10 @@ test('a setlist on stage: key for the service, moving through songs, text size, 
 test('one song on stage, from its page; hidden and unknown songs are not available', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('stage-one'));
   await page.goto('/song/placeholder-song-one');
-  await expect(page.getByRole('link', { name: 'Stage mode' })).toHaveAttribute('href', '/stage/song/placeholder-song-one');
-  await page.getByRole('link', { name: 'Stage mode' }).click();
+  await page.getByRole('button', { name: 'More options for Placeholder Song One' }).click();
+  const stageLink = page.getByRole('dialog').getByRole('link', { name: 'Stage mode' });
+  await expect(stageLink).toHaveAttribute('href', '/stage/song/placeholder-song-one');
+  await stageLink.click();
   await expect(page).toHaveURL(/\/stage\/song\/placeholder-song-one$/);
   await expect(page.getByRole('heading', { name: 'Placeholder Song One' })).toBeVisible();
   await expect(page.getByText('Song 1 of 1')).toBeVisible();

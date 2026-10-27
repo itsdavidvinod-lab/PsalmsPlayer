@@ -40,7 +40,7 @@ test('the player counts only the time the song is playing and audible', async ({
 
   // Pause: nothing more is counted, and the player says so.
   await page.evaluate(() => { (document.querySelector('audio') as HTMLAudioElement).muted = false; });
-  await page.getByRole('region', { name: 'Player' }).getByRole('button', { name: 'Pause' }).click();
+  await page.getByRole('region', { name: 'Listen' }).getByRole('button', { name: 'Pause Placeholder Song One' }).click();
   await page.waitForTimeout(3_000);
   const paused = Number(listened());
   await page.waitForTimeout(8_000);

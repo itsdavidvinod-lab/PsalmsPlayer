@@ -95,3 +95,15 @@ export const CloseIcon = ({ size = 22 }: IconProps) => (
 export const CheckIcon = ({ size = 20 }: IconProps) => (
   <svg {...svg(size)} {...line}><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
 );
+export const ShuffleIcon = ({ size = 22 }: IconProps) => (
+  <svg {...svg(size)} {...line}>
+    <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+  </svg>
+);
+/** The repeat arrows; with `one` a small 1 sits in the middle. */
+export const RepeatIcon = ({ size = 22, one = false }: IconProps & { one?: boolean }) => (
+  <svg {...svg(size)} {...line}>
+    <path d="m17 2 4 4-4 4M3 12v-2a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 12v2a4 4 0 0 1-4 4H3" />
+    {one ? <path d="m10.5 10.5 1.5-1v6" strokeWidth="1.8" /> : null}
+  </svg>
+);

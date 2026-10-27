@@ -57,37 +57,44 @@ test('choosing language and region in Settings changes the posters on Home', asy
 test('a live song shows lyrics, transposes, links out to YouTube and can be liked', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('song'));
   await page.goto('/song/placeholder-song-one');
-  await expect(page.getByRole('heading', { name: 'Placeholder Song One' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Placeholder Song One' })).toHaveCount(1);
+  await expect(page.locator('.dock-title')).toHaveText('Placeholder Song One');
   await expect(page.getByText('Placeholder line one of the')).toBeVisible();
   // YouTube is a link out only: nothing from YouTube is embedded in the page.
   await expect(page.locator('iframe')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Watch on YouTube' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+  // The reading options and the YouTube link are in the song's ⋮ menu.
+  await page.getByRole('button', { name: 'More options for Placeholder Song One' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Options for Placeholder Song One' });
+  await expect(dialog.getByRole('link', { name: 'Watch on YouTube' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
   // Transpose from G up two semitones to A; the first chord on screen follows.
   await expect(page.locator('.seg-chord').first()).toHaveText('G');
-  await page.getByRole('button', { name: 'Up one semitone' }).click();
-  await page.getByRole('button', { name: 'Up one semitone' }).click();
-  await expect(page.getByText('Key A', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Up one semitone' }).click();
+  await dialog.getByRole('button', { name: 'Up one semitone' }).click();
+  await expect(dialog.getByText('Key A', { exact: true })).toBeVisible();
   await expect(page.locator('.seg-chord').first()).toHaveText('A');
 
-  await page.getByRole('button', { name: 'Hide chords' }).click();
+  await dialog.getByRole('button', { name: 'Hide chords' }).click();
   await expect(page.locator('.seg-chord')).toHaveCount(0);
 
   // The Romanized and Meaning versions are allowed by this artist's agreement.
-  await page.getByRole('button', { name: 'Meaning' }).click();
+  await dialog.getByRole('button', { name: 'Meaning' }).click();
   await expect(page.getByText('Placeholder meaning line one')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
 
-  // The button changes at once and saves in the background: wait for the save before reloading, or the reload can cancel it.
+  // The heart changes at once and saves in the background: wait for the save before reloading, or the reload can cancel it.
   const saved = page.waitForResponse((r) => r.url().includes('/rest/v1/song_likes') && r.request().method() === 'POST');
-  await page.getByRole('button', { name: '♡ Like' }).click();
+  await page.getByRole('button', { name: 'Like Placeholder Song One', exact: true }).click();
   expect((await saved).ok(), 'the like is saved').toBeTruthy();
-  await expect(page.getByRole('button', { name: '♥ Liked' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Unlike Placeholder Song One', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
-  await expect(page.getByRole('button', { name: '♥ Liked' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Unlike Placeholder Song One', exact: true })).toBeVisible();
   const removed = page.waitForResponse((r) => r.url().includes('/rest/v1/song_likes') && r.request().method() === 'DELETE');
-  await page.getByRole('button', { name: '♥ Liked' }).click();
+  await page.getByRole('button', { name: 'Unlike Placeholder Song One', exact: true }).click();
   expect((await removed).ok(), 'the like is removed').toBeTruthy();
-  await expect(page.getByRole('button', { name: '♡ Like' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Like Placeholder Song One', exact: true })).toBeVisible();
 });
 
 test('a live song whose YouTube link failed its check has no YouTube link', async ({ page }) => {
@@ -95,7 +102,10 @@ test('a live song whose YouTube link failed its check has no YouTube link', asyn
   await page.goto('/song/placeholder-single');
   await expect(page.getByRole('heading', { name: 'Placeholder Single' })).toBeVisible();
   await expect(page.locator('iframe')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Watch on YouTube' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'More options for Placeholder Single' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Options for Placeholder Single' });
+  await expect(dialog.getByRole('link', { name: 'Stage mode' })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Watch on YouTube' })).toHaveCount(0);
   expect(await page.content()).not.toContain('abcdefghijk');
 });
 

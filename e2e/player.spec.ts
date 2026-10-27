@@ -48,22 +48,118 @@ test('the mini player keeps playing across pages, Next moves down the list, and 
   expect(await audioTime(page), 'the song kept playing').toBeGreaterThan(before + 1);
   expect(await page.evaluate(() => (document.querySelector('audio') as HTMLAudioElement).paused)).toBe(false);
 
-  // Tapping the song opens its page, with the lyrics.
+  // Tapping the song opens the player screen: the words and the controls, with no tab bar and no strip.
   await mini.locator('.mini-info').click();
   await expect(page).toHaveURL(/\/song\/placeholder-(single|song-one)$/);
-  await expect(page.getByRole('region', { name: 'Listen' })).toBeVisible();
+  const dock = page.getByRole('region', { name: 'Listen' });
+  await expect(dock).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Player' })).toHaveCount(0);
+  await expect(dock.locator('.dock-title')).toHaveText(firstTitle);
+  await expect(page.locator('.screen-source')).toBeVisible();
 
-  // Next goes to the other song in the list.
+  // Next goes to the other song in the list, and the screen moves on to it.
   const srcBefore = await page.evaluate(() => (document.querySelector('audio') as HTMLAudioElement).src);
-  await mini.getByRole('button', { name: 'Next' }).click();
-  await expect(mini.locator('.mini-title')).not.toHaveText(firstTitle);
+  await dock.getByRole('button', { name: 'Next' }).click();
+  await expect(dock.locator('.dock-title')).not.toHaveText(firstTitle);
   await expect.poll(() => page.evaluate(() => (document.querySelector('audio') as HTMLAudioElement).src)).not.toBe(srcBefore);
   await expect.poll(() => audioTime(page), { timeout: 15_000 }).toBeGreaterThan(0.5);
-  await expect(mini.getByRole('button', { name: 'Next' })).toBeDisabled(); // the end of a two-song queue
+  await expect(dock.getByRole('button', { name: 'Next' })).toBeDisabled(); // the end of a two-song queue
+  expect(await page.evaluate(() => (window as unknown as { __kept?: number }).__kept), 'moving to the next song did not reload the page').toBe(1);
 
-  await mini.getByRole('button', { name: 'Pause' }).click();
+  await dock.getByRole('button', { name: /^Pause / }).click();
   await expect.poll(() => page.evaluate(() => (document.querySelector('audio') as HTMLAudioElement).paused)).toBe(true);
-  await expect(mini.getByRole('button', { name: 'Play' })).toBeVisible();
+  await expect(dock.getByRole('button', { name: /^Play / })).toBeVisible();
+});
+
+test('shuffle and repeat are on the player screen and remembered; repeat one starts the song again; the Lyrics icon keeps the music going', async ({ page, request }) => {
+  test.setTimeout(120_000);
+  await ensureAudio(request, SONG_ONE_ID);
+  await ensureAudio(request, SINGLE_ID);
+  await signUpAndIn(page, uniqueEmail('modes'));
+  await page.goto('/search?q=placeholder');
+  await page.locator('.song-row').filter({ hasText: 'Placeholder Single' }).getByRole('button', { name: /^Play / }).click();
+  await expect.poll(() => audioTime(page), { timeout: 15_000 }).toBeGreaterThan(1);
+
+  // The Lyrics icon of another song opens its words only. The music keeps playing and the strip stays.
+  await page.locator('.song-row').filter({ hasText: 'Placeholder Song One' }).getByRole('link', { name: 'Lyrics of Placeholder Song One' }).click();
+  await expect(page).toHaveURL(/\/song\/placeholder-song-one\/lyrics$/);
+  await expect(page.getByRole('heading', { name: 'Placeholder Song One' })).toBeVisible();
+  await expect(page.getByText('Placeholder line one of the')).toBeVisible();
+  await expect(page.getByText('Lyrics only · no audio file yet')).toHaveCount(0); // this song has audio
+  const mini = page.getByRole('region', { name: 'Player' });
+  await expect(mini).toBeVisible();
+  await expect(mini.getByRole('button', { name: 'Pause' })).toBeVisible();
+  expect(await page.evaluate(() => (document.querySelector('audio') as HTMLAudioElement).paused)).toBe(false);
+
+  // Back to the song that is playing: the player screen.
+  await mini.locator('.mini-info').click();
+  await expect(page).toHaveURL(/\/song\/placeholder-single$/);
+  const dock = page.getByRole('region', { name: 'Listen' });
+  const shuffle = dock.getByRole('button', { name: 'Shuffle' });
+  await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
+  await shuffle.click();
+  await expect(shuffle).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => (document.querySelector('audio') as HTMLAudioElement).paused), 'turning shuffle on does not stop the song').toBe(false);
+
+  // Repeat: off, then all, then one.
+  await dock.getByRole('button', { name: 'Repeat off' }).click();
+  await expect(dock.getByRole('button', { name: 'Repeat all' })).toHaveAttribute('aria-pressed', 'true');
+  await dock.getByRole('button', { name: 'Repeat all' }).click();
+  await expect(dock.getByRole('button', { name: 'Repeat one' })).toHaveAttribute('aria-pressed', 'true');
+
+  // Both choices are remembered on this device.
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Listen' }).getByRole('button', { name: 'Shuffle' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('region', { name: 'Listen' }).getByRole('button', { name: 'Repeat one' })).toBeVisible();
+
+  // Repeat one: near the end of the song it starts again instead of stopping. The queue here is this song alone.
+  await page.getByRole('button', { name: 'Play Placeholder Single' }).click();
+  await expect.poll(() => audioTime(page), { timeout: 15_000 }).toBeGreaterThan(1);
+  await page.evaluate(() => {
+    const a = document.querySelector('audio') as HTMLAudioElement;
+    a.currentTime = a.duration - 2;
+  });
+  await expect.poll(() => audioTime(page), { timeout: 20_000 }).toBeLessThan(5);
+  expect(await page.evaluate(() => (document.querySelector('audio') as HTMLAudioElement).paused), 'repeat one keeps playing').toBe(false);
+
+  // Repeat off: at the end of the last song it stops.
+  await page.getByRole('region', { name: 'Listen' }).getByRole('button', { name: 'Repeat one' }).click();
+  await expect(page.getByRole('region', { name: 'Listen' }).getByRole('button', { name: 'Repeat off' })).toBeVisible();
+  await page.evaluate(() => {
+    const a = document.querySelector('audio') as HTMLAudioElement;
+    a.currentTime = a.duration - 2;
+  });
+  await expect.poll(() => page.evaluate(() => (document.querySelector('audio') as HTMLAudioElement).paused), { timeout: 20_000 }).toBe(true);
+  await expect(page.getByRole('button', { name: 'Play Placeholder Single' })).toBeVisible();
+});
+
+test('on a phone the tab bar shows on the lists, goes away on the full-screen song, and the strip stays on the lyrics page', async ({ page, request }) => {
+  test.setTimeout(90_000);
+  await ensureAudio(request, SONG_ONE_ID);
+  await page.setViewportSize({ width: 390, height: 800 });
+  await signUpAndIn(page, uniqueEmail('phone'));
+  await expect(page.locator('.tabbar')).toBeVisible();
+  await expect(page.locator('.side')).toBeHidden();
+
+  await page.goto('/song/placeholder-song-one');
+  await expect(page.getByRole('region', { name: 'Listen' })).toBeVisible();
+  await expect(page.locator('.tabbar')).toBeHidden();
+  await page.getByRole('button', { name: 'Play Placeholder Song One' }).click();
+  await expect.poll(() => audioTime(page), { timeout: 15_000 }).toBeGreaterThan(1);
+  await expect(page.getByRole('region', { name: 'Player' })).toHaveCount(0); // the player screen has its own controls
+
+  // Leave through the artist link: the lists come back with the tab bar and the strip.
+  await page.getByRole('region', { name: 'Listen' }).getByRole('link', { name: 'Grace Worship Team' }).click();
+  await expect(page).toHaveURL(/\/artist\/grace-worship$/);
+  await expect(page.locator('.tabbar')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Player' })).toBeVisible();
+
+  // The Lyrics icon: no tab bar, but the strip stays and the music goes on.
+  await page.locator('.song-row').filter({ hasText: 'Placeholder Song One' }).getByRole('link', { name: 'Lyrics of Placeholder Song One' }).click();
+  await expect(page).toHaveURL(/\/song\/placeholder-song-one\/lyrics$/);
+  await expect(page.locator('.tabbar')).toBeHidden();
+  await expect(page.getByRole('region', { name: 'Player' })).toBeVisible();
+  expect(await page.evaluate(() => (document.querySelector('audio') as HTMLAudioElement).paused)).toBe(false);
 });
 
 test('the YouTube link opens YouTube in a new tab, pauses our audio, and loads nothing from YouTube into the page', async ({ page, context, request }) => {
@@ -77,10 +173,17 @@ test('the YouTube link opens YouTube in a new tab, pauses our audio, and loads n
   await page.getByRole('button', { name: 'Play Placeholder Song One' }).click();
   await expect.poll(() => audioTime(page), { timeout: 15_000 }).toBeGreaterThan(1);
 
-  // The mini player carries the same link while this song is loaded.
-  await expect(page.getByRole('region', { name: 'Player' }).getByRole('link', { name: 'Watch on YouTube' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  // On another page the strip carries the same link while this song is loaded.
+  await page.getByRole('region', { name: 'Listen' }).getByRole('link', { name: 'Grace Worship Team' }).click();
+  await expect(page).toHaveURL(/\/artist\/grace-worship$/);
+  const mini = page.getByRole('region', { name: 'Player' });
+  await expect(mini.getByRole('link', { name: 'Watch on YouTube' })).toHaveAttribute('href', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
-  const link = page.getByRole('region', { name: 'Listen' }).getByRole('link', { name: 'Watch on YouTube' });
+  // The song's own ⋮ menu has it too, as a link that opens a new tab.
+  await mini.locator('.mini-info').click();
+  await expect(page).toHaveURL(/\/song\/placeholder-song-one$/);
+  await page.getByRole('button', { name: 'More options for Placeholder Song One' }).click();
+  const link = page.getByRole('dialog').getByRole('link', { name: 'Watch on YouTube' });
   await expect(link).toHaveAttribute('href', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
   await expect(link).toHaveAttribute('target', '_blank');
   await expect(link).toHaveAttribute('rel', /noopener/);
@@ -144,7 +247,7 @@ test('without the artist\'s audio right the song is lyrics-only and its file is 
     await expect(page.getByRole('heading', { name: 'Placeholder Song One' })).toBeVisible();
     await expect(page.getByText('Placeholder line one of the')).toBeVisible();
     await expect(page.getByRole('button', { name: /^Play / })).toHaveCount(0);
-    await expect(page.getByText('No audio file for this song yet')).toBeVisible();
+    await expect(page.getByText('Lyrics only · no audio file yet')).toBeVisible();
   } finally {
     sql(`update public.agreements set allow_audio_hosting = true where id = '${agreement}'`);
   }

@@ -13,6 +13,11 @@ export function songHref(song: Pick<Song, 'slug'>): string {
   return `/song/${song.slug}`;
 }
 
+/** The lyrics on their own, without starting the song. */
+export function lyricsHref(song: Pick<Song, 'slug'>): string {
+  return `/song/${song.slug}/lyrics`;
+}
+
 /** One song in a list: cover with its language, title and artist, then Lyrics, Like, Play and the ⋮ menu.
  *  There is no Play button for a song without an audio file. Playing starts a queue made of the playable songs of
  *  the whole list, so Next moves down the list. `source` names the list in the player ("Playing from …"). */
@@ -40,7 +45,7 @@ export function SongRow({ song, songs, source }: { song: Song; songs: Song[]; so
         <span className="song-artist">{song.artist_name}</span>
       </Link>
       <div className="row-actions">
-        <Link href={songHref(song)} className="row-ic" aria-label={`Lyrics of ${song.title}`}>
+        <Link href={lyricsHref(song)} className="row-ic" aria-label={`Lyrics of ${song.title}`}>
           <LyricsIcon />
         </Link>
         <button type="button" className="row-ic row-like" aria-pressed={liked} aria-label={liked ? `Unlike ${song.title}` : `Like ${song.title}`} onClick={() => void toggleLike()}>

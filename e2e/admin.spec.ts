@@ -26,13 +26,13 @@ test('signed-out visitors go to login and ordinary users get the same "not avail
   // Settings offers no way in to someone who is not an admin.
   await page.goto('/settings');
   await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open the admin site' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Admin site' })).toHaveCount(0);
 });
 
 test('an admin sees the dashboard with the reason each hidden song is hidden', async ({ page }) => {
   await signInAsAdmin(page);
   await page.goto('/settings');
-  await page.getByRole('link', { name: 'Open the admin site' }).click();
+  await page.getByRole('link', { name: 'Admin site' }).click();
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Expiring within 60 days' })).toBeVisible();

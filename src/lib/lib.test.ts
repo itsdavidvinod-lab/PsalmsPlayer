@@ -198,7 +198,7 @@ test('ListenMeter keeps the sub-second remainder and never counts a sleeping dev
 });
 
 import { ListenReporter, BEAT_MS } from './listen-reporter.ts';
-import { nextIndex, playableQueue, previousStep } from './queue.ts';
+import { hasNextSong, indexInOrder, isRepeatMode, nextIndex, nextRepeatMode, parsePlayerPrefs, playableQueue, previousStep, randomPlayableId, shuffleQueue } from './queue.ts';
 import { SignedUrlCache } from './signed-url-cache.ts';
 import { formatClock } from './format.ts';
 
@@ -799,4 +799,85 @@ test('the sign-in method is put in words', () => {
   assert.equal(signInMethodLabel('github'), 'github');
   assert.equal(signInMethodLabel(undefined), 'Unknown');
   assert.equal(signInMethodLabel(''), 'Unknown');
+});
+
+/** A repeatable stand-in for Math.random, so a "random" order can be checked. */
+function seeded(seed: number): () => number {
+  let x = seed;
+  return () => {
+    x = (Math.imul(x, 1664525) + 1013904223) >>> 0;
+    return x / 4294967296;
+  };
+}
+
+test('repeat cycles off, all, one, off; next wraps only when the whole queue repeats', () => {
+  assert.equal(nextRepeatMode('off'), 'all');
+  assert.equal(nextRepeatMode('all'), 'one');
+  assert.equal(nextRepeatMode('one'), 'off');
+  assert.equal(isRepeatMode('all'), true);
+  assert.equal(isRepeatMode('loop'), false);
+  assert.equal(isRepeatMode(undefined), false);
+
+  assert.equal(nextIndex(3, 0), 1);
+  assert.equal(nextIndex(3, 2), null, 'the end of the queue');
+  assert.equal(nextIndex(3, 2, true), 0, 'repeat all goes back to the start');
+  assert.equal(nextIndex(0, -1, true), null, 'an empty queue has no next song');
+
+  assert.equal(hasNextSong(3, 0, 'off'), true);
+  assert.equal(hasNextSong(3, 2, 'off'), false);
+  assert.equal(hasNextSong(3, 2, 'one'), false, 'repeat one does not make Next appear at the end');
+  assert.equal(hasNextSong(3, 2, 'all'), true);
+  assert.equal(hasNextSong(1, 0, 'all'), false, 'one song has nowhere to go');
+  assert.equal(hasNextSong(3, -1, 'all'), false, 'nothing is loaded');
+});
+
+test('shuffle keeps every song once and the song that is playing first, and never changes the original order', () => {
+  const songs = Array.from({ length: 12 }, (_, i) => ({ id: `s${i}` }));
+  const before = songs.map((s) => s.id).join(',');
+  for (const seed of [1, 2, 3, 99, 12345]) {
+    const out = shuffleQueue(songs, 's5', seeded(seed));
+    assert.equal(out[0].id, 's5', 'the playing song stays first');
+    assert.equal(out.length, 12);
+    assert.deepEqual(out.map((s) => s.id).sort(), songs.map((s) => s.id).sort(), 'no song lost or doubled');
+  }
+  assert.equal(songs.map((s) => s.id).join(','), before, 'the input is not changed');
+  const a = shuffleQueue(songs, 's0', seeded(7)).map((s) => s.id).join(',');
+  const b = shuffleQueue(songs, 's0', seeded(7)).map((s) => s.id).join(',');
+  assert.equal(a, b, 'same random numbers, same order');
+  const orders = new Set([1, 2, 3, 4, 5, 6].map((seed) => shuffleQueue(songs, 's0', seeded(seed)).map((s) => s.id).join(',')));
+  assert.ok(orders.size > 1, 'different random numbers give different orders');
+  assert.notEqual(a, before, 'the order really changed');
+
+  assert.deepEqual(shuffleQueue<{ id: string }>([], 'x').map((s) => s.id), []);
+  assert.deepEqual(shuffleQueue([{ id: 'only' }], 'only').map((s) => s.id), ['only']);
+  assert.equal(shuffleQueue(songs, 'gone', seeded(3)).length, 12, 'a current song that is not in the queue is not invented: every song of the queue is kept');
+
+  // Turning shuffle off puts the playing song back at its own place in the original order.
+  assert.equal(indexInOrder(songs, 's7'), 7);
+  assert.equal(indexInOrder(songs, 'missing'), 0);
+});
+
+test('"Shuffle play" starts from a random song that has audio, and from none when no song has', () => {
+  const songs = [
+    { id: 'a', has_audio: false },
+    { id: 'b', has_audio: true },
+    { id: 'c', has_audio: false },
+    { id: 'd', has_audio: true },
+  ];
+  for (const r of [0, 0.3, 0.49, 0.5, 0.99, 0.999999]) {
+    assert.ok(['b', 'd'].includes(randomPlayableId(songs, () => r) ?? ''), `random ${r} picks a playable song`);
+  }
+  assert.equal(randomPlayableId(songs, () => 0), 'b');
+  assert.equal(randomPlayableId(songs, () => 0.999999), 'd');
+  assert.equal(randomPlayableId([{ id: 'x', has_audio: false }]), null);
+  assert.equal(randomPlayableId([]), null);
+});
+
+test('shuffle and repeat are remembered on the device, and a damaged value falls back to the plain settings', () => {
+  assert.deepEqual(parsePlayerPrefs('{"shuffle":true,"repeat":"all"}'), { shuffle: true, repeat: 'all' });
+  assert.deepEqual(parsePlayerPrefs('{"shuffle":"yes","repeat":"sometimes"}'), { shuffle: false, repeat: 'off' });
+  assert.deepEqual(parsePlayerPrefs('{"repeat":"one"}'), { shuffle: false, repeat: 'one' });
+  assert.deepEqual(parsePlayerPrefs('not json'), { shuffle: false, repeat: 'off' });
+  assert.deepEqual(parsePlayerPrefs('null'), { shuffle: false, repeat: 'off' });
+  assert.deepEqual(parsePlayerPrefs(null), { shuffle: false, repeat: 'off' });
 });

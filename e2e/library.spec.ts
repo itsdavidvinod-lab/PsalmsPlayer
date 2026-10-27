@@ -25,7 +25,7 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
 
   // Add two songs from their own pages.
   for (const slug of ['placeholder-song-one', 'placeholder-single']) {
-    await page.goto(`/song/${slug}`);
+    await page.goto(`/song/${slug}/lyrics`);
     await page.getByRole('button', { name: 'Add to list' }).click();
     await page.getByRole('button', { name: /^Sunday service/ }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Added to Sunday service.' })).toBeVisible();
@@ -85,9 +85,13 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
 test('a quick new playlist from a song page, and liked songs show in the Library', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('quick'));
   await page.goto('/song/placeholder-song-one');
-  await page.getByRole('button', { name: '♡ Like' }).click();
-  await expect(page.getByRole('button', { name: '♥ Liked' })).toBeVisible();
+  const liked = page.waitForResponse((r) => r.url().includes('/rest/v1/song_likes') && r.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Like Placeholder Song One', exact: true }).click();
+  expect((await liked).ok(), 'the like is saved').toBeTruthy();
+  await expect(page.getByRole('button', { name: 'Unlike Placeholder Song One', exact: true })).toBeVisible();
 
+  // From the player screen, "Add to list" is in the ⋮ menu.
+  await page.getByRole('button', { name: 'More options for Placeholder Song One' }).click();
   await page.getByRole('button', { name: 'Add to list' }).click();
   await page.getByLabel('New playlist').fill('Morning songs');
   await page.getByRole('button', { name: 'Create and add' }).click();

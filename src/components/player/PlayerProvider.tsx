@@ -6,7 +6,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ListenReporter, type ListenRpc } from '@/lib/listen-reporter';
-import { nextIndex, playableQueue, previousStep } from '@/lib/queue';
+import { hasNextSong, indexInOrder, nextIndex, nextRepeatMode, parsePlayerPrefs, playableQueue, previousStep, randomPlayableId, shuffleQueue, type RepeatMode } from '@/lib/queue';
 import { SignedUrlCache } from '@/lib/signed-url-cache';
 import { createClient } from '@/lib/supabase/client';
 import type { Song } from '@/lib/types';
@@ -20,6 +20,14 @@ export type PlayerApi = {
   loading: boolean;
   error: string | null;
   hasNext: boolean;
+  shuffle: boolean;
+  repeat: RepeatMode;
+  /** Shuffle on or off. The song that is playing keeps playing; turning it off puts the queue back in its own order. */
+  toggleShuffle: () => void;
+  /** Repeat: off, then the whole queue, then one song, then off again. */
+  cycleRepeat: () => void;
+  /** Turns shuffle on and starts a random song of `songs` that has audio. */
+  shuffleAll: (songs: Song[], source?: string) => void;
   /** Where the queue came from, for "Playing from …" (an album, a list, the Home page). Null when unknown. */
   source: string | null;
   /** Starts the song at `startId` from the beginning, with the playable songs of `songs` as the queue. */
@@ -46,6 +54,8 @@ export function usePlayer(): PlayerApi {
 export function usePlayback(): PlaybackClock {
   return useContext(ClockContext);
 }
+
+const PREFS_KEY = 'psalms:player';
 
 const listenRpc: ListenRpc = async (sessionId, songId, seconds) => {
   const { data, error } = await createClient().rpc('record_listen', { p_session: sessionId, p_song: songId, p_seconds: seconds });
@@ -74,6 +84,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [queue, setQueue] = useState<Song[]>([]);
   const [index, setIndex] = useState(-1);
   const [source, setSource] = useState<string | null>(null);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState<RepeatMode>('off');
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +94,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // The newest queue and position, for callbacks that must not wait for a re-render.
   const queueRef = useRef<Song[]>([]);
+  const baseRef = useRef<Song[]>([]); // the queue in its own order, for when shuffle is turned off
+  const shuffleRef = useRef(false);
+  const repeatRef = useRef<RepeatMode>('off');
   const indexRef = useRef(-1);
   const tokenRef = useRef(0); // a newer request to load a song cancels an older one that is still waiting for its link
   const pendingRef = useRef(false); // a song is being fetched; the element may still hold the previous one
@@ -146,13 +161,70 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     (songs: Song[], startId: string, from?: string) => {
       const built = playableQueue(songs, startId);
       if (!built) return;
-      queueRef.current = built.queue;
-      setQueue(built.queue);
+      baseRef.current = built.queue;
+      const order = shuffleRef.current ? shuffleQueue(built.queue, startId) : built.queue;
+      queueRef.current = order;
+      setQueue(order);
       setSource(from ?? null);
-      goTo(built.index);
+      goTo(shuffleRef.current ? 0 : built.index);
     },
     [goTo],
   );
+
+  const applyPrefs = useCallback((nextShuffle: boolean, nextRepeat: RepeatMode) => {
+    shuffleRef.current = nextShuffle;
+    repeatRef.current = nextRepeat;
+    setShuffle(nextShuffle);
+    setRepeat(nextRepeat);
+    try {
+      window.localStorage.setItem(PREFS_KEY, JSON.stringify({ shuffle: nextShuffle, repeat: nextRepeat }));
+    } catch {
+      // Private browsing or blocked storage: the choice simply is not remembered.
+    }
+  }, []);
+
+  const toggleShuffle = useCallback(() => {
+    const on = !shuffleRef.current;
+    applyPrefs(on, repeatRef.current);
+    const playing = queueRef.current[indexRef.current];
+    if (!playing) return;
+    // Re-order the queue around the song that is playing, without touching the audio.
+    const order = on ? shuffleQueue(baseRef.current, playing.id) : baseRef.current;
+    const at = on ? 0 : indexInOrder(order, playing.id);
+    queueRef.current = order;
+    indexRef.current = at;
+    setQueue(order);
+    setIndex(at);
+  }, [applyPrefs]);
+
+  const cycleRepeat = useCallback(() => {
+    applyPrefs(shuffleRef.current, nextRepeatMode(repeatRef.current));
+  }, [applyPrefs]);
+
+  const shuffleAll = useCallback(
+    (songs: Song[], from?: string) => {
+      const id = randomPlayableId(songs);
+      if (!id) return;
+      applyPrefs(true, repeatRef.current);
+      playQueue(songs, id, from);
+    },
+    [applyPrefs, playQueue],
+  );
+
+  // What was chosen last time on this device. Read after the first paint, so the page and the server agree at first.
+  useEffect(() => {
+    let text: string | null = null;
+    try {
+      text = window.localStorage.getItem(PREFS_KEY);
+    } catch {
+      // Blocked storage: start with the plain settings.
+    }
+    const prefs = parsePlayerPrefs(text);
+    shuffleRef.current = prefs.shuffle;
+    repeatRef.current = prefs.repeat;
+    setShuffle(prefs.shuffle);
+    setRepeat(prefs.repeat);
+  }, []);
 
   const toggle = useCallback(() => {
     const el = audioRef.current;
@@ -183,7 +255,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const next = useCallback(() => {
-    const n = nextIndex(queueRef.current.length, indexRef.current);
+    const n = nextIndex(queueRef.current.length, indexRef.current, repeatRef.current === 'all');
     if (n !== null) goTo(n);
   }, [goTo]);
 
@@ -222,7 +294,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // While the next song is not yet playing, fetch its link so skipping is quick.
-  const upcomingId = index >= 0 && index + 1 < queue.length ? queue[index + 1].id : null;
+  const upcomingId =
+    index >= 0 && queue.length > 1 ? (index + 1 < queue.length ? queue[index + 1].id : repeat === 'all' ? queue[0].id : null) : null;
   useEffect(() => {
     if (upcomingId) void urls.get(upcomingId);
   }, [upcomingId, urls]);
@@ -288,7 +361,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const onEnded = () => {
     reporterRef.current?.tick(false);
-    const n = nextIndex(queueRef.current.length, indexRef.current);
+    if (repeatRef.current === 'one') {
+      // The same song again, from the start. The link is already loaded, so this is instant.
+      const el = audioRef.current;
+      if (el) {
+        el.currentTime = 0;
+        el.play().catch(() => setPlaying(false));
+        return;
+      }
+    }
+    const n = nextIndex(queueRef.current.length, indexRef.current, repeatRef.current === 'all');
     if (n === null) {
       setPlaying(false);
       return;
@@ -304,7 +386,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       playing: playing || loading,
       loading,
       error,
-      hasNext: index >= 0 && index + 1 < queue.length,
+      hasNext: hasNextSong(queue.length, index, repeat),
+      shuffle,
+      repeat,
+      toggleShuffle,
+      cycleRepeat,
+      shuffleAll,
       source,
       playQueue,
       toggle,
@@ -313,7 +400,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       previous,
       seek,
     }),
-    [current, queue, index, source, playing, loading, error, playQueue, toggle, pause, next, previous, seek],
+    [current, queue, index, source, shuffle, repeat, playing, loading, error, playQueue, toggleShuffle, cycleRepeat, shuffleAll, toggle, pause, next, previous, seek],
   );
   const clock = useMemo<PlaybackClock>(() => ({ position, duration }), [position, duration]);
 
