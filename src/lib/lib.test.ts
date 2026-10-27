@@ -12,7 +12,12 @@ import { AGREEMENT_STATUSES, ENFORCED_RIGHTS, agreementPhase, agreementSummary, 
 import { AUDIO_MAX_BYTES, checkAudioFile, audioObjectName, audioHostingState, durationSeconds, audioDisplayName, mmss, sizeLabel } from './audio-file.ts';
 import { extractYoutubeId, youtubeWatchUrl } from './youtube.ts';
 import { buildShareUrl, safeNextPath } from './share.ts';
-import { COVER_PALETTE, coverBackground, coverColors, initialOf } from './cover.ts';
+import { COVER_PALETTE, coverBackground, coverColors, heroBackground, initialOf } from './cover.ts';
+import { timeAgo } from './relative-time.ts';
+import { FILTER_KINDS, cleanQuery, hasSearch, parseSearch, searchHref } from './search.ts';
+import { NO_CHIPS, isFiltering, listChips, matchesChips, matchesFind, songCountLabel, sortSlots, toggleChip, visibleSlots, type Slot } from './list.ts';
+import { makeLabels } from './labels.ts';
+import type { Song } from './types.ts';
 import { pictureFromMetadata, signInMethodLabel } from './user.ts';
 import {
   visibilityLabel, slugify, isValidSlug, isHttpsUrl, isUuid, parseOptionalInt, daysLeftLabel, explainAdminError,
@@ -880,4 +885,132 @@ test('shuffle and repeat are remembered on the device, and a damaged value falls
   assert.deepEqual(parsePlayerPrefs('not json'), { shuffle: false, repeat: 'off' });
   assert.deepEqual(parsePlayerPrefs('null'), { shuffle: false, repeat: 'off' });
   assert.deepEqual(parsePlayerPrefs(null), { shuffle: false, repeat: 'off' });
+});
+
+test('heroBackground uses the name colours and always ends in the dark wash', () => {
+  const [a, b] = coverColors('Pastor.Veeresh');
+  const css = heroBackground('Pastor.Veeresh');
+  assert.ok(css.includes(a) && css.includes(b));
+  assert.ok(css.endsWith('#1a1230)'));
+  assert.equal(heroBackground('  pastor.veeresh '), css);
+});
+
+test('timeAgo gives short, plain labels', () => {
+  const now = new Date('2030-03-31T12:00:00Z');
+  const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
+  const min = 60_000, hour = 3_600_000, day = 86_400_000;
+  assert.equal(timeAgo(null, now), '');
+  assert.equal(timeAgo('not a date', now), '');
+  assert.equal(timeAgo(ago(20_000), now), 'just now');
+  assert.equal(timeAgo(ago(5 * min), now), '5m ago');
+  assert.equal(timeAgo(ago(3 * hour), now), '3h ago');
+  assert.equal(timeAgo(ago(2 * day), now), '2d ago');
+  assert.equal(timeAgo(ago(13 * day), now), '13d ago');
+  assert.equal(timeAgo(ago(14 * day), now), '2w ago');
+  assert.equal(timeAgo(ago(45 * day), now), '6w ago');
+  assert.equal(timeAgo(ago(90 * day), now), '3mo ago');
+  assert.equal(timeAgo(ago(800 * day), now), '2y ago');
+  assert.equal(timeAgo(new Date(now.getTime() + 5 * day).toISOString(), now), 'just now');
+});
+
+test('cleanQuery keeps letters, digits, spaces, apostrophes and hyphens only', () => {
+  assert.equal(cleanQuery("x' or 1=1 --"), "x' or 1 1 --");
+  assert.equal(cleanQuery('100%'), '100');
+  assert.equal(cleanQuery('<script>alert(1)</script>'), 'script alert 1 script');
+  assert.equal(cleanQuery('_'), '');
+  assert.equal(cleanQuery(undefined), '');
+  assert.equal(cleanQuery('  ನನ್ನ   ಕಡೆಗೆ '), 'ನನ್ನ ಕಡೆಗೆ');
+  assert.equal(cleanQuery('a'.repeat(100)).length, 60);
+});
+
+test('parseSearch drops unknown filter values and takes the first of a repeated one', () => {
+  const known = { language: ['ta', 'en'], genre: ['worship'], occasion: ['christmas'], mood: ['joyful'] };
+  assert.deepEqual(parseSearch({ q: ' Grace ', language: 'ta', genre: 'worship' }, known), { q: 'Grace', language: 'ta', genre: 'worship' });
+  assert.deepEqual(parseSearch({ language: 'xx', genre: ["worship'--"], mood: ['joyful', 'x'] }, known), { q: '', mood: 'joyful' });
+  assert.deepEqual(parseSearch({}, known), { q: '' });
+});
+
+test('searchHref and hasSearch round-trip', () => {
+  assert.equal(searchHref({ q: '' }), '/search');
+  assert.equal(searchHref({ q: 'a b', genre: 'worship' }), '/search?q=a+b&genre=worship');
+  assert.equal(searchHref({ q: '', language: 'ta', mood: 'joyful' }), '/search?language=ta&mood=joyful');
+  assert.equal(hasSearch({ q: '' }), false);
+  assert.equal(hasSearch({ q: 'x' }), true);
+  for (const kind of FILTER_KINDS) assert.equal(hasSearch({ q: '', [kind]: 'v' }), true);
+});
+
+function song(over: Partial<Song> & { id: string; title: string }): Song {
+  return {
+    slug: over.id, language_code: 'ta', musical_key: null, tempo_bpm: null, duration_s: null, track_no: null, genres: [], occasions: [], moods: [],
+    published_at: null, artist_id: 'a', artist_slug: 'a', artist_name: 'Artist', album_id: null, album_slug: null, album_title: null,
+    youtube_id: null, like_count: 0, has_audio: true, ...over,
+  };
+}
+
+test('list finding is case-blind and looks at title and artist', () => {
+  const s = song({ id: '1', title: 'Nanna Kadege', artist_name: 'Pastor.Veeresh' });
+  assert.equal(matchesFind(s, ''), true);
+  assert.equal(matchesFind(s, '  KADEGE '), true);
+  assert.equal(matchesFind(s, 'veeresh'), true);
+  assert.equal(matchesFind(s, 'grace'), false);
+});
+
+test('sortSlots: custom keeps order, others sort and push empty slots last', () => {
+  const slots: Slot[] = [
+    { id: 'a', song: song({ id: 'a', title: 'Zion', artist_name: 'B', published_at: '2030-01-01' }) },
+    { id: 'gap', song: null },
+    { id: 'b', song: song({ id: 'b', title: 'abba', artist_name: 'A', published_at: '2030-03-01' }) },
+    { id: 'c', song: song({ id: 'c', title: 'Mercy', artist_name: 'A', published_at: null }) },
+  ];
+  assert.deepEqual(sortSlots(slots, 'custom').map((s) => s.id), ['a', 'gap', 'b', 'c']);
+  assert.deepEqual(sortSlots(slots, 'title').map((s) => s.id), ['b', 'c', 'a', 'gap']);
+  assert.deepEqual(sortSlots(slots, 'artist').map((s) => s.id), ['b', 'c', 'a', 'gap']);
+  assert.deepEqual(sortSlots(slots, 'newest').map((s) => s.id), ['b', 'a', 'c', 'gap']);
+  assert.deepEqual(slots.map((s) => s.id), ['a', 'gap', 'b', 'c'], 'the input is not changed');
+});
+
+test('list chips: languages then genres, most common first; kinds combine with and, values with or', () => {
+  const songs = [
+    song({ id: '1', title: 'One', language_code: 'ta', genres: ['worship'] }),
+    song({ id: '2', title: 'Two', language_code: 'en', genres: ['praise', 'worship'] }),
+    song({ id: '3', title: 'Three', language_code: 'ta', genres: [] }),
+  ];
+  const chips = listChips(songs, (c) => ({ ta: 'Tamil', en: 'English' })[c] ?? c, (c) => c.toUpperCase());
+  assert.deepEqual(chips.map((c) => c.key), ['language:ta', 'language:en', 'genre:worship', 'genre:praise']);
+  assert.deepEqual(chips.map((c) => c.label), ['Tamil', 'English', 'WORSHIP', 'PRAISE']);
+
+  const tamil = toggleChip(NO_CHIPS, chips[0]);
+  assert.deepEqual(tamil, { language: ['ta'], genre: [] });
+  assert.deepEqual(songs.filter((s) => matchesChips(s, tamil)).map((s) => s.id), ['1', '3']);
+  const tamilOrEnglish = toggleChip(tamil, chips[1]);
+  assert.deepEqual(songs.filter((s) => matchesChips(s, tamilOrEnglish)).map((s) => s.id), ['1', '2', '3']);
+  const andWorship = toggleChip(tamil, chips[2]);
+  assert.deepEqual(songs.filter((s) => matchesChips(s, andWorship)).map((s) => s.id), ['1']);
+  assert.deepEqual(toggleChip(tamil, chips[0]), NO_CHIPS);
+});
+
+test('visibleSlots drops empty slots only when finding or filtering', () => {
+  const slots: Slot[] = [
+    { id: 'a', song: song({ id: 'a', title: 'Alpha' }) },
+    { id: 'gap', song: null },
+    { id: 'b', song: song({ id: 'b', title: 'Beta' }) },
+  ];
+  assert.deepEqual(visibleSlots(slots, '', NO_CHIPS, 'custom').map((s) => s.id), ['a', 'gap', 'b']);
+  assert.deepEqual(visibleSlots(slots, 'et', NO_CHIPS, 'custom').map((s) => s.id), ['b']);
+  assert.equal(isFiltering('  ', NO_CHIPS), false);
+  assert.equal(isFiltering('', { language: ['ta'], genre: [] }), true);
+});
+
+test('songCountLabel has the right grammar', () => {
+  assert.equal(songCountLabel(0), '0 songs');
+  assert.equal(songCountLabel(1), '1 song');
+  assert.equal(songCountLabel(2), '2 songs');
+});
+
+test('labels name codes and fall back to the code itself', () => {
+  const labels = makeLabels([{ code: 'ta', name: 'Tamil', native_name: null }], [{ kind: 'genre', code: 'worship', label: 'Worship' }]);
+  assert.equal(labels.languageName('ta'), 'Tamil');
+  assert.equal(labels.languageName('xx'), 'xx');
+  assert.equal(labels.tagLabel('genre', 'worship'), 'Worship');
+  assert.equal(labels.tagLabel('mood', 'worship'), 'worship', 'a code is looked up inside its own kind');
 });

@@ -13,10 +13,12 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
 
   await page.goto('/library');
   await expect(page.getByText('No lists yet')).toBeVisible();
-  await page.getByLabel('New list name').fill('Sunday service');
-  await page.getByLabel('Type').selectOption('setlist');
-  await page.getByLabel('Service date (optional)').fill('2030-01-06');
-  await page.getByRole('button', { name: 'Create list' }).click();
+  await page.getByRole('button', { name: 'New list' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New list' });
+  await dialog.getByLabel('New list name').fill('Sunday service');
+  await dialog.getByLabel('Type').selectOption('setlist');
+  await dialog.getByLabel('Service date (optional)').fill('2030-01-06');
+  await dialog.getByRole('button', { name: 'Create list' }).click();
   await expect(page).toHaveURL(/\/library\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { name: 'Sunday service', level: 1 })).toBeVisible();
   await expect(page.getByText('Setlist · 2030-01-06 · 0 songs')).toBeVisible();
@@ -36,9 +38,12 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
   await page.goto(listUrl);
   const titles = page.locator('.song-row .song-title');
   await expect(titles).toHaveText(['Placeholder Song One', 'Placeholder Single']);
+  // A setlist shows each song's key under its title.
+  await expect(page.getByText('Grace Worship Team · Key G')).toBeVisible();
 
-  // Reorder: the new order survives a reload (it is saved, not just shown).
+  // Reorder (in Edit): the new order survives a reload (it is saved, not just shown).
   // The page updates at once and saves in the background, so wait for the save before reloading.
+  await page.getByRole('button', { name: 'Edit list' }).click();
   await Promise.all([
     page.waitForResponse((r) => r.url().includes('/rpc/reorder_playlist') && r.ok()),
     page.getByRole('button', { name: 'Move Placeholder Single up' }).click(),
@@ -46,6 +51,7 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
   await expect(titles).toHaveText(['Placeholder Single', 'Placeholder Song One']);
   await page.reload();
   await expect(titles).toHaveText(['Placeholder Single', 'Placeholder Song One']);
+  await page.getByRole('button', { name: 'Edit list' }).click();
   await expect(page.getByRole('button', { name: 'Move Placeholder Single up' })).toBeDisabled();
 
   // A key for this service only: the song itself is not changed.
@@ -54,10 +60,11 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
     page.getByLabel('Key for Placeholder Song One').selectOption('A'),
   ]);
   await page.reload();
+  await expect(page.getByText('Grace Worship Team · Key A')).toBeVisible();
+  await page.getByRole('button', { name: 'Edit list' }).click();
   await expect(page.getByLabel('Key for Placeholder Song One')).toHaveValue('A');
 
   // Rename and change the date.
-  await page.getByText('Edit this list').click();
   await page.getByLabel('Name', { exact: true }).fill('Sunday 6 January');
   await page.getByLabel('Service date').fill('2030-01-13');
   await page.getByRole('button', { name: 'Save' }).click();
@@ -74,7 +81,7 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
   await expect(titles).toHaveText(['Placeholder Song One']);
 
   // Delete the list.
-  await page.getByText('Edit this list').click();
+  await page.getByRole('button', { name: 'Edit list' }).click();
   await page.getByRole('button', { name: 'Delete list' }).click();
   await page.getByRole('button', { name: 'Yes, delete' }).click();
   await expect(page).toHaveURL(/\/library$/);
@@ -82,15 +89,16 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
   expect((await page.goto(listUrl))?.status()).toBe(404);
 });
 
-test('a quick new playlist from a song page, and liked songs show in the Library', async ({ page }) => {
+test('a quick new playlist from a song page, and the Library shows it next to Liked songs', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('quick'));
-  await page.goto('/song/placeholder-song-one');
+  // The lyrics page works the same whether or not the song has an audio file.
+  await page.goto('/song/placeholder-song-one/lyrics');
   const liked = page.waitForResponse((r) => r.url().includes('/rest/v1/song_likes') && r.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Like Placeholder Song One', exact: true }).click();
+  await page.getByRole('button', { name: 'Like', exact: true }).click();
   expect((await liked).ok(), 'the like is saved').toBeTruthy();
-  await expect(page.getByRole('button', { name: 'Unlike Placeholder Song One', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Liked', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
-  // From the player screen, "Add to list" is in the ⋮ menu.
+  // "Add to list" is in the ⋮ menu.
   await page.getByRole('button', { name: 'More options for Placeholder Song One' }).click();
   await page.getByRole('button', { name: 'Add to list' }).click();
   await page.getByLabel('New playlist').fill('Morning songs');
@@ -98,8 +106,63 @@ test('a quick new playlist from a song page, and liked songs show in the Library
   await expect(page.getByRole('status').filter({ hasText: 'Added to Morning songs.' })).toBeVisible();
 
   await page.goto('/library');
-  await expect(page.getByText('Playlist · 1 songs')).toBeVisible();
-  await expect(page.locator('section[aria-labelledby="liked"]').getByText('Placeholder Song One', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your Library', level: 1 })).toBeVisible();
+  await expect(page.getByText('Playlist · 1 song', { exact: true })).toBeVisible();
+  await expect(page.getByText('List · 1 song', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: /Liked songs/ }).click();
+  await expect(page).toHaveURL(/\/library\/liked$/);
+  await expect(page.getByText('Placeholder Song One', { exact: true })).toBeVisible();
+});
+
+test('in Liked songs: find, filter by language or genre, and sort', async ({ page }) => {
+  await signUpAndIn(page, uniqueEmail('liked-tools'));
+  await page.goto('/search?q=placeholder');
+  // Like the single first, then Song One, so "recently liked" has Song One on top.
+  for (const title of ['Placeholder Single', 'Placeholder Song One']) {
+    const saved = page.waitForResponse((r) => r.url().includes('/rest/v1/song_likes') && r.request().method() === 'POST');
+    await page.getByRole('button', { name: `Like ${title}`, exact: true }).click();
+    expect((await saved).ok()).toBeTruthy();
+  }
+
+  await page.goto('/library/liked');
+  const titles = page.locator('.song-row .song-title');
+  await expect(titles).toHaveText(['Placeholder Song One', 'Placeholder Single']);
+  await expect(page.getByText('2 songs', { exact: true })).toBeVisible();
+
+  // Find, by title and by artist.
+  const find = page.getByRole('searchbox', { name: 'Find in Liked songs' });
+  await find.fill('single');
+  await expect(titles).toHaveText(['Placeholder Single']);
+  await find.fill('grace');
+  await expect(titles).toHaveCount(2);
+  await find.fill('nothing like this');
+  await expect(page.getByText('No songs match.')).toBeVisible();
+  await find.fill('');
+  await expect(titles).toHaveCount(2);
+
+  // Chips: the languages and genres that really occur in this list.
+  const chips = page.getByRole('group', { name: 'Filter this list' });
+  await expect(chips.getByRole('button')).toHaveText(['English', 'Tamil', 'Praise', 'Worship']);
+  await chips.getByRole('button', { name: 'Tamil' }).click();
+  await expect(titles).toHaveText(['Placeholder Song One']);
+  await chips.getByRole('button', { name: 'English' }).click(); // Tamil or English
+  await expect(titles).toHaveCount(2);
+  await chips.getByRole('button', { name: 'Praise' }).click(); // (Tamil or English) and Praise
+  await expect(titles).toHaveText(['Placeholder Single']);
+  await chips.getByRole('button', { name: 'Praise' }).click();
+  await chips.getByRole('button', { name: 'Tamil' }).click();
+  await chips.getByRole('button', { name: 'English' }).click();
+  await expect(titles).toHaveCount(2);
+
+  // Sort.
+  await page.getByRole('button', { name: 'Sort' }).click();
+  const sort = page.getByRole('dialog', { name: 'Sort' });
+  await sort.getByRole('button', { name: 'Title' }).click();
+  await expect(sort).toHaveCount(0);
+  await expect(titles).toHaveText(['Placeholder Single', 'Placeholder Song One']);
+  await page.getByRole('button', { name: 'Sort' }).click();
+  await page.getByRole('dialog', { name: 'Sort' }).getByRole('button', { name: 'Recently liked' }).click();
+  await expect(titles).toHaveText(['Placeholder Song One', 'Placeholder Single']);
 });
 
 test('a song that is not available keeps its slot but never shows its title', async ({ page }) => {

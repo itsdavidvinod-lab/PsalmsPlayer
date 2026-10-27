@@ -103,3 +103,6 @@ export type StageItem = {
   keyOverride: string | null;
   lyrics: LyricsVersion[];
 };
+
+export type TagKind = 'genre' | 'occasion' | 'mood';
+export type Tag = { kind: TagKind; code: string; label: string };

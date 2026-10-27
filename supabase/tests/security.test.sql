@@ -236,6 +236,57 @@ select test_helpers.expect_error($q$insert into public.song_likes (user_id, song
 select test_helpers.expect_error($q$insert into public.song_likes (user_id, song_id) values ('22222222-2222-2222-2222-222222222222','d0000000-0000-0000-0000-000000000001')$q$, '42501');
 rollback;
 
+-- ============================================================ following artists
+begin;
+insert into public.artist_follows (user_id, artist_id) values ('22222222-2222-2222-2222-222222222222', 'a0000000-0000-0000-0000-000000000001');
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.artist_follows) = 0, 'user cannot see another user''s follows';
+  insert into public.artist_follows (user_id, artist_id) values ('11111111-1111-1111-1111-111111111111', 'a0000000-0000-0000-0000-000000000001');
+  assert (select count(*) from public.my_followed_artists()) = 1, 'followed list shows the artist';
+  assert (select slug from public.my_followed_artists()) = 'grace-worship', 'it is the artist that was followed';
+  delete from public.artist_follows where user_id = '22222222-2222-2222-2222-222222222222';
+  perform set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', true);
+  assert (select count(*) from public.my_followed_artists()) = 1, 'nobody can unfollow for someone else';
+  perform set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+  delete from public.artist_follows where artist_id = 'a0000000-0000-0000-0000-000000000001';
+  assert (select count(*) from public.my_followed_artists()) = 0, 'a person can unfollow';
+  raise notice 'ok: follows are private';
+end $$;
+-- Only an available artist can be newly followed: not the one whose agreement ended, not an unpublished one, not for somebody else.
+select test_helpers.expect_error($q$insert into public.artist_follows (user_id, artist_id) values ('11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000002')$q$, '42501');
+select test_helpers.expect_error($q$insert into public.artist_follows (user_id, artist_id) values ('11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000003')$q$, '42501');
+select test_helpers.expect_error($q$insert into public.artist_follows (user_id, artist_id) values ('22222222-2222-2222-2222-222222222222','a0000000-0000-0000-0000-000000000001')$q$, '42501');
+rollback;
+
+begin;
+set local role anon;
+select test_helpers.expect_error($q$select * from public.artist_follows$q$, '42501');
+select test_helpers.expect_error($q$select * from public.my_followed_artists()$q$, '42501');
+rollback;
+
+-- An artist who becomes unavailable stays in the list, as a name only; and the limit of 500 follows holds.
+begin;
+insert into public.artist_follows (user_id, artist_id) values ('11111111-1111-1111-1111-111111111111', 'a0000000-0000-0000-0000-000000000001');
+update public.agreements set status = 'revoked' where artist_id = 'a0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.my_followed_artists()) = 1, 'the followed artist stays in the list';
+  assert (select available = false and bio is null and photo_url is null from public.my_followed_artists()), 'but shows as a name only';
+  raise notice 'ok: an unavailable artist stays followed, as a name';
+end $$;
+rollback;
+
+begin;
+insert into public.artists (id, slug, name, is_published)
+  select gen_random_uuid(), 'follow-limit-' || n, 'Follow limit ' || n, true from generate_series(1, 500) n;
+insert into public.artist_follows (user_id, artist_id)
+  select '11111111-1111-1111-1111-111111111111', id from public.artists where slug like 'follow-limit-%';
+select test_helpers.expect_error($q$insert into public.artist_follows (user_id, artist_id) values ('11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000001')$q$, '54000');
+rollback;
+
 begin;
 insert into public.playlists (id, user_id, name, kind) values ('99999999-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Sunday', 'setlist');
 insert into public.playlist_items (playlist_id, song_id, position) values

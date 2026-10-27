@@ -5,6 +5,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { createContext, useContext } from 'react';
 import Avatar from './Avatar';
 import { HomeIcon, LibraryIcon, SearchIcon } from './icons';
 import { LikesProvider } from './LikesProvider';
@@ -14,6 +15,13 @@ import { SongMenuProvider } from './SongMenu';
 
 /** Who is signed in, as far as the frame needs to know. */
 export type ShellUser = { id: string; name: string | null; email: string | null; avatarUrl: string | null; isAdmin: boolean };
+
+const ShellUserContext = createContext<ShellUser | null>(null);
+
+/** Who is signed in, for any screen inside the frame (the picture in a page header, for instance). */
+export function useShellUser(): ShellUser | null {
+  return useContext(ShellUserContext);
+}
 
 const NAV = [
   { href: '/', label: 'Home', Icon: HomeIcon },
@@ -69,7 +77,9 @@ export default function AppShell({ user, likedIds, children }: { user: ShellUser
     <PlayerProvider>
       <LikesProvider userId={user?.id ?? null} initial={likedIds}>
         <SongMenuProvider userId={user?.id ?? null}>
-          <Frame user={user}>{children}</Frame>
+          <ShellUserContext.Provider value={user}>
+            <Frame user={user}>{children}</Frame>
+          </ShellUserContext.Provider>
         </SongMenuProvider>
       </LikesProvider>
     </PlayerProvider>

@@ -25,6 +25,7 @@ else
 fi
 
 sql_cmd "drop database if exists $DB with (force)"
+sql_cmd "drop database if exists songbook_ref_test with (force)"  # left behind by the previous run; it holds objects owned by the roles below
 sql_cmd "create database $DB"
 # roles are cluster-wide; drop leftovers from an earlier run so the bootstrap can recreate them
 for r in anon authenticated service_role; do

@@ -36,3 +36,13 @@ export function initialOf(name: string | null | undefined): string {
   const first = Array.from((name ?? '').trim())[0];
   return first ? first.toLocaleUpperCase() : '?';
 }
+
+/** The wide picture behind an artist's name when there is no photo: two soft lights over a diagonal wash that fades to near-black. */
+export function heroBackground(name: string): string {
+  const [a, b] = coverColors(name);
+  return (
+    'radial-gradient(circle at 72% 24%, rgba(255,255,255,0.24), transparent 38%), ' +
+    'radial-gradient(circle at 18% 62%, rgba(130,100,255,0.38), transparent 52%), ' +
+    `linear-gradient(160deg, ${a}, ${b} 62%, #1a1230)`
+  );
+}

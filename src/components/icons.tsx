@@ -107,3 +107,36 @@ export const RepeatIcon = ({ size = 22, one = false }: IconProps & { one?: boole
     {one ? <path d="m10.5 10.5 1.5-1v6" strokeWidth="1.8" /> : null}
   </svg>
 );
+export const FilterIcon = ({ size = 20 }: IconProps) => (
+  <svg {...svg(size)} {...line}>
+    <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+  </svg>
+);
+export const PlusIcon = ({ size = 20 }: IconProps) => (
+  <svg {...svg(size)} {...line}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+export const ListIcon = ({ size = 18 }: IconProps) => (
+  <svg {...svg(size)} {...line}>
+    <path d="M3 6h12M3 12h12M3 18h8M18 14v8M14 18h8" />
+  </svg>
+);
+// The six small pictures behind the Explore tiles (sun, note, book, cross, people, smile), drawn large and faint.
+export const TileIcon = ({ index, size = 60 }: { index: number; size?: number }) => {
+  const props = { ...svg(size), fill: 'none', stroke: 'rgba(255,255,255,0.34)', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
+  switch (((index % 6) + 6) % 6) {
+    case 0:
+      return <svg {...props}><circle cx="12" cy="12" r="4" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></svg>;
+    case 1:
+      return <svg {...props}><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>;
+    case 2:
+      return <svg {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>;
+    case 3:
+      return <svg {...props}><path d="M12 2v20M5 8h14" /></svg>;
+    case 4:
+      return <svg {...props}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
+    default:
+      return <svg {...props}><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" /></svg>;
+  }
+};

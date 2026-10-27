@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
+import { loadLabels } from '@/lib/labels';
 import { createClient } from '@/lib/supabase/server';
 import type { Playlist, PlaylistRow, Song } from '@/lib/types';
-import PlaylistView from './PlaylistView';
+import ListView from '../ListView';
 
 export const metadata: Metadata = { title: 'List' };
 export const dynamic = 'force-dynamic';
@@ -25,7 +26,7 @@ export default async function PlaylistPage({ params }: { params: Promise<{ id: s
   if (!listRow) notFound();
   const playlist = listRow as Playlist;
 
-  const itemsRes = await supabase.rpc('my_playlist_items', { p_playlist: id });
+  const [itemsRes, labels] = await Promise.all([supabase.rpc('my_playlist_items', { p_playlist: id }), loadLabels(supabase)]);
   if (itemsRes.error) console.error('library: items failed', itemsRes.error);
   const items = (itemsRes.data ?? []) as ItemRow[];
 
@@ -43,9 +44,17 @@ export default async function PlaylistPage({ params }: { params: Promise<{ id: s
   }));
 
   return (
-    <div>
+    <>
       {itemsRes.error ? <p className="error" role="alert">This list could not be loaded. Please refresh in a moment.</p> : null}
-      <PlaylistView playlist={playlist} rows={rows} />
-    </div>
+      <ListView
+        kind={playlist.kind}
+        id={playlist.id}
+        title={playlist.name}
+        serviceDate={playlist.service_date}
+        rows={rows}
+        languageNames={Object.fromEntries(labels.languages.map((l) => [l.code, l.name]))}
+        genreLabels={Object.fromEntries(labels.tags.filter((t) => t.kind === 'genre').map((t) => [t.code, t.label]))}
+      />
+    </>
   );
 }

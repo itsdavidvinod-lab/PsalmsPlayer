@@ -30,7 +30,7 @@ export default function NewListForm({ userId }: { userId: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="card">
+    <form onSubmit={onSubmit} className="new-list-form">
       <div className="field">
         <label htmlFor="list-name">New list name</label>
         <input id="list-name" className="input" required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />

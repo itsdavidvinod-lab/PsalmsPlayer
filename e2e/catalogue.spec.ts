@@ -48,24 +48,66 @@ test('an artist with an expired agreement shows as Unavailable with nothing else
   expect((await page.goto('/artist/draft-artist'))?.status()).toBe(404);
 });
 
-test('Search lists live songs and artists, hides the rest, and survives odd search text', async ({ page }) => {
+test('Search offers artists to follow and the latest releases, finds by title, artist, genre and filter, hides the rest, and survives odd search text', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('search'));
   await page.goto('/search');
+  await expect(page.getByRole('heading', { name: 'Search', level: 1 })).toBeVisible();
+  // Nobody followed yet: artists to follow (available ones only), then what is new, then ways to explore.
+  await expect(page.getByRole('heading', { name: 'Artists to follow' })).toBeVisible();
   await expect(page.locator('a[href="/artist/grace-worship"]')).toBeVisible();
-  const shalom = page.locator('a[href="/artist/shalom-choir"]');
-  await expect(shalom).toContainText('Unavailable');
+  await expect(page.locator('a[href="/artist/shalom-choir"]')).toHaveCount(0);
   await expect(page.getByText('Draft Artist')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Latest releases' })).toBeVisible();
   await expect(page.getByText('Placeholder Song One', { exact: true })).toBeVisible();
   await expect(page.getByText('Placeholder Single', { exact: true })).toBeVisible();
+  await expect(page.getByText('Grace Worship Team · 3d ago')).toBeVisible();
   for (const t of HIDDEN_TITLES) await expect(page.getByText(t)).toHaveCount(0);
 
-  await page.goto('/search?q=single');
+  // A tile of Explore opens the songs of that genre.
+  await expect(page.getByRole('heading', { name: 'Explore' })).toBeVisible();
+  await page.getByRole('link', { name: 'Worship', exact: true }).click();
+  await expect(page).toHaveURL(/\/search\?genre=worship$/);
+  await expect(page.getByText('Placeholder Song One', { exact: true })).toBeVisible();
+  await expect(page.getByText('Placeholder Single')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Remove filter: Worship' })).toBeVisible();
+
+  // Typing searches as you go, by title and by artist name.
+  await page.goto('/search');
+  const box = page.getByRole('searchbox', { name: /Search songs/ });
+  await box.fill('single');
+  await expect(page).toHaveURL(/\/search\?q=single$/);
   await expect(page.getByText('Placeholder Single', { exact: true })).toBeVisible();
   await expect(page.getByText('Placeholder Song One')).toHaveCount(0);
+  await box.fill('grace');
+  await expect(page).toHaveURL(/\/search\?q=grace$/);
+  await expect(page.locator('a[href="/artist/grace-worship"]')).toBeVisible();
+  await expect(page.getByText('Placeholder Song One', { exact: true })).toBeVisible();
+  await expect(page.getByText('Placeholder Single', { exact: true })).toBeVisible();
 
-  // A hidden song cannot be found by searching for it.
+  // An unavailable artist can be found by name, as a name only.
+  await page.goto('/search?q=shalom');
+  await expect(page.locator('a[href="/artist/shalom-choir"]')).toContainText('Unavailable');
+
+  // A word that names a genre finds its songs; a hidden song is still not found.
+  await page.goto('/search?q=praise');
+  await expect(page.getByText('Placeholder Single', { exact: true })).toBeVisible();
+  await expect(page.getByText('Placeholder Song Two')).toHaveCount(0);
   await page.goto('/search?q=hymn');
   await expect(page.getByText('Nothing found.')).toBeVisible();
+
+  // The filter sheet: choosing a language narrows the results, and the chip above takes it off again.
+  await page.goto('/search?q=placeholder');
+  await page.getByRole('button', { name: /^Filters/ }).click();
+  const filters = page.getByRole('dialog', { name: 'Filters' });
+  await filters.getByRole('button', { name: 'English', exact: true }).click();
+  await expect(page).toHaveURL(/language=en/);
+  await page.keyboard.press('Escape');
+  await expect(filters).toHaveCount(0);
+  await expect(page.getByText('Placeholder Single', { exact: true })).toBeVisible();
+  await expect(page.getByText('Placeholder Song One')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Remove filter: English' }).click();
+  await expect(page).not.toHaveURL(/language=/);
+  await expect(page.getByText('Placeholder Song One', { exact: true })).toBeVisible();
 
   // Language filter: an unavailable artist's languages are not exposed, so Malayalam finds nothing.
   await page.goto('/search?language=ml');
@@ -80,10 +122,64 @@ test('Search lists live songs and artists, hides the rest, and survives odd sear
     await expect(page.getByText('Placeholder Song One')).toHaveCount(0);
   }
 
-  // Symbols only are stripped, which leaves an empty search: the normal list, not an error and not a wildcard match of hidden rows.
+  // Symbols only are stripped, which leaves an empty search: the browsing screen, not an error and not a wildcard match of hidden rows.
   await page.goto('/search?q=_');
   await expect(page.getByText('Placeholder Song One', { exact: true })).toBeVisible();
   for (const t of HIDDEN_TITLES) await expect(page.getByText(t)).toHaveCount(0);
+});
+
+test('an artist page: ranked songs, Follow that is saved, "You liked", and the follow shows in Search and Library', async ({ page }) => {
+  await signUpAndIn(page, uniqueEmail('follow'));
+  await page.goto('/artist/grace-worship');
+  await expect(page.locator('.song-rank')).toHaveText(['1', '2']);
+
+  const follow = page.getByRole('button', { name: 'Follow', exact: true });
+  const followed = page.waitForResponse((r) => r.url().includes('/rest/v1/artist_follows') && r.request().method() === 'POST');
+  await follow.click();
+  expect((await followed).ok(), 'the follow is saved').toBeTruthy();
+  await expect(page.getByRole('button', { name: 'Following', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Following', exact: true })).toBeVisible();
+
+  // Like one of the songs: the page then offers the songs of this artist that you like.
+  await expect(page.getByText('You liked')).toHaveCount(0);
+  const liked = page.waitForResponse((r) => r.url().includes('/rest/v1/song_likes') && r.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Like Placeholder Song One', exact: true }).click();
+  expect((await liked).ok(), 'the like is saved').toBeTruthy();
+  await page.reload();
+  const card = page.getByRole('link', { name: /You liked/ });
+  await expect(card).toContainText('1 song · Grace Worship Team');
+  await card.click();
+  await expect(page).toHaveURL(/\/library\/liked\?artist=grace-worship$/);
+  await expect(page.getByText('1 song · Grace Worship Team')).toBeVisible();
+  await expect(page.locator('.song-row')).toHaveCount(1);
+  await page.getByRole('link', { name: 'All liked songs' }).click();
+  await expect(page).toHaveURL(/\/library\/liked$/);
+
+  // The follow shows in Search (instead of "Artists to follow") and in Library.
+  await page.goto('/search');
+  await expect(page.getByRole('heading', { name: 'Followed artists' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Artists to follow' })).toHaveCount(0);
+  await expect(page.locator('a[href="/artist/grace-worship"]')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'See more' })).toHaveCount(0); // only when more than eight are followed
+  await page.goto('/library');
+  await expect(page.getByRole('heading', { name: 'Following' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Grace Worship Team/ })).toBeVisible();
+  await page.getByRole('link', { name: 'Artists', exact: true }).click();
+  await expect(page).toHaveURL(/\/library\?tab=artists$/);
+  await expect(page.getByRole('heading', { name: 'Lists' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Lists', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Following' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Liked songs/ })).toBeVisible();
+
+  // Stop following.
+  await page.goto('/artist/grace-worship');
+  const unfollowed = page.waitForResponse((r) => r.url().includes('/rest/v1/artist_follows') && r.request().method() === 'DELETE');
+  await page.getByRole('button', { name: 'Following', exact: true }).click();
+  expect((await unfollowed).ok(), 'the unfollow is saved').toBeTruthy();
+  await expect(page.getByRole('button', { name: 'Follow', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await page.goto('/library?tab=artists');
+  await expect(page.getByText('You are not following any artist yet.')).toBeVisible();
 });
 
 test('monthly listeners count people who really listened for 30+ seconds, not people who opened lyrics', async ({ page, request }) => {
