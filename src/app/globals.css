@@ -231,10 +231,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .song-rank { flex: 0 0 16px; width: 16px; margin-right: -4px; text-align: center; font-size: 11px; font-weight: 600; color: var(--muted); }
 .row-ic-hot { color: var(--primary); }
 .song-cover { position: relative; display: block; flex: 0 0 40px; width: 40px; height: 40px; }
-.lang-tag {
-  position: absolute; left: 2px; bottom: 2px; padding: 0 4px; border-radius: 3px; background: rgba(0, 0, 0, 0.72); color: #fff;
-  font-size: 11px; line-height: 14px; font-weight: 700; text-transform: uppercase;
-}
 .song-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 4px 0; }
 .song-title { font-weight: 700; }
 .song-row .song-title {

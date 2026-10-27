@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { AdminAlbum } from '@/lib/admin-types';
 import { explainAdminError, isHttpsUrl, isValidSlug, parseOptionalInt, slugify } from '@/lib/admin-text';
 import { createClient } from '@/lib/supabase/client';
+import ImageLinkHelp from './ImageLinkHelp';
 
 type Status = { ok: boolean; text: string } | null;
 
@@ -97,7 +98,7 @@ export default function AlbumForm({ artistId, album }: { artistId: string; album
       <div className="field">
         <label htmlFor={`${idp}-cover`}>Cover link (https)</label>
         <input id={`${idp}-cover`} className="input" inputMode="url" maxLength={500} value={cover} onChange={(e) => setCover(e.target.value)} />
-        <span className="small muted">A Google Drive share link works if &ldquo;anyone with the link&rdquo; can view the file.</span>
+        <ImageLinkHelp what="album cover" />
       </div>
       <div className="field">
         <label className="check" htmlFor={`${idp}-published`} style={{ width: 'fit-content' }}>

@@ -24,7 +24,7 @@ export default async function AdminSongPage({ params }: { params: Promise<{ id: 
   const [songRes, visRes, creditsRes, lyricsRes, audioRes, choices] = await Promise.all([
     supabase
       .from('songs')
-      .select('id, artist_id, album_id, slug, title, language_code, musical_key, tempo_bpm, track_no, genres, occasions, moods, youtube_id, youtube_status, youtube_checked_at, is_published, hidden_by_admin, hidden_note, published_at')
+      .select('id, artist_id, album_id, slug, title, language_code, musical_key, tempo_bpm, track_no, cover_url, genres, occasions, moods, youtube_id, youtube_status, youtube_checked_at, is_published, hidden_by_admin, hidden_note, published_at')
       .eq('id', id)
       .maybeSingle(),
     supabase.rpc('admin_song_visibility', { p_song: id }),

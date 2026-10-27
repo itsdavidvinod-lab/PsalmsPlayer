@@ -255,6 +255,29 @@ do $$ begin
 end $$;
 rollback;
 
+-- ============================================================ a song's own cover wins over its album's
+begin;
+update public.albums set cover_url = 'https://example.org/morning-light.jpg' where slug = 'morning-light';
+update public.songs set cover_url = 'https://example.org/own-cover.jpg' where slug = 'placeholder-song-one';
+update public.songs set cover_url = 'https://example.org/single-cover.jpg' where slug = 'placeholder-single';
+set local role anon;
+do $$ begin
+  assert (select cover_url from public.v_songs where slug = 'placeholder-song-one') = 'https://example.org/own-cover.jpg', 'a song shows its own cover before its album cover';
+  assert (select cover_url from public.v_songs where slug = 'placeholder-single') = 'https://example.org/single-cover.jpg', 'a single can have its own cover';
+  raise notice 'ok: a song own cover wins over its album cover';
+end $$;
+reset role;
+update public.songs set cover_url = null where slug = 'placeholder-song-one';
+set local role anon;
+do $$ begin
+  assert (select cover_url from public.v_songs where slug = 'placeholder-song-one') = 'https://example.org/morning-light.jpg', 'without its own cover a song shows its album cover';
+  raise notice 'ok: without its own cover a song falls back to the album cover';
+end $$;
+reset role;
+select test_helpers.expect_error($q$update public.songs set cover_url = 'http://example.org/not-secure.jpg' where slug = 'placeholder-song-one'$q$, '23514');
+select test_helpers.expect_error($q$update public.songs set cover_url = 'https://example.org/has space.jpg' where slug = 'placeholder-song-one'$q$, '23514');
+rollback;
+
 -- ============================================================ following artists
 begin;
 insert into public.artist_follows (user_id, artist_id) values ('22222222-2222-2222-2222-222222222222', 'a0000000-0000-0000-0000-000000000001');

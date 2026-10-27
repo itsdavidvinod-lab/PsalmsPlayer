@@ -3,9 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { AdminSong, AlbumOption, ArtistOption, Option } from '@/lib/admin-types';
-import { KEY_CHOICES, explainAdminError, isValidSlug, parseOptionalInt, slugify } from '@/lib/admin-text';
+import { KEY_CHOICES, explainAdminError, isHttpsUrl, isValidSlug, parseOptionalInt, slugify } from '@/lib/admin-text';
 import { createClient } from '@/lib/supabase/client';
 import CheckGroup from './CheckGroup';
+import ImageLinkHelp from './ImageLinkHelp';
 
 type Status = { ok: boolean; text: string } | null;
 
@@ -31,6 +32,7 @@ export default function SongForm({ song, initialArtistId, artists, albums, langu
   const [key, setKey] = useState(song?.musical_key ?? '');
   const [tempo, setTempo] = useState(song?.tempo_bpm?.toString() ?? '');
   const [track, setTrack] = useState(song?.track_no?.toString() ?? '');
+  const [cover, setCover] = useState(song?.cover_url ?? '');
   const [genreSel, setGenreSel] = useState<string[]>(song?.genres ?? []);
   const [occasionSel, setOccasionSel] = useState<string[]>(song?.occasions ?? []);
   const [moodSel, setMoodSel] = useState<string[]>(song?.moods ?? []);
@@ -52,6 +54,9 @@ export default function SongForm({ song, initialArtistId, artists, albums, langu
     }
     if (artistId === '') return setStatus({ ok: false, text: 'Choose the artist.' });
     if (language === '') return setStatus({ ok: false, text: 'Choose the language of the song.' });
+    if (cover.trim() !== '' && !isHttpsUrl(cover.trim())) {
+      return setStatus({ ok: false, text: 'The cover link must be a secure address starting with https://.' });
+    }
     const bpm = parseOptionalInt(tempo, 30, 300);
     if (!bpm.ok) return setStatus({ ok: false, text: 'The tempo must be a number between 30 and 300, or empty.' });
     const trackNo = parseOptionalInt(track, 1, 999);
@@ -66,6 +71,7 @@ export default function SongForm({ song, initialArtistId, artists, albums, langu
       musical_key: key || null,
       tempo_bpm: bpm.value,
       track_no: trackNo.value,
+      cover_url: cover.trim() || null,
       genres: genreSel,
       occasions: occasionSel,
       moods: moodSel,
@@ -178,6 +184,12 @@ export default function SongForm({ song, initialArtistId, artists, albums, langu
       <div className="field">
         <label htmlFor="song-track">Track number</label>
         <input id="song-track" className="input" inputMode="numeric" maxLength={3} value={track} onChange={(e) => setTrack(e.target.value)} />
+      </div>
+      <div className="field">
+        <label htmlFor="song-cover">Cover picture link (https)</label>
+        <input id="song-cover" className="input" inputMode="url" maxLength={500} value={cover} onChange={(e) => setCover(e.target.value)} placeholder="https://" aria-describedby="song-cover-help" />
+        <span id="song-cover-help" className="small muted">Shown next to the song in lists and in the player. Leave empty to use the album&rsquo;s cover; a single with no cover shows a coloured placeholder.</span>
+        <ImageLinkHelp what="cover picture" />
       </div>
       <CheckGroup legend="Genres" options={genres} selected={genreSel} onChange={setGenreSel} />
       <CheckGroup legend="Occasions" options={occasions} selected={occasionSel} onChange={setOccasionSel} />

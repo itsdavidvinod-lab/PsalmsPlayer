@@ -76,6 +76,7 @@ export type AdminSong = {
   musical_key: string | null;
   tempo_bpm: number | null;
   track_no: number | null;
+  cover_url: string | null;
   genres: string[];
   occasions: string[];
   moods: string[];

@@ -18,7 +18,7 @@ export function lyricsHref(song: Pick<Song, 'slug'>): string {
   return `/song/${song.slug}/lyrics`;
 }
 
-/** One song in a list: cover with its language, title and artist, then Lyrics, Like, Play and the ⋮ menu.
+/** One song in a list: cover, title and artist, then Lyrics, Like, Play and the ⋮ menu.
  *  There is no Play button for a song without an audio file. Playing starts a queue made of the playable songs of
  *  the whole list, so Next moves down the list. `source` names the list in the player ("Playing from …").
  *  `rank` puts a number in front (a ranked list); `sub` replaces the artist's name under the title. */
@@ -40,7 +40,6 @@ export function SongRow({ song, songs, source, rank, sub }: { song: Song; songs:
       {rank !== undefined ? <span className="song-rank" aria-hidden="true">{rank}</span> : null}
       <Link href={songHref(song)} className="song-cover" tabIndex={-1} aria-hidden="true">
         <Cover url={song.cover_url} name={song.title} size={40} />
-        {rank === undefined ? <span className="lang-tag">{song.language_code}</span> : null}
       </Link>
       <Link href={songHref(song)} className="song-main">
         <span className="song-title">{song.title}</span>

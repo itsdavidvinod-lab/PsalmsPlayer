@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import { displayImageUrl } from '@/lib/image-url';
 import { extractYoutubeId, youtubeWatchUrl } from '@/lib/youtube';
 import CheckGroup from './CheckGroup';
+import ImageLinkHelp from './ImageLinkHelp';
 
 type Status = { ok: boolean; text: string } | null;
 
@@ -109,7 +110,7 @@ export default function PosterForm({ poster, requests, languages, regions, initi
       <div className="field">
         <label htmlFor="poster-image">Image link</label>
         <input id="poster-image" className="input" inputMode="url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://" />
-        <span className="small muted">A secure (https) address of the poster image. A Google Drive share link works if &ldquo;anyone with the link&rdquo; can view the file.</span>
+        <ImageLinkHelp what="poster image" />
       </div>
       <div className="field">
         <label htmlFor="poster-youtube">YouTube link (optional)</label>

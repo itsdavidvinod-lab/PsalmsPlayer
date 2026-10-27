@@ -46,6 +46,15 @@ test('a new song goes live only when every rule is met, and the page says what i
   await expect(box).toContainText('Not live: No writer credited');
   expect(sql(`select published_at is not null from public.songs where id = '${id}'`)).toBe('t');
 
+  // a song can have its own cover picture; the link must be a secure address
+  await page.locator('#song-cover').fill('http://example.org/cover.png');
+  await page.getByRole('button', { name: 'Save song' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'secure address' })).toBeVisible();
+  await page.locator('#song-cover').fill('https://example.org/cover.png');
+  await page.getByRole('button', { name: 'Save song' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+  expect(sql(`select cover_url from public.songs where id = '${id}'`)).toBe('https://example.org/cover.png');
+
   // 2. a writer, consent still pending
   await page.getByText('Add a credit').click();
   await page.locator('#credit-new-person').fill('E2E Writer');

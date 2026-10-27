@@ -16,6 +16,19 @@ function reducedMotion(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+/** The picture of one slide. When the link is missing, or the picture cannot be loaded (a Google Drive file that is not shared
+ *  with "anyone with the link" fails for everyone except its owner), the poster's title on a plain background is shown
+ *  instead of the browser's broken-picture icon. */
+function PosterPicture({ image, title }: { image: string | null; title: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [image]);
+  if (!image || failed) return <span className="poster-blank">{title}</span>;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={image} alt="" loading="lazy" draggable={false} referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+  );
+}
+
 export default function PosterCarousel({ slides }: { slides: PosterSlide[] }) {
   const track = useRef<HTMLUListElement>(null);
   const [active, setActive] = useState(0);
@@ -72,12 +85,7 @@ export default function PosterCarousel({ slides }: { slides: PosterSlide[] }) {
         onBlur={() => { resting.current = false; }}
       >
         {slides.map((s) => {
-          const picture = s.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={s.image} alt="" loading="lazy" draggable={false} referrerPolicy="no-referrer" />
-          ) : (
-            <span className="poster-blank">{s.title}</span>
-          );
+          const picture = <PosterPicture image={s.image} title={s.title} />;
           return (
             <li key={s.id} className="poster-slide" role="group" aria-roledescription="slide" aria-label={s.title}>
               {s.href ? (
