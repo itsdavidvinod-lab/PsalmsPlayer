@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { BrandMark } from '@/components/Header';
 import { APP_NAME } from '@/lib/brand';
 import { safeNextPath } from '@/lib/share';
@@ -15,6 +16,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <span>{APP_NAME}</span>
       </div>
       <LoginForm next={safeNextPath(next)} callbackFailed={error === 'callback'} />
+      <p className="small muted" style={{ marginTop: 24 }}>
+        <Link href="/about" className="inline">About</Link> · <Link href="/privacy" className="inline">Privacy</Link> · <Link href="/terms" className="inline">Terms</Link>
+      </p>
     </main>
   );
 }

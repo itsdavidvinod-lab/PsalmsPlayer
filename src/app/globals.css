@@ -335,6 +335,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .auth { max-width: 400px; margin: 0 auto; padding: 48px 16px; }
 .auth h1 { font-size: 1.75rem; margin: 20px 0 6px; }
+.legal { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+.legal h1 { font-size: 1.75rem; margin: 24px 0 6px; }
+.legal h2 { font-size: 1.15rem; margin: 28px 0 8px; }
+.legal p, .legal li { line-height: 1.65; }
+.legal ul { padding-left: 20px; display: grid; gap: 8px; }
+.legal-foot { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 0.9rem; }
+.legal-foot a { color: var(--muted); text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
 .divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--muted); font-size: 0.85rem; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 

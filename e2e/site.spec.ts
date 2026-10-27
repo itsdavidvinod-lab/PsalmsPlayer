@@ -15,6 +15,17 @@ test('a visitor who is not signed in is sent to the login page', async ({ page }
   await expect(page.getByRole('link', { name: 'Open this song' })).toBeVisible();
 });
 
+test('the about, privacy and terms pages are open to a visitor who is not signed in', async ({ page }) => {
+  for (const [path, heading] of [['/about', 'PsalmsPlayer'], ['/privacy', 'Privacy'], ['/terms', 'Terms']] as const) {
+    await page.goto(path);
+    await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+  }
+  await page.goto('/login');
+  await page.getByRole('link', { name: 'Privacy' }).click();
+  await expect(page).toHaveURL(/\/privacy$/);
+});
+
 test('the Google button starts a Google sign-in that returns to the callback and the page asked for', async ({ page }) => {
   let authorizeUrl = '';
   await page.route('**/auth/v1/authorize**', (route) => {
