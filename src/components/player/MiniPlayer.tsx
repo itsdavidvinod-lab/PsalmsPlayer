@@ -1,18 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { NextIcon, PauseIcon, PlayIcon, PrevIcon } from '../icons';
+import Cover from '../Cover';
+import { HeartIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon } from '../icons';
+import { useLikes } from '../LikesProvider';
+import { useSongMenu } from '../SongMenu';
 import { usePlayback, usePlayer } from './PlayerProvider';
 import SeekBar from './SeekBar';
 import YouTubeLink from './YouTubeLink';
 
-/** The bar that stays on every page while a song is loaded. Tapping the song opens its page, with the lyrics. */
+/** The strip that stays on every page while a song is loaded. Tapping the song opens its page, with the lyrics. */
 export default function MiniPlayer() {
   const p = usePlayer();
+  const likes = useLikes();
+  const menu = useSongMenu();
   const { position, duration } = usePlayback();
   const song = p.current;
   if (!song) return null;
   const pct = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
+  const liked = likes.isLiked(song.id);
 
   return (
     <section className="mini" aria-label="Player">
@@ -20,7 +26,7 @@ export default function MiniPlayer() {
         <span style={{ width: `${pct}%` }} />
       </div>
       <Link href={`/song/${song.slug}`} className="mini-info">
-        <span className="mini-art" aria-hidden="true">{song.title.trim().charAt(0).toUpperCase()}</span>
+        <Cover url={null} name={song.title} size={40} />
         <span className="mini-text">
           <span className="mini-title">{song.title}</span>
           {p.error ? <span className="mini-error" role="alert">{p.error}</span> : <span className="mini-artist">{song.artist_name}</span>}
@@ -31,7 +37,7 @@ export default function MiniPlayer() {
           <PrevIcon />
         </button>
         <button type="button" className="round-play" onClick={p.toggle} aria-label={p.playing ? 'Pause' : 'Play'}>
-          {p.playing ? <PauseIcon /> : <PlayIcon />}
+          {p.playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
         </button>
         <button type="button" className="icon-btn" onClick={p.next} disabled={!p.hasNext} aria-label="Next">
           <NextIcon />
@@ -40,7 +46,22 @@ export default function MiniPlayer() {
       <div className="mini-seek">
         <SeekBar />
       </div>
-      <div className="mini-extra">{song.youtube_id ? <YouTubeLink youtubeId={song.youtube_id} compact /> : null}</div>
+      <div className="mini-extra">
+        <button
+          type="button"
+          className="row-ic row-like"
+          aria-pressed={liked}
+          aria-label={liked ? `Unlike ${song.title}` : `Like ${song.title}`}
+          onClick={() => void likes.toggle(song.id).then((problem) => problem && menu.notify(problem))}
+        >
+          <HeartIcon filled={liked} />
+        </button>
+        {song.youtube_id ? (
+          <span className="mini-yt">
+            <YouTubeLink youtubeId={song.youtube_id} compact />
+          </span>
+        ) : null}
+      </div>
     </section>
   );
 }

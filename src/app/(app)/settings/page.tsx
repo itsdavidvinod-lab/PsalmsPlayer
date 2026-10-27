@@ -1,12 +1,27 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import Avatar from '@/components/Avatar';
+import { ChevronRightIcon } from '@/components/icons';
 import { createClient } from '@/lib/supabase/server';
-import type { Language, Profile, Region } from '@/lib/types';
-import SettingsForm from './SettingsForm';
+import { pictureFromMetadata } from '@/lib/user';
 
 export const metadata: Metadata = { title: 'Settings' };
 export const dynamic = 'force-dynamic';
+
+function Row({ href, title, sub }: { href: string; title: string; sub?: string }) {
+  return (
+    <li>
+      <Link href={href} className="menu-row">
+        <span className="menu-row-text">
+          <span className="menu-row-title">{title}</span>
+          {sub ? <span className="menu-row-sub">{sub}</span> : null}
+        </span>
+        <ChevronRightIcon />
+      </Link>
+    </li>
+  );
+}
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -15,31 +30,27 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=%2Fsettings');
 
-  const [profileRes, languagesRes, regionsRes] = await Promise.all([
-    supabase.from('profiles').select('display_name, role, language_codes, region_code').eq('id', user.id).maybeSingle(),
-    supabase.from('languages').select('code, name, native_name').order('name'),
-    supabase.from('regions').select('code, name, country_code').order('name'),
-  ]);
-
-  const profile = (profileRes.data ?? { display_name: null, role: 'user', language_codes: [], region_code: null }) as Profile;
-  const failed = Boolean(profileRes.error || languagesRes.error || regionsRes.error);
+  const { data } = await supabase.from('profiles').select('display_name, role').eq('id', user.id).maybeSingle();
+  const profile = (data ?? { display_name: null, role: 'user' }) as { display_name: string | null; role: 'user' | 'admin' };
+  const shownName = profile.display_name || user.email || 'You';
 
   return (
     <div>
-      <h1 style={{ fontSize: '1.6rem', margin: '8px 0 4px' }}>Settings</h1>
-      <p className="muted">{user.email}</p>
-      {profile.role === 'admin' ? (
-        <p>
-          <Link href="/admin" className="btn">Open the admin site</Link>
-        </p>
-      ) : null}
-      {failed ? <p className="error" role="alert">Settings could not be loaded. Please refresh in a moment.</p> : null}
-      <SettingsForm
-        userId={user.id}
-        profile={profile}
-        languages={(languagesRes.data ?? []) as Language[]}
-        regions={(regionsRes.data ?? []) as Region[]}
-      />
+      <h1>Settings</h1>
+      <div className="profile-photo" style={{ marginTop: 14, marginBottom: 0 }}>
+        <Avatar name={shownName} url={pictureFromMetadata(user.user_metadata)} size={56} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{shownName}</div>
+          {user.email ? <div className="small muted">{user.email}</div> : null}
+        </div>
+      </div>
+      <ul className="menu-list">
+        <Row href="/settings/profile" title="Profile" sub="Display name and picture" />
+        <Row href="/settings/language" title="Language and region" sub="Shapes what Home shows first" />
+        <Row href="/settings/account" title="Account" sub="Sign-in details and sign out" />
+        {profile.role === 'admin' ? <Row href="/admin" title="Admin site" sub="Songs, artists, posters and requests" /> : null}
+        <Row href="/settings/about" title="About" />
+      </ul>
     </div>
   );
 }

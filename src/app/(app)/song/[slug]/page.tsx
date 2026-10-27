@@ -18,9 +18,8 @@ export default async function SongPage({ params }: { params: Promise<{ slug: str
   if (!songRow) notFound();
   const song = songRow as Song;
 
-  const [lyricsRes, likeRes, albumRes] = await Promise.all([
+  const [lyricsRes, albumRes] = await Promise.all([
     supabase.rpc('get_lyrics', { p_song: song.id }),
-    supabase.from('song_likes').select('song_id').eq('song_id', song.id).eq('user_id', user.id).maybeSingle(),
     // Playing from a song page continues down its album; a single has a queue of one.
     song.album_id ? supabase.from('v_songs').select('*').eq('album_id', song.album_id).order('track_no', { ascending: true }) : Promise.resolve({ data: null, error: null }),
   ]);
@@ -30,6 +29,6 @@ export default async function SongPage({ params }: { params: Promise<{ slug: str
   const queue = albumSongs.some((s) => s.id === song.id) ? albumSongs : [song];
 
   return (
-    <SongView song={song} queue={queue} lyrics={lyrics} initiallyLiked={Boolean(likeRes.data)} userId={user.id} lyricsFailed={Boolean(lyricsRes.error)} />
+    <SongView song={song} queue={queue} lyrics={lyrics} userId={user.id} lyricsFailed={Boolean(lyricsRes.error)} />
   );
 }

@@ -12,7 +12,8 @@ test('a song with no audio file shows its lyrics and no play button', async ({ p
   await expect(page.getByText('Placeholder Single', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: /^Play Placeholder Single/ })).toHaveCount(0);
   await expect(page.locator('a[href="/song/placeholder-single"]').first()).toBeVisible();
-  await expect(page.getByText('Lyrics', { exact: true }).first()).toBeVisible();
+  // The row still opens the lyrics, through the Lyrics icon.
+  await expect(page.getByRole('link', { name: 'Lyrics of Placeholder Single' }).first()).toBeVisible();
 
   await page.goto('/song/placeholder-single');
   await expect(page.getByRole('heading', { name: 'Placeholder Single' })).toBeVisible();
@@ -26,7 +27,7 @@ test('the mini player keeps playing across pages, Next moves down the list, and 
   await ensureAudio(request, SINGLE_ID);
   await signUpAndIn(page, uniqueEmail('queue'));
 
-  await page.goto('/browse?q=placeholder');
+  await page.goto('/search?q=placeholder');
   const rows = page.locator('.song-row');
   await expect(rows).toHaveCount(2);
   await rows.first().getByRole('button', { name: /^Play / }).click();
@@ -39,7 +40,7 @@ test('the mini player keeps playing across pages, Next moves down the list, and 
   // Moving to another page by the site's own links must not interrupt the music or reload the page.
   await page.evaluate(() => { (window as unknown as { __kept: number }).__kept = 1; });
   const before = await audioTime(page);
-  await page.getByRole('navigation', { name: 'Main' }).first().getByRole('link', { name: 'Settings' }).click();
+  await page.getByRole('link', { name: 'Settings' }).click();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(mini).toBeVisible();
   await page.waitForTimeout(2_000);

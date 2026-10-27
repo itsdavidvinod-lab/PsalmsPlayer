@@ -121,7 +121,7 @@ export default function PlaylistView({ playlist, rows: initialRows }: { playlist
       {rows.length === 0 ? (
         <div className="card empty">
           <p>No songs yet. Open a song and choose &ldquo;Add to list&rdquo;.</p>
-          <Link href="/browse" className="btn btn-primary">Browse songs</Link>
+          <Link href="/search" className="btn btn-primary">Search for songs</Link>
         </div>
       ) : (
         <ol className="song-list plain-list" aria-label="Songs in this list">

@@ -20,8 +20,10 @@ export type PlayerApi = {
   loading: boolean;
   error: string | null;
   hasNext: boolean;
+  /** Where the queue came from, for "Playing from …" (an album, a list, the Home page). Null when unknown. */
+  source: string | null;
   /** Starts the song at `startId` from the beginning, with the playable songs of `songs` as the queue. */
-  playQueue: (songs: Song[], startId: string) => void;
+  playQueue: (songs: Song[], startId: string, source?: string) => void;
   toggle: () => void;
   pause: () => void;
   next: () => void;
@@ -71,6 +73,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const [queue, setQueue] = useState<Song[]>([]);
   const [index, setIndex] = useState(-1);
+  const [source, setSource] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,11 +143,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   );
 
   const playQueue = useCallback(
-    (songs: Song[], startId: string) => {
+    (songs: Song[], startId: string, from?: string) => {
       const built = playableQueue(songs, startId);
       if (!built) return;
       queueRef.current = built.queue;
       setQueue(built.queue);
+      setSource(from ?? null);
       goTo(built.index);
     },
     [goTo],
@@ -301,6 +305,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       loading,
       error,
       hasNext: index >= 0 && index + 1 < queue.length,
+      source,
       playQueue,
       toggle,
       pause,
@@ -308,7 +313,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       previous,
       seek,
     }),
-    [current, queue, index, playing, loading, error, playQueue, toggle, pause, next, previous, seek],
+    [current, queue, index, source, playing, loading, error, playQueue, toggle, pause, next, previous, seek],
   );
   const clock = useMemo<PlaybackClock>(() => ({ position, duration }), [position, duration]);
 

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { parseChordPro, prefersFlats, transposeKey, transposeLines } from '@/lib/chordpro';
 import { buildShareUrl, shareMessage, type ShareKind } from '@/lib/share';
 import LyricsBody from '@/components/LyricsBody';
+import { useLikes } from '@/components/LikesProvider';
 import { createClient } from '@/lib/supabase/client';
 import type { LyricsVersion, Song } from '@/lib/types';
 import AddToList from './AddToList';
@@ -21,17 +22,17 @@ type Props = {
   /** The songs that play after this one when it is started from this page. */
   queue: Song[];
   lyrics: LyricsVersion[];
-  initiallyLiked: boolean;
   userId: string;
   lyricsFailed: boolean;
 };
 
-export default function SongView({ song, queue, lyrics, initiallyLiked, userId, lyricsFailed }: Props) {
+export default function SongView({ song, queue, lyrics, userId, lyricsFailed }: Props) {
   const [versionIdx, setVersionIdx] = useState(0);
   const [semitones, setSemitones] = useState(0);
   const [showChords, setShowChords] = useState(true);
   const [size, setSize] = useState(1.05);
-  const [liked, setLiked] = useState(initiallyLiked);
+  const likes = useLikes();
+  const liked = likes.isLiked(song.id);
   const [status, setStatus] = useState<string | null>(null);
 
   const current = lyrics[versionIdx] ?? lyrics[0];
@@ -55,16 +56,8 @@ export default function SongView({ song, queue, lyrics, initiallyLiked, userId, 
   const chordsOn = chordsAvailable && showChords;
 
   async function toggleLike() {
-    const supabase = createClient();
-    const next = !liked;
-    setLiked(next); // optimistic
-    const { error } = next
-      ? await supabase.from('song_likes').insert({ user_id: userId, song_id: song.id })
-      : await supabase.from('song_likes').delete().eq('user_id', userId).eq('song_id', song.id);
-    if (error) {
-      setLiked(!next);
-      setStatus('Could not update your liked songs. Please try again.');
-    }
+    const problem = await likes.toggle(song.id);
+    if (problem) setStatus(problem);
   }
 
   async function share(kind: ShareKind) {

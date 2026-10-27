@@ -12,6 +12,8 @@ import { AGREEMENT_STATUSES, ENFORCED_RIGHTS, agreementPhase, agreementSummary, 
 import { AUDIO_MAX_BYTES, checkAudioFile, audioObjectName, audioHostingState, durationSeconds, audioDisplayName, mmss, sizeLabel } from './audio-file.ts';
 import { extractYoutubeId, youtubeWatchUrl } from './youtube.ts';
 import { buildShareUrl, safeNextPath } from './share.ts';
+import { COVER_PALETTE, coverBackground, coverColors, initialOf } from './cover.ts';
+import { pictureFromMetadata, signInMethodLabel } from './user.ts';
 import {
   visibilityLabel, slugify, isValidSlug, isHttpsUrl, isUuid, parseOptionalInt, daysLeftLabel, explainAdminError,
   visibilityHint, youtubeStatusLabel, KEY_CHOICES, isMusicalKey, indiaToday,
@@ -755,4 +757,46 @@ test('Lists: errors read as sentences', () => {
   assert.match(explainReferenceError({ code: '23503', message: 'x' }, 'save'), /linked item does not exist/, 'a missing link on save keeps the generic text');
   assert.equal(explainReferenceError({ code: '23514', message: 'A code cannot be changed. Add a new one' }, 'save'), 'A code cannot be changed. Add a new one.');
   assert.match(explainReferenceError({ code: '42501' }, 'delete'), /Not allowed/);
+});
+
+test('placeholder pictures: the same name always gets the same colours, taken from the design palette', () => {
+  assert.deepEqual(coverColors('Grace Worship Team'), coverColors('Grace Worship Team'));
+  assert.deepEqual(coverColors('  grace worship team '), coverColors('Grace Worship Team'), 'spaces and capitals make no difference');
+  for (const name of ['A', 'Placeholder Song One', 'தமிழ்', 'Shalom Choir', '']) {
+    assert.ok(COVER_PALETTE.some(([a, b]) => coverColors(name)[0] === a && coverColors(name)[1] === b), `"${name}" uses a palette pair`);
+  }
+  const used = new Set(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n'].map((n) => coverColors(n)[0]));
+  assert.ok(used.size >= 3, 'different names spread over several colours');
+  assert.match(coverBackground('x'), /^radial-gradient\(circle at 30% 25%, rgba\(255,255,255,0\.25\), transparent 55%\), linear-gradient\(135deg, #[0-9a-f]{6}, #[0-9a-f]{6}\)$/);
+});
+
+test('the initial of a name works for any script and never fails', () => {
+  assert.equal(initialOf('grace'), 'G');
+  assert.equal(initialOf('  zion'), 'Z');
+  assert.equal(initialOf('தமிழ்'), 'த');
+  assert.equal(initialOf('😀 smile'), '😀');
+  assert.equal(initialOf(''), '?');
+  assert.equal(initialOf(null), '?');
+  assert.equal(initialOf(undefined), '?');
+});
+
+test('the profile picture comes from the Google account and only over https', () => {
+  assert.equal(pictureFromMetadata({ avatar_url: 'https://lh3.googleusercontent.com/a/abc' }), 'https://lh3.googleusercontent.com/a/abc');
+  assert.equal(pictureFromMetadata({ picture: 'https://lh3.googleusercontent.com/a/def' }), 'https://lh3.googleusercontent.com/a/def');
+  assert.equal(pictureFromMetadata({ avatar_url: 'https://a.test/1', picture: 'https://a.test/2' }), 'https://a.test/1', 'avatar_url first');
+  assert.equal(pictureFromMetadata({ avatar_url: 'http://insecure.test/x.png' }), null);
+  assert.equal(pictureFromMetadata({ avatar_url: 'javascript:alert(1)' }), null);
+  assert.equal(pictureFromMetadata({ avatar_url: 'not a url' }), null);
+  assert.equal(pictureFromMetadata({ avatar_url: 42 }), null);
+  assert.equal(pictureFromMetadata({}), null);
+  assert.equal(pictureFromMetadata(null), null);
+  assert.equal(pictureFromMetadata('text'), null);
+});
+
+test('the sign-in method is put in words', () => {
+  assert.equal(signInMethodLabel('google'), 'Google');
+  assert.match(signInMethodLabel('email'), /test account/);
+  assert.equal(signInMethodLabel('github'), 'github');
+  assert.equal(signInMethodLabel(undefined), 'Unknown');
+  assert.equal(signInMethodLabel(''), 'Unknown');
 });

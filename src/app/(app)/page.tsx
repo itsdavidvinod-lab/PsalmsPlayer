@@ -1,8 +1,11 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import Avatar from '@/components/Avatar';
+import { HeartIcon } from '@/components/icons';
 import SongList from '@/components/SongRow';
 import { createClient } from '@/lib/supabase/server';
 import type { Poster, Profile, Song } from '@/lib/types';
+import { pictureFromMetadata } from '@/lib/user';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +25,7 @@ function SongSection({ title, songs }: { title: string; songs: Song[] }) {
   return (
     <section className="section" aria-labelledby={`h-${title}`}>
       <h2 id={`h-${title}`}>{title}</h2>
-      <SongList songs={songs} />
+      <SongList songs={songs} source={title} />
     </section>
   );
 }
@@ -60,9 +63,15 @@ export default async function HomePage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: '1.6rem', margin: '8px 0 12px' }}>
-        {profile.display_name ? `Welcome, ${profile.display_name}` : 'Welcome'}
-      </h1>
+      <div className="page-head">
+        <h1>{profile.display_name ? `Welcome, ${profile.display_name}` : 'Welcome'}</h1>
+        <Link href="/library/liked" className="pill-btn" aria-label="Liked songs">
+          <HeartIcon size={16} filled /> Liked
+        </Link>
+        <Link href="/settings" className="avatar-link" aria-label="Profile">
+          <Avatar name={profile.display_name ?? user.email ?? null} url={pictureFromMetadata(user.user_metadata)} size={32} />
+        </Link>
+      </div>
 
       {problems.length > 0 ? (
         <p className="error" role="alert">Some sections could not be loaded. Please refresh in a moment.</p>

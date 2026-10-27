@@ -43,7 +43,7 @@ test('Home shows only live songs and only posters that are running', async ({ pa
 
 test('choosing language and region in Settings changes the posters on Home', async ({ page }) => {
   await signUpAndIn(page, uniqueEmail('settings'));
-  await page.goto('/settings');
+  await page.goto('/settings/language');
   await page.getByLabel('Tamil').check();
   await page.getByLabel('Region').selectOption('IN-TN');
   await page.getByRole('button', { name: 'Save' }).click();

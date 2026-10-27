@@ -3,15 +3,15 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { Language, Profile, Region } from '@/lib/types';
+import type { Language, Region } from '@/lib/types';
 
-type Props = { userId: string; profile: Profile; languages: Language[]; regions: Region[] };
+type Props = { userId: string; languageCodes: string[]; regionCode: string | null; languages: Language[]; regions: Region[] };
 
-export default function SettingsForm({ userId, profile, languages, regions }: Props) {
+/** Languages and region: they decide which posters and songs Home shows first. */
+export default function LanguageForm({ userId, languageCodes, regionCode, languages, regions }: Props) {
   const router = useRouter();
-  const [name, setName] = useState(profile.display_name ?? '');
-  const [selected, setSelected] = useState<string[]>(profile.language_codes);
-  const [region, setRegion] = useState(profile.region_code ?? '');
+  const [selected, setSelected] = useState<string[]>(languageCodes);
+  const [region, setRegion] = useState(regionCode ?? '');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -23,10 +23,9 @@ export default function SettingsForm({ userId, profile, languages, regions }: Pr
     e.preventDefault();
     setBusy(true);
     setMsg(null);
-    // Only these three columns can be changed by a user; the database rejects anything else (role included).
     const { error } = await createClient()
       .from('profiles')
-      .update({ display_name: name.trim() || null, language_codes: selected, region_code: region || null })
+      .update({ language_codes: selected, region_code: region || null })
       .eq('id', userId);
     setBusy(false);
     if (error) {
@@ -39,11 +38,6 @@ export default function SettingsForm({ userId, profile, languages, regions }: Pr
 
   return (
     <form onSubmit={onSubmit} className="card section">
-      <div className="field">
-        <label htmlFor="name">Display name</label>
-        <input id="name" className="input" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
-      </div>
-
       <fieldset className="field" style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
         <legend>Languages</legend>
         <div className="checks">

@@ -25,7 +25,7 @@ export default function Header() {
       </div>
       <nav className="nav" aria-label="Main">
         <Link href="/">Home</Link>
-        <Link href="/browse">Browse</Link>
+        <Link href="/search">Search</Link>
         <Link href="/settings">Settings</Link>
       </nav>
     </header>
