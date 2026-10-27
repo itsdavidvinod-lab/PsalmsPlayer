@@ -157,7 +157,7 @@ export default function SongScreen({ song, queue, lyrics, lyricsFailed, language
       {sheet === 'add' ? (
         <Sheet label="Add to list" onClose={() => setSheet(null)}>
           <div className="sheet-head">
-            <Cover url={null} name={song.title} size={44} />
+            <Cover url={song.cover_url} name={song.title} size={44} />
             <div className="sheet-head-text">
               <div className="sheet-title">{song.title}</div>
               <div className="sheet-sub">{song.artist_name}</div>
@@ -196,7 +196,7 @@ export default function SongScreen({ song, queue, lyrics, lyricsFailed, language
 
         <section className="dock" aria-label="Listen">
           <div className="dock-top">
-            <Cover url={null} name={song.title} size={52} />
+            <Cover url={song.cover_url} name={song.title} size={52} />
             <div className="dock-text">
               <div className="dock-title">{song.title}</div>
               <Link href={`/artist/${song.artist_slug}`} className="dock-artist">{song.artist_name}</Link>

@@ -17,6 +17,8 @@ import { timeAgo } from './relative-time.ts';
 import { FILTER_KINDS, cleanQuery, hasSearch, parseSearch, searchHref } from './search.ts';
 import { NO_CHIPS, isFiltering, listChips, matchesChips, matchesFind, songCountLabel, sortSlots, toggleChip, visibleSlots, type Slot } from './list.ts';
 import { makeLabels } from './labels.ts';
+import { displayImageUrl, driveFileId } from './image-url.ts';
+import { nextSlide, slideFromScroll } from './carousel.ts';
 import type { Song } from './types.ts';
 import { pictureFromMetadata, signInMethodLabel } from './user.ts';
 import {
@@ -943,7 +945,7 @@ function song(over: Partial<Song> & { id: string; title: string }): Song {
   return {
     slug: over.id, language_code: 'ta', musical_key: null, tempo_bpm: null, duration_s: null, track_no: null, genres: [], occasions: [], moods: [],
     published_at: null, artist_id: 'a', artist_slug: 'a', artist_name: 'Artist', album_id: null, album_slug: null, album_title: null,
-    youtube_id: null, like_count: 0, has_audio: true, ...over,
+    youtube_id: null, like_count: 0, has_audio: true, cover_url: null, ...over,
   };
 }
 
@@ -1013,4 +1015,45 @@ test('labels name codes and fall back to the code itself', () => {
   assert.equal(labels.languageName('xx'), 'xx');
   assert.equal(labels.tagLabel('genre', 'worship'), 'Worship');
   assert.equal(labels.tagLabel('mood', 'worship'), 'worship', 'a code is looked up inside its own kind');
+});
+
+test('Google Drive share links become thumbnail addresses; other https links are kept; anything else is no picture', () => {
+  const id = '1AbCdEfGhIjKlMnOpQrStUvWxYz_-0123';
+  const thumb = `https://drive.google.com/thumbnail?id=${id}&sz=w600`;
+  assert.equal(driveFileId(`https://drive.google.com/file/d/${id}/view?usp=sharing`), id);
+  assert.equal(driveFileId(`https://drive.google.com/file/u/0/d/${id}/view`), id);
+  assert.equal(driveFileId(`https://drive.google.com/open?id=${id}`), id);
+  assert.equal(driveFileId(`https://drive.google.com/uc?export=view&id=${id}`), id);
+  assert.equal(driveFileId(`https://drive.google.com/thumbnail?id=${id}&sz=w100`), id);
+  assert.equal(driveFileId('https://drive.google.com/drive/folders/abc'), null);
+  assert.equal(driveFileId(`http://drive.google.com/file/d/${id}/view`), null);
+  assert.equal(driveFileId(`https://evil.example/file/d/${id}/view`), null);
+  assert.equal(driveFileId('https://drive.google.com/file/d/short/view'), null);
+
+  assert.equal(displayImageUrl(`https://drive.google.com/file/d/${id}/view?usp=sharing`), thumb);
+  assert.equal(displayImageUrl(`https://drive.google.com/open?id=${id}`, 1200), `https://drive.google.com/thumbnail?id=${id}&sz=w1200`);
+  assert.equal(displayImageUrl(`https://drive.google.com/open?id=${id}`, 10), `https://drive.google.com/thumbnail?id=${id}&sz=w64`);
+  assert.equal(displayImageUrl(`https://drive.google.com/open?id=${id}`, 99999), `https://drive.google.com/thumbnail?id=${id}&sz=w2000`);
+  assert.equal(displayImageUrl('https://cdn.example.org/p.jpg'), 'https://cdn.example.org/p.jpg');
+  assert.equal(displayImageUrl('  https://cdn.example.org/p.jpg  '), 'https://cdn.example.org/p.jpg');
+  assert.equal(displayImageUrl('http://cdn.example.org/p.jpg'), null);
+  assert.equal(displayImageUrl('javascript:alert(1)'), null);
+  assert.equal(displayImageUrl('https://x.org/a b.jpg'), null);
+  assert.equal(displayImageUrl(''), null);
+  assert.equal(displayImageUrl(null), null);
+});
+
+test('the poster strip moves on and wraps, and reads its place from the scroll', () => {
+  assert.equal(nextSlide(0, 3), 1);
+  assert.equal(nextSlide(2, 3), 0, 'after the last comes the first');
+  assert.equal(nextSlide(0, 1), 0);
+  assert.equal(nextSlide(5, 0), 0);
+  assert.equal(slideFromScroll(0, 354, 3), 0);
+  assert.equal(slideFromScroll(180, 354, 3), 1);
+  assert.equal(slideFromScroll(170, 354, 3), 0);
+  assert.equal(slideFromScroll(684, 354, 3), 2, 'the last slide stops a little short of its snap point');
+  assert.equal(slideFromScroll(9999, 354, 3), 2);
+  assert.equal(slideFromScroll(-20, 354, 3), 0);
+  assert.equal(slideFromScroll(100, 0, 3), 0);
+  assert.equal(slideFromScroll(100, 354, 0), 0);
 });

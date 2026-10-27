@@ -6,6 +6,7 @@ import Cover from '@/components/Cover';
 import { HeartIcon } from '@/components/icons';
 import SongList from '@/components/SongRow';
 import { heroBackground } from '@/lib/cover';
+import { displayImageUrl } from '@/lib/image-url';
 import { formatClock } from '@/lib/format';
 import { loadLabels } from '@/lib/labels';
 import { songCountLabel } from '@/lib/list';
@@ -21,9 +22,9 @@ const POPULAR_SHOWN = 10;
 function Hero({ name, photo }: { name: string; photo: string | null }) {
   return (
     <div className="artist-hero" style={{ background: heroBackground(name) }}>
-      {photo ? (
+      {displayImageUrl(photo, 1200) ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="artist-hero-img" src={photo} alt="" referrerPolicy="no-referrer" />
+        <img className="artist-hero-img" src={displayImageUrl(photo, 1200) ?? undefined} alt="" referrerPolicy="no-referrer" />
       ) : null}
       <div className="artist-hero-shade" aria-hidden="true" />
       <BackButton fallback="/search" className="round-back artist-back" />

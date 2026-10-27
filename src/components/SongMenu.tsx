@@ -14,7 +14,7 @@ import { shareSong } from './share-client';
 import Sheet from './Sheet';
 import type { Song } from '@/lib/types';
 
-type MenuSong = Pick<Song, 'id' | 'slug' | 'title' | 'artist_name' | 'youtube_id'>;
+type MenuSong = Pick<Song, 'id' | 'slug' | 'title' | 'artist_name' | 'youtube_id'> & { cover_url?: string | null };
 
 export type SongMenuApi = {
   openSongMenu: (song: MenuSong) => void;
@@ -48,7 +48,7 @@ export function SongMenuBody({
   return (
     <>
       <div className="sheet-head">
-        <Cover url={null} name={song.title} size={44} />
+        <Cover url={song.cover_url ?? null} name={song.title} size={44} />
         <div className="sheet-head-text">
           <div className="sheet-title">{song.title}</div>
           <div className="sheet-sub">{song.artist_name}</div>

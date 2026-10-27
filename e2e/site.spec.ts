@@ -37,7 +37,9 @@ test('Home shows only live songs and only posters that are running', async ({ pa
   for (const title of HIDDEN_TITLES) await expect(page.getByText(title)).toHaveCount(0);
 
   // No language or region chosen yet: only "everyone" posters that are inside their window.
-  await expect(page.locator('.poster-cap strong')).toHaveText(['Poster everyone']);
+  await expect(page.locator('.poster-slide')).toHaveCount(1);
+  await expect(page.locator('.poster-slide')).toHaveAttribute('aria-label', 'Poster everyone');
+  await expect(page.locator('.poster-dots')).toHaveCount(0); // dots only when there is more than one
   await expect(page.getByText('Choose your language and region')).toBeVisible();
 });
 
@@ -51,7 +53,10 @@ test('choosing language and region in Settings changes the posters on Home', asy
 
   await page.goto('/');
   // Matching both language and region ranks first; "everyone" follows; the Hindi-or-Maharashtra poster stays out.
-  await expect(page.locator('.poster-cap strong')).toHaveText(['Poster both', 'Poster everyone']);
+  await expect(page.locator('.poster-slide')).toHaveCount(2);
+  expect(await page.locator('.poster-slide').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))).toEqual(['Poster both', 'Poster everyone']);
+  await expect(page.locator('.poster-dot')).toHaveCount(2);
+  await expect(page.locator('.poster-dot-on')).toHaveCount(1);
 });
 
 test('a live song shows lyrics, transposes, links out to YouTube and can be liked', async ({ page }) => {

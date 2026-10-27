@@ -33,6 +33,19 @@
 - Codes in the Lists page (languages, regions, genres, occasions, moods) never change, because records point to them by code; names can change. A value that anything still uses cannot be deleted.
 - A real project gets its starting lists from `supabase/reference.sql`, never from the seed.
 
+## The app's look and screens (decided while building, from the approved design)
+- Black pages, grey (#141414) cards, one accent colour (#9FB1FF) for liked, shuffle and repeat switched on, and the song that is playing. Open Sans only. Sizes: page title 21, section heading 15, row title 13, small text 11 to 12, nothing below 11. Every tap target has a 44 x 44 area even where the visible shape is smaller.
+- Three tabs (Home, Search, Library). Settings is behind the round picture at the top right; sign-out is under Settings, Account. The picture is the one from the person's Google account and cannot be changed in the app.
+- A song opens full screen. A song with an audio file opens the player (lyrics and controls); a song without opens the lyrics page. The Lyrics icon on a row always opens the lyrics page and never starts music. Stage mode is a separate full-screen mode for singing from, opened from the ⋮ menu or from a list.
+- One "Share link" per song: it shares the web link. The link goes through login and then to the song. The Android app will get its own link kind later.
+- Search finds songs by title, artist and by genre, occasion or mood words, and artists by name; the filter sheet narrows by language, genre, occasion and mood (one value each). An artist who is not available can be found by name but shows only as "Unavailable".
+- Search browsing shows who you follow (eight, with "See more" only when there are more than eight), or artists to follow when you follow nobody, then the three newest songs, then Explore tiles. "Latest releases" means newest in this app, not the date a song was recorded.
+- Follow: any signed-in person can follow up to 500 artists, only available artists can be newly followed, a follow of an artist who later becomes unavailable stays (as a name only) and can be undone. Nobody can see who follows whom; the follow list is private to its owner.
+- Library has All, Lists and Artists. Liked songs is pinned first in Lists. One list screen serves Liked songs, playlists and setlists: Find in list, Sort (list order, title, artist, newest first), filter chips from the languages and genres that occur in that list, Shuffle and Play. Editing (reorder, key per song for setlists, rename, date, delete) is behind Edit. A song unliked on the Liked screen stays on the screen until you leave it, so a mistaken tap is undone by tapping the heart again; there is no "Removed, Undo" bar yet.
+- Pictures come from links an admin pastes. A Google Drive share link (file/d/ID/view and the other usual forms) is turned into Drive's thumbnail address when shown; any other https link is used as it is. A picture that fails to load falls back to a coloured placeholder with the first letter. A song shows the cover of its published album; a single has the placeholder.
+- Home posters are pictures only. One with a YouTube link opens YouTube when tapped. The strip swipes, moves on every 5 seconds, goes back to the first after the last, and stops while it is being touched, hovered or focused, and for people who turned reduced motion on.
+- Not built yet from the design (not drawn): the "Add songs" picker (the row opens Search), the artist ⋮ menu, "Removed, Undo" on Liked, Settings sub-pages beyond Profile, Language and region, Account and About.
+
 ## Product rules
 - Catalogue is curated by the owner. Songs and lyrics are uploaded for artists under a signed agreement. Uploading is free of cost.
 - Agreements are accepted only from the official email (never WhatsApp or chat). In the database a verified agreement needs a document reference and a verifier.

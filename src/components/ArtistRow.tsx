@@ -28,3 +28,17 @@ export function ArtistGrid({ artists }: { artists: Pick<Artist, 'slug' | 'name' 
     </div>
   );
 }
+
+/** Artists in a single row that scrolls sideways (Home): round picture and name. */
+export function ArtistStrip({ artists }: { artists: Pick<Artist, 'slug' | 'name' | 'available' | 'photo_url'>[] }) {
+  return (
+    <div className="artist-strip">
+      {artists.map((a) => (
+        <Link key={a.slug} href={`/artist/${a.slug}`} className="artist-chip">
+          <Cover url={a.available ? a.photo_url : null} name={a.name} size={64} round />
+          <span className="artist-cell-name">{a.name}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}

@@ -236,6 +236,25 @@ select test_helpers.expect_error($q$insert into public.song_likes (user_id, song
 select test_helpers.expect_error($q$insert into public.song_likes (user_id, song_id) values ('22222222-2222-2222-2222-222222222222','d0000000-0000-0000-0000-000000000001')$q$, '42501');
 rollback;
 
+-- ============================================================ song covers come from published albums only
+begin;
+update public.albums set cover_url = 'https://example.org/morning-light.jpg' where slug = 'morning-light';
+set local role anon;
+do $$ begin
+  assert (select cover_url from public.v_songs where slug = 'placeholder-song-one') = 'https://example.org/morning-light.jpg', 'a song shows its album cover';
+  assert (select cover_url from public.v_songs where slug = 'placeholder-single') is null, 'a single has no cover';
+  raise notice 'ok: song covers come from the album';
+end $$;
+reset role;
+update public.albums set is_published = false where slug = 'morning-light';
+set local role anon;
+do $$ begin
+  assert (select cover_url from public.v_songs where slug = 'placeholder-song-one') is null, 'an unpublished album shows no cover';
+  assert (select album_title from public.v_songs where slug = 'placeholder-song-one') is null, 'and no album title';
+  raise notice 'ok: an unpublished album shows no cover';
+end $$;
+rollback;
+
 -- ============================================================ following artists
 begin;
 insert into public.artist_follows (user_id, artist_id) values ('22222222-2222-2222-2222-222222222222', 'a0000000-0000-0000-0000-000000000001');

@@ -1,13 +1,19 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import Avatar from '@/components/Avatar';
+import { ArtistStrip } from '@/components/ArtistRow';
 import { HeartIcon } from '@/components/icons';
+import PosterCarousel, { type PosterSlide } from '@/components/PosterCarousel';
 import SongList from '@/components/SongRow';
+import { displayImageUrl } from '@/lib/image-url';
 import { createClient } from '@/lib/supabase/server';
-import type { Poster, Profile, Song } from '@/lib/types';
+import type { Artist, Poster, Profile, Song } from '@/lib/types';
 import { pictureFromMetadata } from '@/lib/user';
+import { youtubeWatchUrl } from '@/lib/youtube';
 
 export const dynamic = 'force-dynamic';
+
+const ARTISTS_SHOWN = 12;
 
 type Result = { data: unknown; error: unknown };
 
@@ -45,11 +51,13 @@ export default async function HomePage() {
   const profile = (profileRow ?? { display_name: null, role: 'user', language_codes: [], region_code: null }) as Profile;
 
   const filters = { p_languages: profile.language_codes, p_region: profile.region_code };
-  const [postersRes, trendingRes, likedRes, suggestedRes] = await Promise.all([
+  const [postersRes, trendingRes, likedRes, suggestedRes, followedRes, artistsRes] = await Promise.all([
     supabase.rpc('home_posters', { ...filters, p_limit: 6 }),
     supabase.rpc('trending_songs', { ...filters, p_limit: 10 }),
     supabase.rpc('most_liked_songs', { ...filters, p_limit: 10 }),
     supabase.rpc('suggested_songs', { p_limit: 10 }),
+    supabase.rpc('my_followed_artists'),
+    supabase.from('v_artists').select('*').eq('available', true).order('name').limit(ARTISTS_SHOWN),
   ]);
 
   const problems: string[] = [];
@@ -58,12 +66,25 @@ export default async function HomePage() {
   const mostLiked = rows<Song>(likedRes, 'most liked', problems);
   const suggested = rows<Song>(suggestedRes, 'suggested', problems);
 
+  // The artists you follow come first, then the others, by name. An artist who is not available is left out.
+  const followed = rows<Artist>(followedRes, 'followed artists', problems).filter((a) => a.available);
+  const seen = new Set(followed.map((a) => a.id));
+  const artists = [...followed, ...rows<Artist>(artistsRes, 'artists', problems).filter((a) => !seen.has(a.id))].slice(0, ARTISTS_SHOWN);
+
+  // Pictures only: the title stays as the accessible name. A poster with a YouTube link opens it when tapped.
+  const slides: PosterSlide[] = posters.map((p) => ({
+    id: p.id,
+    title: p.title,
+    image: displayImageUrl(p.image_url, 1000),
+    href: p.youtube_id ? youtubeWatchUrl(p.youtube_id) : null,
+  }));
+
   const noPreferences = profile.language_codes.length === 0 && !profile.region_code;
-  const nothingToShow = posters.length + trending.length + mostLiked.length + suggested.length === 0;
+  const nothingToShow = posters.length + artists.length + trending.length + mostLiked.length + suggested.length === 0;
 
   return (
     <div>
-      <div className="page-head">
+      <div className="page-head page-head-home">
         <h1>{profile.display_name ? `Welcome, ${profile.display_name}` : 'Welcome'}</h1>
         <Link href="/library/liked" className="pill-btn" aria-label="Liked songs">
           <HeartIcon size={16} filled /> Liked
@@ -83,20 +104,16 @@ export default async function HomePage() {
         </p>
       ) : null}
 
-      {posters.length > 0 ? (
-        <section className="section" aria-label="Notices and events">
-          <div className="posters">
-            {posters.map((p) => (
-              <article key={p.id} className="poster">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.image_url} alt={p.title} loading="lazy" />
-                <div className="poster-cap">
-                  <strong>{p.title}</strong>
-                  {p.event_date ? <span className="small">{p.event_date}</span> : null}
-                </div>
-              </article>
-            ))}
-          </div>
+      {slides.length > 0 ? (
+        <section className="section poster-section" aria-label="Notices and events">
+          <PosterCarousel slides={slides} />
+        </section>
+      ) : null}
+
+      {artists.length > 0 ? (
+        <section className="section" aria-labelledby="h-artists">
+          <h2 id="h-artists">Artists</h2>
+          <ArtistStrip artists={artists} />
         </section>
       ) : null}
 

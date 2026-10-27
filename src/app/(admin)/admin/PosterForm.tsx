@@ -6,6 +6,7 @@ import type { AdminPoster, Option, RequestOption } from '@/lib/admin-types';
 import { explainAdminError } from '@/lib/admin-text';
 import { MATCH_MODES, POSTER_KINDS, POSTER_STATUSES, REQUEST_KINDS, isoToIstInput, istInputToIso, paiseToRupees, requestAllowsApproval, requestStatusLabel, validatePoster, type MatchMode, type PosterKind, type PosterStatus } from '@/lib/ledger';
 import { createClient } from '@/lib/supabase/client';
+import { displayImageUrl } from '@/lib/image-url';
 import { extractYoutubeId, youtubeWatchUrl } from '@/lib/youtube';
 import CheckGroup from './CheckGroup';
 
@@ -102,10 +103,10 @@ export default function PosterForm({ poster, requests, languages, regions, initi
       <div className="field">
         <label htmlFor="poster-image">Image link</label>
         <input id="poster-image" className="input" inputMode="url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://" />
-        <span className="small muted">A secure (https) address of the poster image.</span>
+        <span className="small muted">A secure (https) address of the poster image. A Google Drive share link works if &ldquo;anyone with the link&rdquo; can view the file.</span>
         {imageOk ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={image.trim()} alt={`Preview of ${title || 'the poster'}`} style={{ marginTop: 8, maxWidth: '100%', maxHeight: 220, borderRadius: 8 }} />
+          <img src={displayImageUrl(image, 1000) ?? image.trim()} alt={`Preview of ${title || 'the poster'}`} style={{ marginTop: 8, maxWidth: '100%', maxHeight: 220, borderRadius: 8 }} />
         ) : null}
       </div>
       <div className="field">

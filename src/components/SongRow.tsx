@@ -39,7 +39,7 @@ export function SongRow({ song, songs, source, rank, sub }: { song: Song; songs:
     <div className={`song-row${isCurrent ? ' song-row-current' : ''}`}>
       {rank !== undefined ? <span className="song-rank" aria-hidden="true">{rank}</span> : null}
       <Link href={songHref(song)} className="song-cover" tabIndex={-1} aria-hidden="true">
-        <Cover url={null} name={song.title} size={40} />
+        <Cover url={song.cover_url} name={song.title} size={40} />
         {rank === undefined ? <span className="lang-tag">{song.language_code}</span> : null}
       </Link>
       <Link href={songHref(song)} className="song-main">

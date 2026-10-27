@@ -101,6 +101,7 @@ export default function ArtistForm({ artist, languages, regions, genres }: {
       <div className="field">
         <label htmlFor="artist-photo">Photo link (https)</label>
         <input id="artist-photo" className="input" inputMode="url" maxLength={500} value={photo} onChange={(e) => setPhoto(e.target.value)} />
+        <span className="small muted">A Google Drive share link works if &ldquo;anyone with the link&rdquo; can view the file.</span>
       </div>
       <CheckGroup legend="Languages" options={languages} selected={langs} onChange={setLangs} />
       <div className="field">

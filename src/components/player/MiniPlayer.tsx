@@ -26,7 +26,7 @@ export default function MiniPlayer() {
         <span style={{ width: `${pct}%` }} />
       </div>
       <Link href={`/song/${song.slug}`} className="mini-info">
-        <Cover url={null} name={song.title} size={40} />
+        <Cover url={song.cover_url} name={song.title} size={40} />
         <span className="mini-text">
           <span className="mini-title">{song.title}</span>
           {p.error ? <span className="mini-error" role="alert">{p.error}</span> : <span className="mini-artist">{song.artist_name}</span>}
