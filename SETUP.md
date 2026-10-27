@@ -6,7 +6,7 @@ Where the build stands: the database and its rules, the user website with the pl
 
 | Path | What it is | Checked |
 |---|---|---|
-| `supabase/migrations/0001..0011` | Tables, visibility rules, security, public API, listening time, hosted audio, audio rights, library rules, admin guards (a song's album belongs to its artist; key names), a request that ends stops its posters, reference-list guards (fixed codes, nothing in use is deleted) | Run on a real Supabase stack in CI, and on plain Postgres 16 |
+| `supabase/migrations/0001..0013` | Tables, visibility rules, security, public API, listening time, hosted audio, audio rights, library rules, admin guards (a song's album belongs to its artist; key names), a request that ends stops its posters, reference-list guards (fixed codes, nothing in use is deleted), following artists (a private list, soft limit 500), song covers taken from the published album | Run on a real Supabase stack in CI, and on plain Postgres 16 |
 | `supabase/seed.sql` | Fake development data (placeholder lyrics, a placeholder admin). Test projects only | Run on a real Supabase stack in CI |
 | `supabase/reference.sql` | The starting lists (languages, regions, genres, occasions, moods) for a real project, with no catalogue data. Safe to run twice | Checked on an empty database, run twice, and compared with the seed's lists |
 | `supabase/tests/` | 159 assertions and 99 must-fail checks (users cannot read agreements, prices, end dates or hidden songs, or make themselves admin; the admin rules hold) | Pass on both; deliberate breakages are caught |
@@ -37,7 +37,7 @@ Not checked: Google sign-in (needs your Google Cloud client), email confirmation
 ## First run on Supabase
 
 1. Create a project at supabase.com. Pick the region closest to your users.
-2. Open **SQL editor** and run the eleven migration files in order, each in a new query, pasting the file's contents (not its path): `0001_schema.sql`, `0002_rules.sql`, `0003_security.sql`, `0004_public_api.sql`, `0005_listening.sql`, `0006_audio.sql`, `0007_audio_rights.sql`, `0008_library.sql`, `0009_admin_guards.sql`, `0010_request_stops_posters.sql`, `0011_reference_guards.sql`.
+2. Open **SQL editor** and run the thirteen migration files in order, each in a new query, pasting the file's contents (not its path): `0001_schema.sql`, `0002_rules.sql`, `0003_security.sql`, `0004_public_api.sql`, `0005_listening.sql`, `0006_audio.sql`, `0007_audio_rights.sql`, `0008_library.sql`, `0009_admin_guards.sql`, `0010_request_stops_posters.sql`, `0011_reference_guards.sql`, `0012_follows.sql`, `0013_song_covers.sql`.
 3. For the **real** project, run `reference.sql` to get the starting lists (languages, regions, genres, occasions, moods); the admin site's Lists page takes it from there. For a **throwaway test project only**, run `seed.sql` instead to get sample data, which includes those lists. **Never run `seed.sql` on the real project.** Its placeholder admin cannot log in.
 4. Sign up once through the site (or **Authentication → Users → Add user**), copy your user id, and make yourself admin:
    ```sql
@@ -78,7 +78,7 @@ GitHub also commits `package-lock.json` for you when dependencies change (a CI s
 
 ## Next steps
 
-1. Apply migrations 0009 to 0011 to the live test project, then try the admin site on a phone and a laptop.
+1. Migrations 0001 to 0013 are applied to the live test project. Try the website and the admin site on a phone and a laptop.
 2. Admin two-factor sign-in (decision needed, see docs/DECISIONS.md), then Charts and share-sheet polish.
 3. Android app (Capacitor) once the site is complete. Offline lyrics for Stage mode need the app to carry its own screens and a local copy of the user's setlists, so the wrapper cannot simply open the website.
 4. iOS after Android.
