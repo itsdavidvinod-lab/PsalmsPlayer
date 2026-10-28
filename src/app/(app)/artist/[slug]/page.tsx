@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import BackButton from '@/components/BackButton';
 import Cover from '@/components/Cover';
 import { HeartIcon } from '@/components/icons';
+import ShellFlags from '@/components/ShellFlags';
 import SongList from '@/components/SongRow';
 import { heroBackground } from '@/lib/cover';
 import { displayImageUrl } from '@/lib/image-url';
@@ -55,6 +56,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
   if (!artist.available) {
     return (
       <div className="artist-page">
+        <ShellFlags flags={['has-artist-page']} />
         <Hero name={artist.name} photo={null} />
         <div className="artist-body">
           <div className="artist-actions">
@@ -98,6 +100,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
 
   return (
     <div className="artist-page">
+        <ShellFlags flags={['has-artist-page']} />
       <Hero name={artist.name} photo={artist.photo_url} />
       <div className="artist-body">
         <p className="artist-stats">

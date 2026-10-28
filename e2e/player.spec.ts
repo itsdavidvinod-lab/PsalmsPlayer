@@ -144,6 +144,8 @@ test('on a phone the tab bar shows on the lists, goes away on the full-screen so
   await page.goto('/song/placeholder-song-one');
   await expect(page.getByRole('region', { name: 'Listen' })).toBeVisible();
   await expect(page.locator('.tabbar')).toBeHidden();
+  // The frame is flagged for older Android WebViews, which do not understand :has() (see ShellFlags).
+  await expect(page.locator('.shell')).toHaveClass(/has-screen-player/);
   await page.getByRole('button', { name: 'Play Placeholder Song One' }).click();
   await expect.poll(() => audioTime(page), { timeout: 15_000 }).toBeGreaterThan(1);
   await expect(page.getByRole('region', { name: 'Player' })).toHaveCount(0); // the player screen has its own controls
@@ -153,6 +155,15 @@ test('on a phone the tab bar shows on the lists, goes away on the full-screen so
   await expect(page).toHaveURL(/\/artist\/grace-worship$/);
   await expect(page.locator('.tabbar')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Player' })).toBeVisible();
+  await expect(page.locator('.shell')).not.toHaveClass(/has-screen-player/);
+  await expect(page.locator('.shell')).toHaveClass(/has-artist-page/);
+  // The strip on a phone has Previous and a seek bar, not only Play and Next.
+  const strip = page.getByRole('region', { name: 'Player' });
+  await expect(strip.getByRole('button', { name: 'Previous' })).toBeVisible();
+  await expect(strip.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await expect(strip.getByRole('slider', { name: 'Seek' })).toBeVisible();
+  const box = await strip.boundingBox();
+  expect(box && box.height).toBeGreaterThan(70); // controls row and seek row both fit
 
   // The Lyrics icon: no tab bar, but the strip stays and the music goes on.
   await page.locator('.song-row').filter({ hasText: 'Placeholder Song One' }).getByRole('link', { name: 'Lyrics of Placeholder Song One' }).click();

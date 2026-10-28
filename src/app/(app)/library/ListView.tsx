@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import { CheckIcon, ChevronLeftIcon, HeartIcon, ListIcon, PauseIcon, PlayIcon, PlusIcon, SearchIcon, ShuffleIcon, StageIcon } from '@/components/icons';
 import { usePlayer } from '@/components/player/PlayerProvider';
 import Sheet from '@/components/Sheet';
+import ShellFlags from '@/components/ShellFlags';
 import { SongRow } from '@/components/SongRow';
 import { transposeKey } from '@/lib/chordpro';
 import { NO_CHIPS, SORT_MODES, isFiltering, listChips, songCountLabel, toggleChip, visibleSlots, type ChipSelection, type SortMode } from '@/lib/list';
@@ -153,6 +154,7 @@ export default function ListView({ kind, id, title, serviceDate, rows: initialRo
 
   return (
     <div className="list-screen">
+      <ShellFlags flags={['has-list-screen']} />
       <article className="list-inner">
         <header className="list-top">
           <Link href="/library" className="round-back" aria-label="Back to Library">

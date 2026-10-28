@@ -18,6 +18,7 @@ import { usePlayer } from '@/components/player/PlayerProvider';
 import SeekBar from '@/components/player/SeekBar';
 import { shareSong } from '@/components/share-client';
 import Sheet from '@/components/Sheet';
+import ShellFlags from '@/components/ShellFlags';
 import { SongMenuBody, useSongMenu } from '@/components/SongMenu';
 import { parseChordPro, prefersFlats, transposeKey, transposeLines } from '@/lib/chordpro';
 import { createClient } from '@/lib/supabase/client';
@@ -180,6 +181,7 @@ export default function SongScreen({ song, queue, lyrics, lyricsFailed, language
   if (mode === 'player') {
     return (
       <article className="screen screen-player">
+        <ShellFlags flags={['has-screen', 'has-screen-player']} />
         <header className="screen-bar">
           <button type="button" className="icon-btn" aria-label="Close" onClick={close}>
             <ChevronDownIcon />
@@ -243,6 +245,7 @@ export default function SongScreen({ song, queue, lyrics, lyricsFailed, language
 
   return (
     <article className="screen screen-lyrics">
+      <ShellFlags flags={['has-screen', 'has-screen-lyrics']} />
       <header className="screen-bar">
         <button type="button" className="icon-btn" aria-label="Close" onClick={close}>
           <ChevronDownIcon />
