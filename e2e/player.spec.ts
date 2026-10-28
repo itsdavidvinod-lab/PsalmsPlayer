@@ -165,6 +165,41 @@ test('on a phone the tab bar shows on the lists, goes away on the full-screen so
   const box = await strip.boundingBox();
   expect(box && box.height).toBeGreaterThan(70); // controls row and seek row both fit
 
+  // The seek bar is a thin rail; the round knob shows only while the bar is touched or slid (anywhere on it), then goes away.
+  const knobScale = () =>
+    strip.locator('.seek-knob').evaluate((el) => {
+      const t = getComputedStyle(el).transform; // 'none' or matrix(scale, ...)
+      return t === 'none' ? 1 : Number(t.match(/matrix\(([^,]+)/)![1]);
+    });
+  const rail = async () => {
+    const r = await strip.locator('.seek-rail').boundingBox();
+    if (!r) throw new Error('the seek rail has no box');
+    return r;
+  };
+  const r0 = await rail();
+  expect(r0.height, 'the rail is thin').toBeLessThan(4.5);
+  await page.mouse.move(5, 5);
+  await expect.poll(knobScale, { message: 'no knob at rest' }).toBe(0);
+  const y = r0.y + r0.height / 2;
+  await page.mouse.click(r0.x + r0.width * 0.75, y + 6); // a tap a little off the line still lands on the bar
+  await expect.poll(() => audioTime(page), { message: 'a tap jumps to that place in the song', timeout: 10_000 }).toBeGreaterThan(80);
+  await expect.poll(knobScale, { message: 'the knob shows on touch' }).toBeGreaterThan(0.9);
+  const knobGap = async (wantX: number) => {
+    const k = await strip.locator('.seek-knob').boundingBox();
+    return k ? Math.abs(k.x + k.width / 2 - wantX) : 999;
+  };
+  await expect.poll(() => knobGap(r0.x + r0.width * 0.75), { message: 'the knob sits where the bar was touched' }).toBeLessThan(4);
+  await page.mouse.move(r0.x + r0.width * 0.2, y);
+  await page.mouse.down();
+  await page.mouse.move(r0.x + r0.width * 0.4, y - 8, { steps: 8 }); // a slide that wanders off the line still drags
+  await expect.poll(() => audioTime(page), { message: 'a slide moves the song', timeout: 10_000 }).toBeLessThan(60);
+  await expect.poll(() => knobGap(r0.x + r0.width * 0.4), { message: 'the knob follows the slide' }).toBeLessThan(5);
+  expect(await knobScale(), 'the knob stays while sliding').toBeGreaterThan(0.9);
+  await page.mouse.up();
+  await page.mouse.move(5, 5);
+  await expect.poll(knobScale, { message: 'the knob goes away after the touch', timeout: 5_000 }).toBe(0);
+  await expect(strip.getByRole('slider', { name: 'Seek' })).toBeVisible();
+
   // The Lyrics icon: no tab bar, but the strip stays and the music goes on.
   await page.locator('.song-row').filter({ hasText: 'Placeholder Song One' }).getByRole('link', { name: 'Lyrics of Placeholder Song One' }).click();
   await expect(page).toHaveURL(/\/song\/placeholder-song-one\/lyrics$/);
