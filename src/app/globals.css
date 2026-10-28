@@ -483,8 +483,13 @@ a.inline { color: var(--primary); font-weight: 600; text-decoration: underline; 
 .admin-wrap .btn-ghost { border-color: transparent; color: var(--primary); }
 .admin-wrap .btn-ghost:hover { background: var(--card-2); }
 .adm-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; align-items: start; }
-.adm-form > :not(.field):not(button), .adm-form > fieldset, .adm-form > .field:has(textarea, .check, #poster-image, #poster-youtube, #artist-photo, #lyrics-body) { grid-column: 1 / -1; }
+.adm-form > :not(.field):not(button), .adm-form > fieldset, .adm-form > .field:has(textarea, .check, #poster-youtube, #lyrics-body, .pic-field) { grid-column: 1 / -1; }
 .adm-form > p { margin: 0; }
+.pic-row { display: flex; align-items: flex-start; gap: 12px; }
+.pic-row .cover { flex: 0 0 auto; }
+.pic-controls { flex: 1 1 auto; min-width: 0; display: grid; gap: 8px; }
+.pic-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pic-file { display: none; }
 .adm-form > button { justify-self: start; }
 .adm-form > .toolbar { margin: 0; }
 

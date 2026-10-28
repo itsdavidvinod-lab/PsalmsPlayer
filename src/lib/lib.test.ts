@@ -15,6 +15,7 @@ import { buildShareUrl, safeNextPath } from './share.ts';
 import { COVER_PALETTE, coverBackground, coverColors, heroBackground, initialOf } from './cover.ts';
 import { timeAgo } from './relative-time.ts';
 import { FILTER_KINDS, cleanQuery, hasSearch, parseSearch, searchHref } from './search.ts';
+import { PICTURE_MAX_WIDTH, checkPictureFile, fitWithin, pictureObjectName } from './picture-upload.ts';
 import { NO_CHIPS, isFiltering, listChips, matchesChips, matchesFind, songCountLabel, listenersLabel, likesLabel, sortSlots, toggleChip, visibleSlots, type Slot } from './list.ts';
 import { makeLabels } from './labels.ts';
 import { displayImageUrl, driveFileId } from './image-url.ts';
@@ -1065,4 +1066,32 @@ test('the poster strip moves on and wraps, and reads its place from the scroll',
   assert.equal(slideFromScroll(-20, 354, 3), 0);
   assert.equal(slideFromScroll(100, 0, 3), 0);
   assert.equal(slideFromScroll(100, 354, 0), 0);
+});
+
+
+test('checkPictureFile accepts JPG, PNG and WebP up to 20 MB and refuses the rest', () => {
+  assert.deepEqual(checkPictureFile({ type: 'image/jpeg', size: 1000 }), { ok: true });
+  assert.deepEqual(checkPictureFile({ type: 'image/png', size: 1000 }), { ok: true });
+  assert.deepEqual(checkPictureFile({ type: 'image/webp', size: 20 * 1024 * 1024 }), { ok: true });
+  assert.equal(checkPictureFile({ type: 'image/gif', size: 1000 }).ok, false);
+  assert.equal(checkPictureFile({ type: 'application/pdf', size: 1000 }).ok, false);
+  assert.equal(checkPictureFile({ type: '', size: 1000 }).ok, false);
+  assert.equal(checkPictureFile({ type: 'image/png', size: 0 }).ok, false);
+  assert.equal(checkPictureFile({ type: 'image/png', size: 20 * 1024 * 1024 + 1 }).ok, false);
+});
+
+test('fitWithin never enlarges, keeps the shape and gives whole pixels', () => {
+  assert.deepEqual(fitWithin(2400, 1200, 800), { width: 800, height: 400 });
+  assert.deepEqual(fitWithin(3000, 2000, 1400), { width: 1400, height: 933 });
+  assert.deepEqual(fitWithin(500, 300, 800), { width: 500, height: 300 });
+  assert.deepEqual(fitWithin(800, 800, 800), { width: 800, height: 800 });
+  assert.deepEqual(fitWithin(10000, 1, 800), { width: 800, height: 1 });
+  assert.deepEqual(fitWithin(0, 100, 800), { width: 1, height: 1 });
+  assert.equal(PICTURE_MAX_WIDTH.poster > PICTURE_MAX_WIDTH.artist, true);
+});
+
+test('pictureObjectName puts each picture in its own folder with the right extension', () => {
+  assert.equal(pictureObjectName('artist', 'abc', 'image/webp'), 'artist/abc.webp');
+  assert.equal(pictureObjectName('poster', 'abc', 'image/jpeg'), 'poster/abc.jpg');
+  assert.equal(pictureObjectName('song', 'abc', 'image/png'), 'song/abc.png');
 });

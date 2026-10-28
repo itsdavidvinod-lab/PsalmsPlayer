@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import { displayImageUrl } from '@/lib/image-url';
 import { extractYoutubeId, youtubeWatchUrl } from '@/lib/youtube';
 import CheckGroup from './CheckGroup';
-import ImageLinkHelp from './ImageLinkHelp';
+import PictureField from './PictureField';
 
 type Status = { ok: boolean; text: string } | null;
 
@@ -107,11 +107,7 @@ export default function PosterForm({ poster, requests, languages, regions, initi
           {POSTER_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
         </select>
       </div>
-      <div className="field">
-        <label htmlFor="poster-image">Image link</label>
-        <input id="poster-image" className="input" inputMode="url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://" />
-        <ImageLinkHelp what="poster image" />
-      </div>
+      <PictureField id="poster-image" label="Image" kind="poster" what="poster image" value={image} onChange={setImage} preview={false} />
       <div className="field">
         <label htmlFor="poster-youtube">YouTube link (optional)</label>
         <input id="poster-youtube" className="input" inputMode="url" value={youtube} onChange={(e) => setYoutube(e.target.value)} />

@@ -6,7 +6,7 @@ import type { AdminSong, AlbumOption, ArtistOption, Option } from '@/lib/admin-t
 import { KEY_CHOICES, explainAdminError, isHttpsUrl, isValidSlug, parseOptionalInt, slugify } from '@/lib/admin-text';
 import { createClient } from '@/lib/supabase/client';
 import CheckGroup from './CheckGroup';
-import ImageLinkHelp from './ImageLinkHelp';
+import PictureField from './PictureField';
 
 type Status = { ok: boolean; text: string } | null;
 
@@ -185,12 +185,15 @@ export default function SongForm({ song, initialArtistId, artists, albums, langu
         <label htmlFor="song-track">Track number</label>
         <input id="song-track" className="input" inputMode="numeric" maxLength={3} value={track} onChange={(e) => setTrack(e.target.value)} />
       </div>
-      <div className="field">
-        <label htmlFor="song-cover">Cover picture link (https)</label>
-        <input id="song-cover" className="input" inputMode="url" maxLength={500} value={cover} onChange={(e) => setCover(e.target.value)} placeholder="https://" aria-describedby="song-cover-help" />
-        <span id="song-cover-help" className="small muted">Shown next to the song in lists and in the player. Leave empty to use the album&rsquo;s cover; a single with no cover shows a coloured placeholder.</span>
-        <ImageLinkHelp what="cover picture" />
-      </div>
+      <PictureField
+        id="song-cover"
+        label="Cover picture"
+        kind="song"
+        what="cover picture"
+        value={cover}
+        onChange={setCover}
+        hint="Shown next to the song in lists and in the player. Leave empty to use the album's cover; a single with no cover shows a coloured placeholder."
+      />
       <CheckGroup legend="Genres" options={genres} selected={genreSel} onChange={setGenreSel} />
       <CheckGroup legend="Occasions" options={occasions} selected={occasionSel} onChange={setOccasionSel} />
       <CheckGroup legend="Moods" options={moods} selected={moodSel} onChange={setMoodSel} />

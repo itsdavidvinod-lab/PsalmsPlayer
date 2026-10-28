@@ -104,7 +104,7 @@ test('bad input is stopped with a plain message: a taken address, an invalid add
   await expect(page.getByRole('alert').filter({ hasText: 'lowercase letters' })).toBeVisible();
 
   await page.getByLabel('Address (slug)').fill(`e2e-artist-bad-${Date.now()}`);
-  await page.getByLabel('Photo link (https)').fill('http://example.org/a.jpg');
+  await page.locator('#artist-photo').fill('http://example.org/a.jpg');
   await page.getByRole('button', { name: 'Create artist' }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'https://' })).toBeVisible();
   expect(sql(`select count(*) from public.artists where name = 'Duplicate'`)).toBe('0');

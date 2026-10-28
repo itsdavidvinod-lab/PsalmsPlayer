@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { AdminAlbum } from '@/lib/admin-types';
 import { explainAdminError, isHttpsUrl, isValidSlug, parseOptionalInt, slugify } from '@/lib/admin-text';
 import { createClient } from '@/lib/supabase/client';
-import ImageLinkHelp from './ImageLinkHelp';
+import PictureField from './PictureField';
 
 type Status = { ok: boolean; text: string } | null;
 
@@ -95,11 +95,7 @@ export default function AlbumForm({ artistId, album }: { artistId: string; album
         <label htmlFor={`${idp}-year`}>Release year</label>
         <input id={`${idp}-year`} className="input" inputMode="numeric" maxLength={4} value={year} onChange={(e) => setYear(e.target.value)} />
       </div>
-      <div className="field">
-        <label htmlFor={`${idp}-cover`}>Cover link (https)</label>
-        <input id={`${idp}-cover`} className="input" inputMode="url" maxLength={500} value={cover} onChange={(e) => setCover(e.target.value)} />
-        <ImageLinkHelp what="album cover" />
-      </div>
+      <PictureField id={`${idp}-cover`} label="Cover" kind="album" what="album cover" value={cover} onChange={setCover} />
       <div className="field">
         <label className="check" htmlFor={`${idp}-published`} style={{ width: 'fit-content' }}>
           <input id={`${idp}-published`} type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} />

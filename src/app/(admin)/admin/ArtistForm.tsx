@@ -6,7 +6,7 @@ import type { AdminArtist, Option } from '@/lib/admin-types';
 import { explainAdminError, isHttpsUrl, isValidSlug, slugify } from '@/lib/admin-text';
 import { createClient } from '@/lib/supabase/client';
 import CheckGroup from './CheckGroup';
-import ImageLinkHelp from './ImageLinkHelp';
+import PictureField from './PictureField';
 
 type Status = { ok: boolean; text: string } | null;
 
@@ -99,11 +99,7 @@ export default function ArtistForm({ artist, languages, regions, genres }: {
         <label htmlFor="artist-bio">About</label>
         <textarea id="artist-bio" className="input" rows={4} maxLength={2000} value={bio} onChange={(e) => setBio(e.target.value)} />
       </div>
-      <div className="field">
-        <label htmlFor="artist-photo">Photo link (https)</label>
-        <input id="artist-photo" className="input" inputMode="url" maxLength={500} value={photo} onChange={(e) => setPhoto(e.target.value)} />
-        <ImageLinkHelp what="photo" />
-      </div>
+      <PictureField id="artist-photo" label="Photo" kind="artist" what="photo" value={photo} onChange={setPhoto} />
       <CheckGroup legend="Languages" options={languages} selected={langs} onChange={setLangs} />
       <div className="field">
         <label htmlFor="artist-region">Region</label>

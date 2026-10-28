@@ -255,6 +255,39 @@ do $$ begin
 end $$;
 rollback;
 
+-- ============================================================ the pictures bucket
+begin;
+do $$ begin
+  assert (select public from storage.buckets where id = 'pictures') = true, 'the pictures bucket is public for reading';
+  assert (select file_size_limit from storage.buckets where id = 'pictures') = 2097152, 'pictures are limited to 2 MB';
+  assert (select allowed_mime_types from storage.buckets where id = 'pictures') = array['image/jpeg', 'image/png', 'image/webp'], 'only image types are accepted';
+  assert (select public from storage.buckets where id = 'audio') = false, 'the audio bucket stays private';
+  raise notice 'ok: pictures bucket shape';
+end $$;
+set local role anon;
+select test_helpers.expect_error($q$insert into storage.objects (bucket_id, name) values ('pictures', 'artist/anon.webp')$q$, '42501');
+reset role;
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+select test_helpers.expect_error($q$insert into storage.objects (bucket_id, name) values ('pictures', 'artist/user.webp')$q$, '42501');
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
+set local role authenticated;
+do $$ begin
+  insert into storage.objects (bucket_id, name) values ('pictures', 'artist/admin.webp');
+  assert (select count(*) from storage.objects where bucket_id = 'pictures') = 1, 'an admin can add and see a picture';
+  raise notice 'ok: only admins write pictures';
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from storage.objects where bucket_id = 'pictures') = 0, 'a normal user cannot list the pictures bucket';
+  raise notice 'ok: pictures cannot be listed by users';
+end $$;
+reset role;
+rollback;
+
 -- ============================================================ a song's own cover wins over its album's
 begin;
 update public.albums set cover_url = 'https://example.org/morning-light.jpg' where slug = 'morning-light';
