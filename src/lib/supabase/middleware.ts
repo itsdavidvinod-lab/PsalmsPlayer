@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isNativeUserAgent } from '@/lib/native-app';
 import { safeNextPath } from '@/lib/share';
 import { supabaseEnv } from './env';
 
@@ -41,6 +42,14 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   } = await supabase.auth.getUser();
 
   const { pathname, search } = request.nextUrl;
+
+  // The admin site is web only. Inside the app it does not exist, whoever is signed in.
+  if (isNativeUserAgent(request.headers.get('user-agent')) && (pathname === '/admin' || pathname.startsWith('/admin/'))) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
 
   if (!user && !isPublic(pathname)) {
     const url = request.nextUrl.clone();

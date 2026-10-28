@@ -1,6 +1,9 @@
 'use client';
 
+import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 import { useState } from 'react';
+import { NATIVE_AUTH_CALLBACK } from '@/lib/native-app';
 import { createClient } from '@/lib/supabase/client';
 
 // Real users sign in with Google only. The email and password form below exists for automated tests and local work:
@@ -24,6 +27,18 @@ export default function LoginForm({ next, callbackFailed, deleted = false }: { n
     setBusy(true);
     setError(null);
     const supabase = createClient();
+    if (Capacitor.isNativePlatform()) {
+      // Google refuses to sign anyone in inside an app's embedded browser. Open the phone's own browser instead; when Google is
+      // done, Supabase sends it to NATIVE_AUTH_CALLBACK, Android opens the app, and NativeBridge finishes the sign-in here.
+      const { data, error: err } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: NATIVE_AUTH_CALLBACK, skipBrowserRedirect: true },
+      });
+      if (err || !data.url) setError('Google sign-in is not available right now.');
+      else await Browser.open({ url: data.url });
+      setBusy(false);
+      return;
+    }
     const { error: err } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: callbackUrl() } });
     if (err) {
       setError('Google sign-in is not available right now.');

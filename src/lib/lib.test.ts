@@ -15,6 +15,7 @@ import { buildShareUrl, safeNextPath } from './share.ts';
 import { COVER_PALETTE, coverBackground, coverColors, heroBackground, initialOf } from './cover.ts';
 import { timeAgo } from './relative-time.ts';
 import { FILTER_KINDS, cleanQuery, hasSearch, parseSearch, searchHref } from './search.ts';
+import { NATIVE_UA_MARKER, isNativeUserAgent, nativeCallbackToWebPath } from './native-app.ts';
 import { PICTURE_MAX_WIDTH, checkPictureFile, fitWithin, pictureObjectName } from './picture-upload.ts';
 import { NO_CHIPS, isFiltering, listChips, matchesChips, matchesFind, songCountLabel, listenersLabel, likesLabel, sortSlots, toggleChip, visibleSlots, type Slot } from './list.ts';
 import { makeLabels } from './labels.ts';
@@ -1094,4 +1095,30 @@ test('pictureObjectName puts each picture in its own folder with the right exten
   assert.equal(pictureObjectName('artist', 'abc', 'image/webp'), 'artist/abc.webp');
   assert.equal(pictureObjectName('poster', 'abc', 'image/jpeg'), 'poster/abc.jpg');
   assert.equal(pictureObjectName('song', 'abc', 'image/png'), 'song/abc.png');
+});
+
+
+test('isNativeUserAgent recognises the app by the word its shell adds', () => {
+  assert.equal(isNativeUserAgent(`Mozilla/5.0 (Linux; Android 15) ${NATIVE_UA_MARKER}/1`), true);
+  assert.equal(isNativeUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'), false);
+  assert.equal(isNativeUserAgent(''), false);
+  assert.equal(isNativeUserAgent(null), false);
+  assert.equal(isNativeUserAgent(undefined), false);
+});
+
+test('nativeCallbackToWebPath finishes a sign-in only for our own callback', () => {
+  const code = 'abcDEF123456_-.~xyz';
+  assert.equal(nativeCallbackToWebPath(`com.psalmsplayer.app://auth-callback?code=${code}`), `/auth/callback?code=${code}&next=%2F`);
+  assert.equal(nativeCallbackToWebPath(`com.psalmsplayer.app://auth-callback/?code=${code}`), `/auth/callback?code=${code}&next=%2F`);
+  // a callback that carries an error, no code, or a code of the wrong shape goes back to the sign-in page
+  assert.equal(nativeCallbackToWebPath('com.psalmsplayer.app://auth-callback?error=access_denied'), '/login?error=callback');
+  assert.equal(nativeCallbackToWebPath('com.psalmsplayer.app://auth-callback'), '/login?error=callback');
+  assert.equal(nativeCallbackToWebPath('com.psalmsplayer.app://auth-callback?code=short'), '/login?error=callback');
+  assert.equal(nativeCallbackToWebPath(`com.psalmsplayer.app://auth-callback?code=${code}&error=x`), '/login?error=callback');
+  assert.equal(nativeCallbackToWebPath(`com.psalmsplayer.app://auth-callback?code=${'a'.repeat(300)}`), '/login?error=callback');
+  // anything else is not ours
+  assert.equal(nativeCallbackToWebPath('https://psalmsplayer.com/auth/callback?code=' + code), null);
+  assert.equal(nativeCallbackToWebPath(`com.psalmsplayer.app://other?code=${code}`), null);
+  assert.equal(nativeCallbackToWebPath(`com.psalmsplayer.app://auth-callbackevil?code=${code}`), null);
+  assert.equal(nativeCallbackToWebPath(`javascript:alert(1)`), null);
 });
