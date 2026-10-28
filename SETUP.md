@@ -78,7 +78,7 @@ GitHub also commits `package-lock.json` for you when dependencies change (a CI s
 
 ## The live site
 
-- Address: **https://psalmsplayer.com** (domain bought at GoDaddy; its `@` A record and `www` record point at Vercel). `psalms-player.vercel.app` still works while people move over. Vercel serves the site and redeploys on every push to `main`.
+- Address: **https://psalmsplayer.com** (domain bought at GoDaddy; its `@` A record and `www` record point at Vercel). `www.psalmsplayer.com` and `psalms-player.vercel.app` both redirect to it (set in Vercel, Domains; checked 2026-10-28), so there is one address and one sign-in. Vercel serves the site and redeploys on every push to `main`.
 - Database: the Supabase project **psalmsplayer-live** (ref `ykdrytvnzwrwdqgfclnl`, region ap-south-1, free plan). Migrations 0001 to 0014 and `reference.sql` are applied. The older practice project has seed data and email login: never point the live site at it. Apply a new migration to the live project **before** pushing code that needs it.
 - Vercel environment variables (Production): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the live project's), `NEXT_PUBLIC_SITE_URL` (`https://psalmsplayer.com`, used for share links) and `NEXT_PUBLIC_CONTACT_EMAIL`. `NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN` must not exist. After changing a variable, redeploy with the build cache off.
 - Sign-in is Google only. Supabase **URL Configuration**: Site URL `https://psalmsplayer.com`; redirect URLs allow `psalmsplayer.com`, `www.psalmsplayer.com` and `psalms-player.vercel.app`. The Google OAuth client lists the domain under Authorized JavaScript origins; its redirect address is Supabase's callback.
