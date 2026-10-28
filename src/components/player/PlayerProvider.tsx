@@ -10,6 +10,7 @@ import { hasNextSong, indexInOrder, nextIndex, nextRepeatMode, parsePlayerPrefs,
 import { SignedUrlCache } from '@/lib/signed-url-cache';
 import { createClient } from '@/lib/supabase/client';
 import type { Song } from '@/lib/types';
+import { useNativeMedia } from './useNativeMedia';
 
 export type PlayerApi = {
   current: Song | null;
@@ -332,6 +333,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       (['play', 'pause', 'previoustrack', 'nexttrack', 'seekto'] as MediaSessionAction[]).forEach((a) => set(a, null));
     };
   }, [toggle, pause, previous, next, seek]);
+
+  // The Android app's notification, lock-screen controls and background playback (does nothing in a browser).
+  useNativeMedia({ current, playing, position, duration, toggle, pause, next, previous, seek });
 
   useEffect(() => {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !(duration > 0)) return;

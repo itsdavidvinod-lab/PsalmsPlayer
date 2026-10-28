@@ -16,6 +16,7 @@ import { buildShareUrl, safeNextPath } from './share.ts';
 import { COVER_PALETTE, coverBackground, coverColors, heroBackground, initialOf } from './cover.ts';
 import { timeAgo } from './relative-time.ts';
 import { FILTER_KINDS, cleanQuery, hasSearch, parseSearch, searchHref } from './search.ts';
+import { nativeActionCommand, nativeMediaState } from './native-media-state.ts';
 import { NATIVE_AUTH_CALLBACK, NATIVE_UA_MARKER, isNativeUserAgent, nativeCallbackToWebPath } from './native-app.ts';
 import { PICTURE_MAX_WIDTH, checkPictureFile, fitWithin, pictureObjectName } from './picture-upload.ts';
 import { NO_CHIPS, isFiltering, listChips, matchesChips, matchesFind, songCountLabel, listenersLabel, likesLabel, sortSlots, toggleChip, visibleSlots, type Slot } from './list.ts';
@@ -1138,4 +1139,33 @@ test('the Android shell config stays in step with the website code', () => {
   assert.ok(prepare.includes(`const AUTH_HOST = '${host}'`), 'prepare.mjs must register the same return host');
   // the app opens the live site
   assert.ok(config.includes("url: 'https://psalmsplayer.com'"));
+});
+
+test('nativeMediaState cleans what is sent to the Android notification', () => {
+  const song = { title: '  Great Is Thy Faithfulness ', artist_name: 'Grace Choir', album_title: null };
+  assert.deepEqual(nativeMediaState(song, true, 12.5, 200), {
+    title: 'Great Is Thy Faithfulness', artist: 'Grace Choir', album: '', playing: true, position: 12.5, duration: 200,
+  });
+  // an unknown or broken length is sent as 0, and the position never passes the length
+  assert.equal(nativeMediaState(song, false, 5, NaN).duration, 0);
+  assert.equal(nativeMediaState(song, false, 5, Infinity).duration, 0);
+  assert.equal(nativeMediaState(song, false, 250, 200).position, 200);
+  assert.equal(nativeMediaState(song, false, -3, 200).position, 0);
+  assert.equal(nativeMediaState(song, false, NaN, 200).position, 0);
+  assert.equal(nativeMediaState({ ...song, title: 'x'.repeat(500) }, true, 0, 0).title.length, 200);
+});
+
+test('nativeActionCommand maps notification buttons to player commands', () => {
+  // play while already playing, and pause while already paused, do nothing (the player's toggle would flip it the wrong way)
+  assert.deepEqual(nativeActionCommand({ action: 'play' }, false), { kind: 'toggle' });
+  assert.equal(nativeActionCommand({ action: 'play' }, true), null);
+  assert.deepEqual(nativeActionCommand({ action: 'pause' }, true), { kind: 'pause' });
+  assert.equal(nativeActionCommand({ action: 'pause' }, false), null);
+  assert.deepEqual(nativeActionCommand({ action: 'next' }, true), { kind: 'next' });
+  assert.deepEqual(nativeActionCommand({ action: 'previous' }, false), { kind: 'previous' });
+  assert.deepEqual(nativeActionCommand({ action: 'seek', seekTo: 42.5 }, true), { kind: 'seek', seconds: 42.5 });
+  assert.equal(nativeActionCommand({ action: 'seek' }, true), null);
+  assert.equal(nativeActionCommand({ action: 'seek', seekTo: -1 }, true), null);
+  assert.equal(nativeActionCommand({ action: 'seek', seekTo: NaN }, true), null);
+  assert.equal(nativeActionCommand({ action: 'explode' } as never, true), null);
 });

@@ -87,12 +87,32 @@ if (!manifest.includes(`android:scheme="${APP_ID}"`)) {
   manifest = manifest.slice(0, at + closing.length) + filter + manifest.slice(at + closing.length);
 }
 
-const permissions = []; // filled in when the app gets features that need one (background audio notification)
+// Background music: a foreground service of type mediaPlayback (MediaPlaybackService) and what it needs.
+const permissions = [
+  'android.permission.FOREGROUND_SERVICE',
+  'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+  'android.permission.POST_NOTIFICATIONS', // Android 13+: asked once, the first time music plays
+  'android.permission.WAKE_LOCK', // keeps the processor awake while a song plays with the screen off
+];
 for (const name of permissions) {
   if (manifest.includes(`android:name="${name}"`)) continue;
   const internet = '<uses-permission android:name="android.permission.INTERNET" />';
   if (!manifest.includes(internet)) fail('AndroidManifest.xml has no INTERNET permission line to put the other permissions after.');
   manifest = manifest.replace(internet, `${internet}\n    <uses-permission android:name="${name}" />`);
+}
+
+if (!manifest.includes('.MediaPlaybackService')) {
+  const closing = '</application>';
+  const at = manifest.indexOf(closing);
+  if (at < 0) fail('AndroidManifest.xml has no </application> to put the playback service before.');
+  const service = `
+        <!-- Keeps music playing with the screen off and shows the lock-screen controls. -->
+        <service
+            android:name=".MediaPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+    `;
+  manifest = manifest.slice(0, at) + service + manifest.slice(at);
 }
 fs.writeFileSync(manifestPath, manifest);
 console.log('manifest patched');

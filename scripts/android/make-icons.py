@@ -4,7 +4,7 @@ Google Play listing need. Run it by hand when the icon changes; the PNGs it writ
 
     pip install pillow && python3 scripts/android/make-icons.py
 
-Writes native/android/app/src/main/res/mipmap-*/ic_launcher*.png and docs/play-store/{icon-512.png,feature-graphic-1024x500.png}.
+Writes native/android/app/src/main/res/mipmap-*/ic_launcher*.png, drawable-*/ic_stat_music.png and docs/play-store/{icon-512.png,feature-graphic-1024x500.png}.
 The mark is original artwork for this project (it is not a logo from anywhere else).
 """
 import math
@@ -30,7 +30,7 @@ def ellipse_points(cx, cy, rx, ry, deg, n=72):
     return pts
 
 
-def mark(px, fraction):
+def mark(px, fraction, color=ACCENT):
     """The notes on a transparent square of px pixels; the drawing fills `fraction` of the width (0..1)."""
     big = px * SS
     img = Image.new('RGBA', (big, big), (0, 0, 0, 0))
@@ -44,12 +44,12 @@ def mark(px, fraction):
         return (ox + x * k, oy + y * k)
 
     # stems and beam
-    d.rectangle([P(41, 24), P(46.5, 68)], fill=ACCENT)
-    d.rectangle([P(75, 16), P(80.5, 60)], fill=ACCENT)
-    d.polygon([P(41, 22.5), P(80.5, 14.5), P(80.5, 25.5), P(41, 33.5)], fill=ACCENT)
+    d.rectangle([P(41, 24), P(46.5, 68)], fill=color)
+    d.rectangle([P(75, 16), P(80.5, 60)], fill=color)
+    d.polygon([P(41, 22.5), P(80.5, 14.5), P(80.5, 25.5), P(41, 33.5)], fill=color)
     # heads
     for cx, cy in ((34, 71), (68.5, 63)):
-        d.polygon([P(x, y) for x, y in ellipse_points(cx, cy, 12.5, 8.8, 22)], fill=ACCENT)
+        d.polygon([P(x, y) for x, y in ellipse_points(cx, cy, 12.5, 8.8, 22)], fill=color)
     return img.resize((px, px), Image.LANCZOS)
 
 
@@ -78,6 +78,10 @@ for name, d in DENSITY.items():
     save(square_icon(round(48 * d), 0.18), os.path.join(folder, 'ic_launcher.png'))
     save(square_icon(round(48 * d), 0.5), os.path.join(folder, 'ic_launcher_round.png'))
     save(mark(round(108 * d), 0.40), os.path.join(folder, 'ic_launcher_foreground.png'))
+
+# The small white notes in the status bar and the "now playing" notification (24dp).
+for name, d in DENSITY.items():
+    save(mark(round(24 * d), 0.8, (255, 255, 255, 255)), os.path.join(RES, f'drawable-{name}', 'ic_stat_music.png'))
 
 # Google Play listing
 save(square_icon(512, 0.0).convert('RGBA'), os.path.join(STORE, 'icon-512.png'))
