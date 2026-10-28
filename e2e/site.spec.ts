@@ -26,6 +26,19 @@ test('the about, privacy, terms and delete-account pages are open to a visitor w
   await expect(page).toHaveURL(/\/privacy$/);
 });
 
+test('the sign-in page is the familiar card: welcome, the Google button with its logo, and the terms and privacy links', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { level: 1, name: 'Welcome to PsalmsPlayer' })).toBeVisible();
+  const google = page.getByRole('button', { name: 'Continue with Google' });
+  await expect(google).toBeVisible();
+  await expect(google.locator('svg')).toHaveCount(1); // Google's four-colour G
+  const box = await google.boundingBox();
+  expect(box && box.height, 'a comfortable tap target').toBeGreaterThanOrEqual(44);
+  await expect(page.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms');
+  await expect(page.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy');
+  await expect(page.getByRole('link', { name: 'Delete account' })).toHaveAttribute('href', '/delete-account');
+});
+
 test('the Google button starts a Google sign-in that returns to the callback and the page asked for', async ({ page }) => {
   let authorizeUrl = '';
   await page.route('**/auth/v1/authorize**', (route) => {

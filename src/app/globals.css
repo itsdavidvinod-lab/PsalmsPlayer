@@ -352,6 +352,27 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .auth { max-width: 400px; margin: 0 auto; padding: 48px 16px; }
 .auth h1 { font-size: 1.75rem; margin: 20px 0 6px; }
+/* The sign-in page: the familiar centred card (logo, welcome, the Google button, small print). The button follows Google's light-theme
+   branding: white, a thin grey line, dark text, the four-colour G at 20px, pill shape like the app's other buttons. */
+.signin { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px calc(24px + env(safe-area-inset-bottom)); }
+.signin-card { width: 100%; max-width: 400px; padding: 32px 24px 24px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; text-align: center; }
+.signin .brand-mark { width: 56px; height: 56px; margin: 0 auto; border-radius: 16px; }
+.signin .brand-mark svg { width: 30px; height: 30px; }
+.signin h1 { font-size: 1.5rem; line-height: 1.25; margin: 20px 0 8px; }
+.signin-sub { margin: 0 0 24px; color: var(--muted); font-size: 0.95rem; }
+.signin .error, .signin .ok { margin: 0 0 16px; text-align: left; }
+.signin form { text-align: left; }
+.btn-google {
+  display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 48px; padding: 0 16px;
+  border: 1px solid #747775; border-radius: 999px; background: #fff; color: #1f1f1f; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+}
+@media (hover: hover) { .btn-google:hover { background: #f1f3f4; } }
+.btn-google:active { background: #e8eaed; }
+.btn-google:disabled { opacity: 0.6; cursor: not-allowed; }
+.signin-legal { margin: 20px 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+.signin-legal a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.signin-foot { margin: 16px 0 0; color: var(--muted); font-size: 0.85rem; }
+.signin-foot a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; }
 .legal { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
 .legal h1 { font-size: 1.75rem; margin: 24px 0 6px; }
 .legal h2 { font-size: 1.15rem; margin: 28px 0 8px; }
@@ -369,27 +390,29 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .panel-seek { flex: 1 1 auto; min-width: 0; }
 .panel-links { display: flex; flex-wrap: wrap; gap: 8px; }
 /* The seek bar (SeekBar.tsx): a thin rail, and a round knob that shows only while the bar is touched or slid (and a moment after),
-   under a mouse, and on keyboard focus. The real range input lies on top, invisible, so the whole 32px-high bar is the touch target.
-   Its invisible thumb is 28px wide (an easy thing to grab on every phone), so the drawn rail is inset by half of that, 14px, on both
-   sides: the knob then sits exactly under the finger, and touching the last 14px at either end still reaches the start or the end. */
+   under a mouse, and on keyboard focus. The real range input lies on top, invisible (opacity 0), so the whole 32px-high bar is the
+   touch target. Its thumb is 28px wide (an easy thing to grab on every phone), so the drawn rail is inset by half of that, 14px, on
+   both sides: the knob then sits exactly under the finger, and touching the last 14px at either end still reaches the start or the end.
+   Opacity 0, not only a transparent background: iPhone Safari and Chrome paint a faint shadow around a 'transparent' thumb (a square
+   box around the knob, also at rest), which only hiding the whole input removes. The thumb gets no shadow of its own either. */
 .seek { display: flex; align-items: center; width: 100%; }
 .seek .time { flex: 0 0 auto; }
 .seek-track { position: relative; flex: 1 1 auto; min-width: 0; height: 32px; margin: 0 -4px; -webkit-user-select: none; user-select: none; }
 .seek-track input[type='range'] {
   position: absolute; top: 0; left: 0; z-index: 2; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; outline: none;
-  -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; touch-action: pan-y;
+  -webkit-appearance: none; appearance: none; background: transparent; opacity: 0; cursor: pointer; touch-action: pan-y;
 }
 .seek-track input[type='range']:disabled { cursor: default; }
 .seek-track input[type='range']::-webkit-slider-runnable-track { -webkit-appearance: none; height: 32px; border: 0; background: transparent; }
-.seek-track input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 32px; border: 0; border-radius: 0; background: transparent; }
+.seek-track input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 32px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .seek-track input[type='range']::-moz-range-track { height: 32px; border: 0; background: transparent; }
-.seek-track input[type='range']::-moz-range-thumb { width: 28px; height: 32px; border: 0; border-radius: 0; background: transparent; }
+.seek-track input[type='range']::-moz-range-thumb { width: 28px; height: 32px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .seek-lane { position: absolute; top: 0; bottom: 0; left: 14px; right: 14px; display: flex; align-items: center; pointer-events: none; }
 .seek-rail { position: relative; flex: 1 1 auto; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.3); transition: height 0.12s ease; }
 .seek-fill { display: block; height: 100%; border-radius: 2px; background: var(--primary); }
 .seek-knob {
   position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
-  background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55); transform: scale(0); transition: transform 0.12s ease;
+  background: #fff; transform: scale(0); transition: transform 0.12s ease;
 }
 .seek-track.is-touched .seek-rail { height: 5px; }
 .seek-track.is-touched .seek-knob { transform: scale(1); }

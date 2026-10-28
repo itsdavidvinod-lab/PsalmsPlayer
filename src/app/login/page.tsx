@@ -10,14 +10,16 @@ export const metadata: Metadata = { title: 'Sign in' };
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; deleted?: string }> }) {
   const { next, error, deleted } = await searchParams;
   return (
-    <main className="auth">
-      <div className="brand">
+    <main className="signin">
+      <div className="signin-card">
         <BrandMark />
-        <span>{APP_NAME}</span>
+        <LoginForm next={safeNextPath(next)} callbackFailed={error === 'callback'} deleted={deleted === '1'} />
+        <p className="signin-legal">
+          By continuing, you agree to our <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>.
+        </p>
       </div>
-      <LoginForm next={safeNextPath(next)} callbackFailed={error === 'callback'} deleted={deleted === '1'} />
-      <p className="small muted" style={{ marginTop: 24 }}>
-        <Link href="/about" className="inline">About</Link> · <Link href="/privacy" className="inline">Privacy</Link> · <Link href="/terms" className="inline">Terms</Link> · <Link href="/delete-account" className="inline">Delete account</Link>
+      <p className="signin-foot">
+        <Link href="/about">About {APP_NAME}</Link> · <Link href="/delete-account">Delete account</Link>
       </p>
     </main>
   );
