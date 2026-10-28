@@ -133,7 +133,7 @@ android {
     }
 }
 
-// Release signing, only when the keystore is supplied (GitHub secrets, see docs/ANDROID.md). Without it, debug builds still work.
+// Signing, only when the keystore is supplied (GitHub secrets, see docs/ANDROID.md). Without it, debug builds use Android's debug key.
 def keystoreFile = System.getenv('ANDROID_KEYSTORE_FILE')
 if (keystoreFile) {
     android {
@@ -147,6 +147,10 @@ if (keystoreFile) {
         }
         buildTypes {
             release {
+                signingConfig = signingConfigs.release
+            }
+            // The test APK uses the same key, so a new test build installs over the previous one (no uninstall in between).
+            debug {
                 signingConfig = signingConfigs.release
             }
         }

@@ -20,9 +20,15 @@ jobs:
     name: Android app (debug APK, and the signed Play bundle when the keystore secret exists)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write   # publishes the debug APK as a release, so it can be opened and installed from a phone
     env:
       # Secrets cannot be tested in an `if` directly; this copy can.
       KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      # Empty until the secrets are added. Gradle signs only when ANDROID_KEYSTORE_FILE is set (see the step below).
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       # Play accepts an upload only with a higher versionCode than every earlier one; the run number only ever goes up.
       ANDROID_VERSION_CODE: ${{ github.run_number }}
       NEXT_TELEMETRY_DISABLED: "1"
@@ -42,6 +48,13 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+      # With the key, the test APK and the Play bundle are signed with the same key, so a new test build installs over the last one.
+      # Without it (before the secrets exist) the test APK gets a fresh debug key every run: uninstall the old one first.
+      - name: Put the signing key in place (when the secrets exist)
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
       - name: Create the Android project (Capacitor)
         run: npx cap add android
       - name: Make it PsalmsPlayer (icons, theme, sign-in return address, version, signing)
@@ -70,6 +83,9 @@ jobs:
           grep -q "PsalmsPlayerApp" capacitor.config.json.txt
           unzip -l "$APK" > apk-files.txt
           grep -q "assets/public/offline.html" apk-files.txt
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK" > signer.txt
+          echo "::notice title=test APK signing certificate (equals the upload key when the secrets exist)::$(grep -m1 'SHA-256' signer.txt)"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -77,24 +93,32 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
+      # The repository is public, so this link works in the phone's browser without any sign-in:
+      # https://github.com/${{ github.repository }}/releases/download/android-debug/PsalmsPlayer-debug.apk
+      # It is a test build (debug-signed). It only opens the website, which still needs a Google sign-in.
+      - name: Publish the debug APK as a release (one rolling release, replaced every build)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cp android/app/build/outputs/apk/debug/app-debug.apk PsalmsPlayer-debug.apk
+          gh release delete android-debug --yes --cleanup-tag --repo "$GITHUB_REPOSITORY" || true
+          gh release create android-debug PsalmsPlayer-debug.apk --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "PsalmsPlayer Android test build" \
+            --notes "Test build ${GITHUB_RUN_NUMBER} from commit ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}. Install by opening this page on an Android phone and tapping PsalmsPlayer-debug.apk. It is a debug build for testing, not the Play Store app."
+
       - name: Build the signed release bundle for Google Play
         if: env.KEYSTORE_B64 != '' && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
         working-directory: android
-        env:
-          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          echo "$KEYSTORE_B64" | base64 -d > "$ANDROID_KEYSTORE_FILE"
           ./gradlew bundleRelease
           AAB=app/build/outputs/bundle/release/app-release.aab
           jarsigner -verify "$AAB" > verify.txt
           head -3 verify.txt
           # The fingerprint of the upload key, to compare with the one shown in Play Console.
           keytool -printcert -jarfile "$AAB" | grep -E "Owner|SHA256"
-          rm -f "$ANDROID_KEYSTORE_FILE"
+          echo "::notice title=upload key SHA-256 of the signed bundle::$(keytool -printcert -jarfile "$AAB" | grep SHA256)"
 
       - uses: actions/upload-artifact@v4
         if: env.KEYSTORE_B64 != '' && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
@@ -102,3 +126,7 @@ jobs:
           name: psalmsplayer-play-bundle
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
+
+      - name: Remove the signing key from the runner
+        if: always() && env.ANDROID_KEYSTORE_FILE != ''
+        run: rm -f "$ANDROID_KEYSTORE_FILE"

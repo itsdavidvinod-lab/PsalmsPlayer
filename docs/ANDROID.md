@@ -47,24 +47,28 @@ One-time fee of 25 US dollars, with identity verification. The developer name is
 
 ### 4. The upload key and the GitHub secrets
 
-Google Play signs the app that people install (Play App Signing). You sign the file you upload with an **upload key**. Create it once and keep the file and both passwords somewhere safe (a lost upload key can be reset by Google support, but it takes days):
+Google Play signs the app that people install (Play App Signing). You sign the file you upload with an **upload key**. It was generated on 2026-10-28 (RSA 2048, valid until 2054, alias `upload`); the keystore file and its password were handed to the owner, and are not in the repository (the repository is public, and `.gitignore` refuses keystores). **Keep the keystore file and the password in a password manager or a private cloud folder.** A lost upload key can be reset by Google support, but it takes days.
 
-```bash
-keytool -genkeypair -v -storetype PKCS12 -keystore psalmsplayer-upload.jks \
-  -alias upload -keyalg RSA -keysize 2048 -validity 10000
-base64 -w0 psalmsplayer-upload.jks     # macOS: base64 -i psalmsplayer-upload.jks
-```
+Its SHA-256 fingerprint (what Play Console shows for the upload key, and what the "android" run prints as a notice): `23:02:AD:26:0F:03:6F:B0:ED:5A:3D:39:C3:45:66:63:90:F6:62:05:48:77:18:2D:A0:FB:44:FB:A5:DE:1D:5B`
 
-Add four repository secrets (GitHub, Settings, Secrets and variables, Actions):
+Secrets cannot be set from the build sandbox, so the owner adds four repository secrets once (GitHub, the repository, Settings, Secrets and variables, Actions, New repository secret):
 
 | Secret | Value |
 | --- | --- |
-| `ANDROID_KEYSTORE_BASE64` | the output of the `base64` command |
-| `ANDROID_KEYSTORE_PASSWORD` | the keystore password |
+| `ANDROID_KEYSTORE_BASE64` | the whole contents of `ANDROID_KEYSTORE_BASE64.txt` (one long line) |
+| `ANDROID_KEYSTORE_PASSWORD` | the password |
 | `ANDROID_KEY_ALIAS` | `upload` |
-| `ANDROID_KEY_PASSWORD` | the key password |
+| `ANDROID_KEY_PASSWORD` | the same password |
 
-From then on, a manual run of the "android" workflow on `main` produces `psalmsplayer-play-bundle`. The run log prints the upload key's SHA-256 fingerprint, which must match the one Play Console shows for the upload key.
+From then on, a manual run of the "android" workflow (or any run on `main`) produces `psalmsplayer-play-bundle`.
+
+To make a new upload key (only if this one is lost or leaked; Play Console, Test and release, App signing, "Request upload key reset"):
+
+```bash
+keytool -genkeypair -storetype PKCS12 -keystore psalmsplayer-upload.jks \
+  -alias upload -keyalg RSA -keysize 2048 -validity 10000
+base64 -w0 psalmsplayer-upload.jks     # macOS: base64 -i psalmsplayer-upload.jks
+```
 
 ## Google Play Console, step by step
 
@@ -82,7 +86,11 @@ From then on, a manual run of the "android" workflow on `main` produces `psalmsp
 
 ## Testing the debug APK on a phone
 
-Download `psalmsplayer-debug-apk` from the latest "android" run, unzip it, copy `app-debug.apk` to the phone and open it (allow installing from that source when asked). Check:
+Every build of the "android" workflow publishes the debug APK as a release. On the phone, open
+
+`https://github.com/itsdavidvinod-lab/PsalmsPlayer/releases/tag/android-debug`
+
+and tap `PsalmsPlayer-debug.apk`. Android asks to allow installing apps from the browser you used (Settings, then allow for that browser, then go back), and Play Protect may warn that the app is unknown: choose "Install anyway". The same file is also in the run's Artifacts (`psalmsplayer-debug-apk`, needs a GitHub sign-in). Once the signing secrets exist, a newer test build installs over the older one; before that, every build has a new debug key and Android says the app conflicts, so uninstall the old test build first. Check:
 
 - [ ] Sign in with Google: the phone's browser opens, and the app comes back signed in.
 - [ ] Play a song, press Home, lock the screen: the sound continues and the lock screen shows the title with play/pause/next/previous. Leave it for 10 minutes or more.
