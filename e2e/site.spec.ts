@@ -15,8 +15,8 @@ test('a visitor who is not signed in is sent to the login page', async ({ page }
   await expect(page.getByRole('link', { name: 'Open this song' })).toBeVisible();
 });
 
-test('the about, privacy and terms pages are open to a visitor who is not signed in', async ({ page }) => {
-  for (const [path, heading] of [['/about', 'PsalmsPlayer'], ['/privacy', 'Privacy'], ['/terms', 'Terms']] as const) {
+test('the about, privacy, terms and delete-account pages are open to a visitor who is not signed in', async ({ page }) => {
+  for (const [path, heading] of [['/about', 'PsalmsPlayer'], ['/privacy', 'Privacy'], ['/terms', 'Terms'], ['/delete-account', 'Delete your account']] as const) {
     await page.goto(path);
     await expect(page).toHaveURL(new RegExp(`${path}$`));
     await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();

@@ -15,6 +15,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
         <Link href="/about">About</Link>
         <Link href="/privacy">Privacy</Link>
         <Link href="/terms">Terms</Link>
+        <Link href="/delete-account">Delete account</Link>
         <Link href="/login">Sign in</Link>
       </nav>
     </div>

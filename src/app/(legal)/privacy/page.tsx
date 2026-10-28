@@ -8,7 +8,7 @@ export default function PrivacyPage() {
   return (
     <>
       <h1>Privacy</h1>
-      <p className="muted">Last updated 27 October 2026.</p>
+      <p className="muted">Last updated 28 October 2026.</p>
       <p>
         This page says what {APP_NAME} keeps about you, why, who can see it and how to have it removed. {APP_NAME} has no advertising and does not
         sell or rent your information.
@@ -39,9 +39,14 @@ export default function PrivacyPage() {
 
       <h2>How long we keep it, and deleting it</h2>
       <p>
-        We keep your records while your account exists. To have your account and everything attached to it deleted, ask us
+        We keep your records while your account exists. You can delete your account yourself, at any time, in the app or on the
+        website: open <strong>Settings</strong>, then <strong>Account</strong>, then <strong>Delete account</strong>. It takes effect at once and removes
+        your profile, liked songs, lists and setlists, followed artists and listening history. See <a href="/delete-account" className="inline">how to delete your account</a>,
+        including what to do if you cannot sign in.
+      </p>
+      <p>
+        You can also ask what we hold about you
         {CONTACT_EMAIL ? <> by email at <a href={`mailto:${CONTACT_EMAIL}`} className="inline">{CONTACT_EMAIL}</a></> : ' using the contact address of this site'}.
-        You can also ask what we hold about you.
       </p>
 
       <h2>Children</h2>

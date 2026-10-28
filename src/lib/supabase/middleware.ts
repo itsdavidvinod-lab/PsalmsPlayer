@@ -4,8 +4,9 @@ import { safeNextPath } from '@/lib/share';
 import { supabaseEnv } from './env';
 
 // Everything else needs a login. /get is the public landing page for shared app links; /about, /privacy and /terms are the
-// public pages Google asks for on its sign-in screen.
-const PUBLIC_PATHS = ['/login', '/auth', '/get', '/about', '/privacy', '/terms'];
+// public pages Google asks for on its sign-in screen. /delete-account is the web page for deletion requests that
+// Google Play asks for.
+const PUBLIC_PATHS = ['/login', '/auth', '/get', '/about', '/privacy', '/terms', '/delete-account'];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));

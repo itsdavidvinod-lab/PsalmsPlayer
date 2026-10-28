@@ -255,6 +255,53 @@ do $$ begin
 end $$;
 rollback;
 
+-- ============================================================ deleting your own account
+begin;
+insert into auth.users (id, email) values ('44444444-0000-0000-0000-0000000000dd', 'leaver@example.invalid');
+insert into public.song_likes (user_id, song_id) values ('44444444-0000-0000-0000-0000000000dd', 'd0000000-0000-0000-0000-000000000001');
+insert into public.artist_follows (user_id, artist_id) values ('44444444-0000-0000-0000-0000000000dd', 'a0000000-0000-0000-0000-000000000001');
+insert into public.playlists (user_id, name) values ('44444444-0000-0000-0000-0000000000dd', 'My list');
+insert into public.listen_sessions (user_id, song_id, listened_s, qualified_at)
+  values ('44444444-0000-0000-0000-0000000000dd', 'd0000000-0000-0000-0000-000000000001', 60, now());
+set local role anon;
+select test_helpers.expect_error($q$select public.delete_my_account()$q$, '42501');   -- a visitor has no execute right
+reset role;
+select set_config('request.jwt.claim.sub', '44444444-0000-0000-0000-0000000000dd', true);
+set local role authenticated;
+select public.delete_my_account();
+reset role;
+do $$ begin
+  assert not exists (select 1 from auth.users where id = '44444444-0000-0000-0000-0000000000dd'), 'the sign-in record is gone';
+  assert not exists (select 1 from public.profiles where id = '44444444-0000-0000-0000-0000000000dd'), 'the profile is gone';
+  assert not exists (select 1 from public.song_likes where user_id = '44444444-0000-0000-0000-0000000000dd'), 'likes are gone';
+  assert not exists (select 1 from public.artist_follows where user_id = '44444444-0000-0000-0000-0000000000dd'), 'follows are gone';
+  assert not exists (select 1 from public.playlists where user_id = '44444444-0000-0000-0000-0000000000dd'), 'lists are gone';
+  assert not exists (select 1 from public.listen_sessions where user_id = '44444444-0000-0000-0000-0000000000dd'), 'listening records are gone';
+  assert exists (select 1 from auth.users where id = '11111111-1111-1111-1111-111111111111'), 'other people are untouched';
+  assert exists (select 1 from public.profiles where id = '11111111-1111-1111-1111-111111111111'), 'other profiles are untouched';
+  raise notice 'ok: a person can delete their own account and everything attached to it';
+end $$;
+rollback;
+
+begin;
+-- an admin is refused, and nothing is removed
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
+set local role authenticated;
+select test_helpers.expect_error($q$select public.delete_my_account()$q$, '42501');
+reset role;
+do $$ begin
+  assert exists (select 1 from auth.users where id = '00000000-0000-0000-0000-0000000000aa'), 'the admin account is still there';
+  raise notice 'ok: an admin account cannot be deleted from the app';
+end $$;
+rollback;
+
+begin;
+-- someone who is not signed in at all (no user id on the request) cannot run it
+select set_config('request.jwt.claim.sub', '', true);
+set local role authenticated;
+select test_helpers.expect_error($q$select public.delete_my_account()$q$, '28000');
+rollback;
+
 -- ============================================================ the pictures bucket
 begin;
 do $$ begin

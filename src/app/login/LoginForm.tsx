@@ -10,13 +10,13 @@ const PASSWORD_LOGIN = process.env.NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN === '1';
 
 type Mode = 'in' | 'up';
 
-export default function LoginForm({ next, callbackFailed }: { next: string; callbackFailed: boolean }) {
+export default function LoginForm({ next, callbackFailed, deleted = false }: { next: string; callbackFailed: boolean; deleted?: boolean }) {
   const [mode, setMode] = useState<Mode>('in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(callbackFailed ? 'Sign-in could not be completed. Please try again.' : null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(deleted ? 'Your account has been deleted.' : null);
 
   const callbackUrl = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
@@ -58,6 +58,7 @@ export default function LoginForm({ next, callbackFailed }: { next: string; call
       <p className="muted">Songs, lyrics and chords for your community. Sign in with your Google account to listen and read.</p>
 
       {error ? <p className="error" role="alert">{error}</p> : null}
+      {deleted && info ? <p className="ok" role="status">{info}</p> : null}
 
       <button type="button" className="btn btn-primary btn-block" onClick={onGoogle} disabled={busy}>
         Continue with Google
@@ -66,7 +67,7 @@ export default function LoginForm({ next, callbackFailed }: { next: string; call
       {PASSWORD_LOGIN ? (
         <>
           <div className="divider">test builds only</div>
-          {info ? <p className="ok" role="status">{info}</p> : null}
+          {info && !deleted ? <p className="ok" role="status">{info}</p> : null}
           <form onSubmit={onSubmit}>
             <div className="field">
               <label htmlFor="email">Email</label>
