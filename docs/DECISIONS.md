@@ -5,7 +5,8 @@
 - Backend: Supabase (Postgres, login, file storage, row-level security).
 - Login: Google only (the Email provider is switched off in the hosted Supabase project; that setting is the real enforcement). Any Google account works; there is no restriction to gmail.com. Phone OTP later if needed.
 - Build order: website for users and admin first, then the Android APK, then iOS.
-- Website: Next.js 15 (App Router) with the Supabase browser/server clients. Every page except login, the sign-in callback and the public `/get` landing page requires a login (a choice made while building; say if browsing should be public).
+- Website: Next.js 15 (App Router) with the Supabase browser/server clients. Every page except login, the sign-in callback, the public `/get` landing page and the About, Privacy and Terms pages requires a login (a choice made while building; say if browsing should be public).
+- The live site is https://psalmsplayer.com on Vercel, with the Supabase project `psalmsplayer-live`. Share links use `NEXT_PUBLIC_SITE_URL`. Details are in SETUP.md, "The live site".
 - Hidden songs and unknown addresses return the same "not available" page, so nobody can tell that a hidden song exists.
 - A share "app link" goes to `/get`, which for now points people to the web because the apps are not published.
 

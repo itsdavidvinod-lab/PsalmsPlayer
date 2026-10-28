@@ -76,9 +76,18 @@ The database script creates a database called `songbook_test` and the roles `ano
 
 GitHub also commits `package-lock.json` for you when dependencies change (a CI step on `main`). Run `git pull --rebase` before you push.
 
+## The live site
+
+- Address: **https://psalmsplayer.com** (domain bought at GoDaddy; its `@` A record and `www` record point at Vercel). `psalms-player.vercel.app` still works while people move over. Vercel serves the site and redeploys on every push to `main`.
+- Database: the Supabase project **psalmsplayer-live** (ref `ykdrytvnzwrwdqgfclnl`, region ap-south-1, free plan). Migrations 0001 to 0014 and `reference.sql` are applied. The older practice project has seed data and email login: never point the live site at it. Apply a new migration to the live project **before** pushing code that needs it.
+- Vercel environment variables (Production): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the live project's), `NEXT_PUBLIC_SITE_URL` (`https://psalmsplayer.com`, used for share links) and `NEXT_PUBLIC_CONTACT_EMAIL`. `NEXT_PUBLIC_ENABLE_PASSWORD_LOGIN` must not exist. After changing a variable, redeploy with the build cache off.
+- Sign-in is Google only. Supabase **URL Configuration**: Site URL `https://psalmsplayer.com`; redirect URLs allow `psalmsplayer.com`, `www.psalmsplayer.com` and `psalms-player.vercel.app`. The Google OAuth client lists the domain under Authorized JavaScript origins; its redirect address is Supabase's callback.
+- Google shows the app name and logo on its consent screen only after **brand verification**. The domain is verified in Google Search Console (2026-10-28); Google asks for a 24-hour wait before the branding review is requested again. Until it passes, the consent screen shows the Supabase address. This is cosmetic.
+- The owner's Google account is the admin (set in the SQL editor).
+
 ## Next steps
 
-1. Migrations 0001 to 0014 are applied to the live test project. Try the website and the admin site on a phone and a laptop.
+1. Request Google brand verification again (24 hours after the Search Console check), then try the website and the admin site on a phone and a laptop.
 2. Admin two-factor sign-in (decision needed, see docs/DECISIONS.md), then Charts and share-sheet polish.
 3. Android app (Capacitor) once the site is complete. Offline lyrics for Stage mode need the app to carry its own screens and a local copy of the user's setlists, so the wrapper cannot simply open the website.
 4. iOS after Android.
