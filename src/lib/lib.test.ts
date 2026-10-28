@@ -1,6 +1,7 @@
 // Run with:  node --experimental-strip-types --test src/lib/lib.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   parseChordPro, transposeChord, transposeKey, transposeLines, semitonesBetween, prefersFlats, stripChords, toPlainText,
   isChordName, isKnownDirective,
@@ -15,7 +16,7 @@ import { buildShareUrl, safeNextPath } from './share.ts';
 import { COVER_PALETTE, coverBackground, coverColors, heroBackground, initialOf } from './cover.ts';
 import { timeAgo } from './relative-time.ts';
 import { FILTER_KINDS, cleanQuery, hasSearch, parseSearch, searchHref } from './search.ts';
-import { NATIVE_UA_MARKER, isNativeUserAgent, nativeCallbackToWebPath } from './native-app.ts';
+import { NATIVE_AUTH_CALLBACK, NATIVE_UA_MARKER, isNativeUserAgent, nativeCallbackToWebPath } from './native-app.ts';
 import { PICTURE_MAX_WIDTH, checkPictureFile, fitWithin, pictureObjectName } from './picture-upload.ts';
 import { NO_CHIPS, isFiltering, listChips, matchesChips, matchesFind, songCountLabel, listenersLabel, likesLabel, sortSlots, toggleChip, visibleSlots, type Slot } from './list.ts';
 import { makeLabels } from './labels.ts';
@@ -1121,4 +1122,20 @@ test('nativeCallbackToWebPath finishes a sign-in only for our own callback', () 
   assert.equal(nativeCallbackToWebPath(`com.psalmsplayer.app://other?code=${code}`), null);
   assert.equal(nativeCallbackToWebPath(`com.psalmsplayer.app://auth-callbackevil?code=${code}`), null);
   assert.equal(nativeCallbackToWebPath(`javascript:alert(1)`), null);
+});
+
+test('the Android shell config stays in step with the website code', () => {
+  const config = readFileSync(new URL('../../capacitor.config.ts', import.meta.url), 'utf8');
+  const prepare = readFileSync(new URL('../../scripts/android/prepare.mjs', import.meta.url), 'utf8');
+  // the user agent the app adds is the word the website looks for (a mismatch would show the Admin site inside the app)
+  assert.ok(config.includes(`appendUserAgent: '${NATIVE_UA_MARKER}/`), 'capacitor.config.ts must append the NATIVE_UA_MARKER user agent');
+  // the sign-in return address starts with the app id, and the manifest patch registers the same address
+  const appId = /appId: '([^']+)'/.exec(config)?.[1];
+  assert.ok(appId, 'capacitor.config.ts must set appId');
+  assert.ok(NATIVE_AUTH_CALLBACK.startsWith(`${appId}://`), 'the sign-in return address must use the app id as its scheme');
+  const host = NATIVE_AUTH_CALLBACK.slice(`${appId}://`.length);
+  assert.ok(prepare.includes(`const APP_ID = '${appId}'`), 'prepare.mjs must use the same app id');
+  assert.ok(prepare.includes(`const AUTH_HOST = '${host}'`), 'prepare.mjs must register the same return host');
+  // the app opens the live site
+  assert.ok(config.includes("url: 'https://psalmsplayer.com'"));
 });

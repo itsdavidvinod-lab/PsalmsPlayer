@@ -1,0 +1,104 @@
+name: android
+
+# Builds the Android app. The app is a thin native shell (Capacitor) around https://psalmsplayer.com, so this workflow only has to run
+# when the shell itself changes; website changes reach the app without a new build. See docs/ANDROID.md.
+
+on:
+  push:
+    branches: [main, android-app]
+    paths:
+      - 'capacitor.config.ts'
+      - 'native-shell/**'
+      - 'native/**'
+      - 'scripts/android/**'
+      - 'package.json'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Android app (debug APK, and the signed Play bundle when the keystore secret exists)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Secrets cannot be tested in an `if` directly; this copy can.
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      # Play accepts an upload only with a higher versionCode than every earlier one; the run number only ever goes up.
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm install
+      - name: Create the Android project (Capacitor)
+        run: npx cap add android
+      - name: Make it PsalmsPlayer (icons, theme, sign-in return address, version, signing)
+        run: node scripts/android/prepare.mjs
+      - name: Sync the web shell into the project
+        run: npx cap sync android
+
+      - name: Build the debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Check what the APK contains
+        run: |
+          set -euo pipefail
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          AAPT2=$(ls -d "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          "$AAPT2" dump badging "$APK" > badging.txt
+          grep -E "^(package|sdkVersion|targetSdkVersion|uses-permission|application-label:)" badging.txt
+          grep -q "package: name='com.psalmsplayer.app'" badging.txt
+          grep -q "targetSdkVersion:'36'" badging.txt
+          "$AAPT2" dump xmltree --file AndroidManifest.xml "$APK" > manifest.txt
+          grep -q "com.psalmsplayer.app" manifest.txt
+          grep -q "auth-callback" manifest.txt
+          unzip -p "$APK" assets/capacitor.config.json | tee capacitor.config.json.txt
+          grep -q "https://psalmsplayer.com" capacitor.config.json.txt
+          grep -q "PsalmsPlayerApp" capacitor.config.json.txt
+          unzip -l "$APK" > apk-files.txt
+          grep -q "assets/public/offline.html" apk-files.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: psalmsplayer-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Build the signed release bundle for Google Play
+        if: env.KEYSTORE_B64 != '' && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$KEYSTORE_B64" | base64 -d > "$ANDROID_KEYSTORE_FILE"
+          ./gradlew bundleRelease
+          AAB=app/build/outputs/bundle/release/app-release.aab
+          jarsigner -verify "$AAB" > verify.txt
+          head -3 verify.txt
+          # The fingerprint of the upload key, to compare with the one shown in Play Console.
+          keytool -printcert -jarfile "$AAB" | grep -E "Owner|SHA256"
+          rm -f "$ANDROID_KEYSTORE_FILE"
+
+      - uses: actions/upload-artifact@v4
+        if: env.KEYSTORE_B64 != '' && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+        with:
+          name: psalmsplayer-play-bundle
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30

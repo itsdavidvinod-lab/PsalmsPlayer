@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PsalmsPlayer is offline</title>
+  <style>
+    html, body { height: 100%; margin: 0; background: #000; color: #fff; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    body { display: grid; place-items: center; text-align: center; padding: 24px; box-sizing: border-box; }
+    main { max-width: 320px; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    p { margin: 0 0 24px; color: #b3b3b3; line-height: 1.5; }
+    button { font: inherit; font-weight: 700; color: #000; background: #9fb1ff; border: 0; border-radius: 999px; padding: 12px 28px; min-height: 48px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>You are offline</h1>
+    <p>PsalmsPlayer needs an internet connection. Check your connection and try again.</p>
+    <button type="button" id="retry">Try again</button>
+  </main>
+  <script>
+    // Shown by the app when https://psalmsplayer.com cannot be reached (capacitor.config.ts, server.errorPath).
+    function retry() { location.replace('https://psalmsplayer.com/'); }
+    document.getElementById('retry').addEventListener('click', retry);
+    window.addEventListener('online', retry);
+  </script>
+</body>
+</html>

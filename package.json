@@ -13,9 +13,13 @@
     "typecheck": "tsc --noEmit",
     "test:logic": "node --experimental-strip-types --no-warnings --test src/lib/lib.test.ts",
     "test:db": "bash supabase/tests/run.sh",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "android:prepare": "node scripts/android/prepare.mjs"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.5.3",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.58.0",
     "next": "^15.5.0",
@@ -23,6 +27,8 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
     "@playwright/test": "^1.55.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.0",
