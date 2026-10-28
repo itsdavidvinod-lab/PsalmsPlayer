@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatClock } from '@/lib/format';
 import { usePlayback, usePlayer } from './PlayerProvider';
 
@@ -10,9 +10,11 @@ const KNOB_LINGER_MS = 700;
 /**
  * Elapsed time, a thin bar, and total time. `idleDuration` is shown while this song is not the one loaded in the player.
  *
- * The real `<input type="range">` sits on top of the drawn bar, invisible: the whole bar (32px tall, edge to edge) is the touch target,
- * a tap anywhere jumps there, a slide anywhere drags, and the keyboard and screen readers work as for any slider. The rail, fill and
- * round knob under it are only drawing (see `.seek-*` in globals.css). The knob shows while the bar is held, and for a moment after.
+ * The bar reads the finger (or mouse) itself: a press anywhere on it jumps there, and gliding from anywhere drags, even when the
+ * finger leaves the bar sideways or up and down. The browsers' own range sliders do not do this alike (iPhone only drags when the
+ * knob itself is grabbed), so the `<input type="range">` underneath takes no touches; it stays for the keyboard and screen readers.
+ * The rail, fill and round knob are only drawing (see `.seek-*` in globals.css). The knob shows while the bar is held, and for a
+ * moment after.
  */
 export default function SeekBar({ active = true, idleDuration = 0, className = '' }: { active?: boolean; idleDuration?: number; className?: string }) {
   const { seek } = usePlayer();
@@ -23,20 +25,10 @@ export default function SeekBar({ active = true, idleDuration = 0, className = '
   const off = !active || duration <= 0;
   const percent = `${(value / max) * 100}%`;
 
+  const railRef = useRef<HTMLSpanElement | null>(null);
+  const lastSeconds = useRef(-1);
   const [held, setHeld] = useState(false); // a finger or the mouse is down on the bar
   const [shown, setShown] = useState(false); // the knob is visible: while held, and for a moment after
-
-  // Let go anywhere (the finger or mouse may leave the bar while sliding), or the browser takes the touch over to scroll.
-  useEffect(() => {
-    if (!held) return;
-    const release = () => setHeld(false);
-    window.addEventListener('pointerup', release);
-    window.addEventListener('pointercancel', release);
-    return () => {
-      window.removeEventListener('pointerup', release);
-      window.removeEventListener('pointercancel', release);
-    };
-  }, [held]);
 
   useEffect(() => {
     if (held) {
@@ -48,14 +40,40 @@ export default function SeekBar({ active = true, idleDuration = 0, className = '
     return () => window.clearTimeout(timer);
   }, [held, shown]);
 
+  /** Seeks to the place under the finger: the rail's left end is 0:00 and its right end is the end of the song. */
+  function seekToPointer(clientX: number) {
+    const rail = railRef.current;
+    if (!rail) return;
+    const box = rail.getBoundingClientRect();
+    if (box.width <= 0) return;
+    const seconds = Math.round(Math.min(1, Math.max(0, (clientX - box.left) / box.width)) * max);
+    if (seconds === lastSeconds.current) return; // the same second again: nothing to do
+    lastSeconds.current = seconds;
+    seek(seconds);
+  }
+
   return (
     <div className={`seek ${className}`.trim()}>
       <span className="time">{formatClock(active ? position : 0)}</span>
       <div
         className={`seek-track${shown ? ' is-touched' : ''}${off ? ' is-off' : ''}`}
-        onPointerDown={() => {
-          if (!off) setHeld(true);
+        onPointerDown={(e) => {
+          if (off || (e.pointerType === 'mouse' && e.button !== 0)) return;
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId); // keep getting the moves when the finger leaves the bar
+          } catch {
+            /* a pointer that is already gone: the press still counts */
+          }
+          lastSeconds.current = -1;
+          setHeld(true);
+          seekToPointer(e.clientX);
         }}
+        onPointerMove={(e) => {
+          if (held && e.currentTarget.hasPointerCapture(e.pointerId)) seekToPointer(e.clientX);
+        }}
+        onPointerUp={() => setHeld(false)}
+        onPointerCancel={() => setHeld(false)}
+        onLostPointerCapture={() => setHeld(false)}
       >
         <input
           type="range"
@@ -68,7 +86,7 @@ export default function SeekBar({ active = true, idleDuration = 0, className = '
           aria-label="Seek"
         />
         <span className="seek-lane" aria-hidden="true">
-          <span className="seek-rail">
+          <span className="seek-rail" ref={railRef}>
             <span className="seek-fill" style={{ width: percent }} />
             <span className="seek-knob" style={{ left: percent }} />
           </span>

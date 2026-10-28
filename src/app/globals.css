@@ -390,19 +390,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .panel-seek { flex: 1 1 auto; min-width: 0; }
 .panel-links { display: flex; flex-wrap: wrap; gap: 8px; }
 /* The seek bar (SeekBar.tsx): a thin rail, and a round knob that shows only while the bar is touched or slid (and a moment after),
-   under a mouse, and on keyboard focus. The real range input lies on top, invisible (opacity 0), so the whole 32px-high bar is the
-   touch target. Its thumb is 28px wide (an easy thing to grab on every phone), so the drawn rail is inset by half of that, 14px, on
-   both sides: the knob then sits exactly under the finger, and touching the last 14px at either end still reaches the start or the end.
-   Opacity 0, not only a transparent background: iPhone Safari and Chrome paint a faint shadow around a 'transparent' thumb (a square
-   box around the knob, also at rest), which only hiding the whole input removes. The thumb gets no shadow of its own either. */
+   under a mouse, and on keyboard focus. The whole 32px-high bar is the touch target and SeekBar.tsx reads the finger itself (pointer
+   events), so a press anywhere jumps there and a glide from anywhere drags: the browsers' own range sliders only drag when the knob
+   itself is grabbed (iPhone), or behave differently from one browser to the next. touch-action none: a glide never turns into a scroll.
+   The real range input stays underneath for the keyboard and screen readers only; it takes no touches, and it is opacity 0, not just
+   transparent, because iPhone browsers paint a faint shadow around a 'transparent' thumb (a square box around the knob).
+   The drawn rail is inset 14px each side: touching the last 14px at either end still reaches the start or the end. */
 .seek { display: flex; align-items: center; width: 100%; }
 .seek .time { flex: 0 0 auto; }
-.seek-track { position: relative; flex: 1 1 auto; min-width: 0; height: 32px; margin: 0 -4px; -webkit-user-select: none; user-select: none; }
+.seek-track { position: relative; flex: 1 1 auto; min-width: 0; height: 32px; margin: 0 -4px; cursor: pointer; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .seek-track input[type='range'] {
   position: absolute; top: 0; left: 0; z-index: 2; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; outline: none;
-  -webkit-appearance: none; appearance: none; background: transparent; opacity: 0; cursor: pointer; touch-action: pan-y;
+  -webkit-appearance: none; appearance: none; background: transparent; opacity: 0; pointer-events: none;
 }
-.seek-track input[type='range']:disabled { cursor: default; }
 .seek-track input[type='range']::-webkit-slider-runnable-track { -webkit-appearance: none; height: 32px; border: 0; background: transparent; }
 .seek-track input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 32px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .seek-track input[type='range']::-moz-range-track { height: 32px; border: 0; background: transparent; }
@@ -418,7 +418,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .seek-track.is-touched .seek-knob { transform: scale(1); }
 @media (hover: hover) { .seek-track:hover .seek-knob { transform: scale(1); } }
 .seek-track input[type='range']:focus-visible ~ .seek-lane .seek-knob { transform: scale(1); }
-.seek-track.is-off { opacity: 0.5; }
+.seek-track.is-off { opacity: 0.5; cursor: default; }
 .seek-track.is-off .seek-knob { display: none; }
 @media (prefers-reduced-motion: reduce) { .seek-rail, .seek-knob { transition: none; } }
 .time { min-width: 2.7em; text-align: center; font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }

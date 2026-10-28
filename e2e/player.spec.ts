@@ -178,6 +178,8 @@ test('on a phone the tab bar shows on the lists, goes away on the full-screen so
   };
   const r0 = await rail();
   expect(r0.height, 'the rail is thin').toBeLessThan(4.5);
+  // The bar reads the finger itself, so a press and glide works from anywhere (iPhone's own slider only drags from the knob).
+  expect(await strip.getByRole('slider', { name: 'Seek' }).evaluate((el) => getComputedStyle(el).pointerEvents), 'the native slider takes no touches').toBe('none');
   await page.mouse.move(5, 5);
   await expect.poll(knobScale, { message: 'no knob at rest' }).toBe(0);
   const y = r0.y + r0.height / 2;
