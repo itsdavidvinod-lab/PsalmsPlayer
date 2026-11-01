@@ -37,6 +37,8 @@ test('an admin sees the dashboard with the reason each hidden song is hidden', a
   await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Expiring within 60 days' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Songs that are not live' })).toBeVisible();
+  // The count of registered users: at least this admin, and only a number.
+  await expect(page.locator('.stat').filter({ hasText: 'Registered users' }).locator('strong')).toHaveText(/^[1-9]\d*$/);
 
   // Seed: one song is hidden by an incomplete agreement, one was taken down. The admin sees why; users never do.
   await expect(page.getByText('No verified agreement in force').first()).toBeVisible();

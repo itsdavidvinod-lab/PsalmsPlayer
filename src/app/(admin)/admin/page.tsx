@@ -11,13 +11,16 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboard() {
   const { supabase } = await requireAdmin('/admin');
 
-  const [artistsRes, hiddenRes, expiryRes] = await Promise.all([
+  const [artistsRes, hiddenRes, expiryRes, usersRes] = await Promise.all([
     supabase.from('v_admin_artists').select('*').order('name'),
     supabase.from('v_admin_songs').select('id, slug, title, artist_id, artist_name, visibility').neq('visibility', 'live').order('title'),
     supabase.from('v_expiry_watch').select('*').order('days_left'),
+    // One profile row exists for every account (made when someone first signs in). Only an admin may read other people's rows, so
+    // for an admin this counts everyone; the count alone is fetched, no names or emails.
+    supabase.from('profiles').select('id', { count: 'exact', head: true }),
   ]);
-  const failed = Boolean(artistsRes.error || hiddenRes.error || expiryRes.error);
-  if (failed) console.error('admin dashboard: load failed', artistsRes.error ?? hiddenRes.error ?? expiryRes.error);
+  const failed = Boolean(artistsRes.error || hiddenRes.error || expiryRes.error || usersRes.error);
+  if (failed) console.error('admin dashboard: load failed', artistsRes.error ?? hiddenRes.error ?? expiryRes.error ?? usersRes.error);
 
   const artists = (artistsRes.data ?? []) as AdminArtistSummary[];
   const hidden = (hiddenRes.data ?? []) as Pick<AdminSongSummary, 'id' | 'slug' | 'title' | 'artist_id' | 'artist_name' | 'visibility'>[];
@@ -28,7 +31,10 @@ export default async function AdminDashboard() {
   const published = artists.filter((a) => a.is_published).length;
   const unavailable = artists.filter((a) => a.is_published && !a.available).length;
 
+  const registered = usersRes.error ? null : usersRes.count;
+
   const stats = [
+    { value: registered ?? '–', label: 'Registered users', sub: 'All accounts, admins included' },
     { value: artists.length, label: 'Artists', sub: `${published} published` },
     { value: liveSongs, label: 'Songs live', sub: `of ${totalSongs}` },
     { value: totalSongs - liveSongs, label: 'Songs not live', sub: 'The reasons are listed below' },
