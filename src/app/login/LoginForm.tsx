@@ -83,7 +83,7 @@ export default function LoginForm({ next, callbackFailed, deleted = false }: { n
   return (
     <>
       <h1>Welcome to {APP_NAME}</h1>
-      <p className="signin-sub">Songs, lyrics and chords for your community.</p>
+      <p className="signin-sub">Songs, lyrics and chords.</p>
 
       {error ? <p className="error" role="alert">{error}</p> : null}
       {deleted && info ? <p className="ok" role="status">{info}</p> : null}

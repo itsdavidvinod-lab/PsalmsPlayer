@@ -6,10 +6,10 @@ import { APP_NAME } from '@/lib/brand';
 import { WELCOME_COOKIE } from '@/lib/native-app';
 
 const SLIDES = [
-  { Icon: LyricsIcon, title: 'Songs for your community', text: 'Find songs in your language, read the lyrics, and see the chords when the writer shares them.' },
+  { Icon: LyricsIcon, title: 'Songs in your language', text: 'Find songs in your language, read the lyrics, and see the chords when the writer shares them.' },
   { Icon: PlayIcon, title: 'A player that stays with you', text: 'The player stays on every page. Shuffle, repeat, and slide to any moment in a song.' },
-  { Icon: HeartIcon, title: 'Your own library', text: 'Like songs, follow artists, and make playlists and setlists for home, church and services.' },
-  { Icon: StageIcon, title: 'Stage mode for services', text: 'Big, clear lyrics for the service, and your screen stays awake while you sing.' },
+  { Icon: HeartIcon, title: 'Your own library', text: 'Like songs, follow artists, and make playlists and setlists.' },
+  { Icon: StageIcon, title: 'Stage mode', text: 'Big, clear lyrics on stage, and your screen stays awake while you sing.' },
 ];
 
 /**

@@ -14,7 +14,7 @@ export default function TermsPage() {
 
       <h2>Using the site</h2>
       <ul>
-        <li>Use {APP_NAME} for your own worship, practice and services.</li>
+        <li>Use {APP_NAME} for your own listening, practice and performances.</li>
         <li>Songs, lyrics, chords and recordings belong to their writers and owners and are shown with their permission. Do not copy them out of the site, sell them or share them publicly. The one copy the app makes for you is the download described below.</li>
         <li>Do not try to inflate listening time or like counts, run scripts against the site, or look for ways around its limits.</li>
         <li>Do not try to reach another person&apos;s account or the admin pages.</li>

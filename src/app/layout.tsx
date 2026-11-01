@@ -8,7 +8,7 @@ const sans = Open_Sans({ subsets: ['latin'], variable: '--font-sans', display: '
 
 export const metadata: Metadata = {
   title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
-  description: 'Songs, lyrics and chords for the Christian community.',
+  description: 'Songs, lyrics and chords, with a music player.',
   robots: { index: false, follow: false },
 };
 

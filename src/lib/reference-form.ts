@@ -40,7 +40,7 @@ export function validateRegion(i: { code: string; name: string }): string | null
 
 export function validateTag(i: { code: string; label: string }, single: string): string | null {
   const code = i.code.trim();
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(code) || code.length > 40) return `A ${single} code uses lowercase letters, numbers and single hyphens, for example sunday-service.`;
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(code) || code.length > 40) return `A ${single} code uses lowercase letters, numbers and single hyphens, for example slow-songs.`;
   return nameProblem(i.label, 'label');
 }
 

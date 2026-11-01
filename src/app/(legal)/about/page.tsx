@@ -9,8 +9,8 @@ export default function AboutPage() {
     <>
       <h1>{APP_NAME}</h1>
       <p>
-        {APP_NAME} is a songbook and music player for the Christian community. It has lyrics and chords for services and practice, a
-        player for songs and recordings, and lists you can build for a service.
+        {APP_NAME} is a songbook and music player. It has lyrics and chords, a player for songs and recordings, and lists you can
+        build for any occasion.
       </p>
       <p>
         Songs and recordings appear with the permission of the people who wrote and own them. You sign in with your Google account to

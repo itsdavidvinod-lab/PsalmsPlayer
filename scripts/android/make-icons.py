@@ -100,6 +100,5 @@ except OSError:
 assert dr.textlength('PsalmsPlayer', font=f1) < W - 450 - 40, 'title does not fit'
 dr.text((450, 168), 'PsalmsPlayer', font=f1, fill=(255, 255, 255, 255))
 dr.text((454, 266), 'Songs, lyrics and chords', font=f2, fill=ACCENT)
-dr.text((454, 308), 'for the Christian community', font=f2, fill=ACCENT)
 save(fg.convert('RGB'), os.path.join(STORE, 'feature-graphic-1024x500.png'))
 print('icons written')

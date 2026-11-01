@@ -18,7 +18,7 @@
 - Songs without an audio file are lyrics-only: they show a "Lyrics" tag and no play button. The same happens when the artist's agreement does not allow audio hosting (a separate right from lyrics, chords, translations and video): the file stays uploaded but is not served until the flag is ticked.
 
 ## Library and Stage mode (decided while building)
-- A list is a playlist (for listening) or a setlist (for a service, with an optional service date and a key per song). Limits: 100 lists per person, 200 songs per list.
+- A list is a playlist (for listening) or a setlist (for the stage, with an optional date and a key per song). Limits: 100 lists per person, 200 songs per list.
 - A song that becomes unavailable (hidden, agreement ended) stays in the list as an empty slot, so positions never shift. The slot shows no title.
 - A setlist's key per song changes only that setlist; the song itself is never changed. In Stage mode the key can be nudged up or down by up to six semitones for the day, and that nudge is not saved.
 - Stage mode is a separate full-screen view with no player bar: opening it from the app stops any music that was playing. Text size is remembered on the device only.

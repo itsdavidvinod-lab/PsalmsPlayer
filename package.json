@@ -2,7 +2,7 @@
   "name": "psalmsplayer",
   "private": true,
   "version": "0.2.0",
-  "description": "Christian community songbook and player: Next.js website, Supabase database rules and shared logic.",
+  "description": "Songbook and music player: Next.js website, Supabase database rules and shared logic.",
   "engines": {
     "node": ">=22.6"
   },

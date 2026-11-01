@@ -5,9 +5,9 @@ Character limits are Play's. Edit freely; only describe what the app does today.
 ## Main store listing
 
 - **App name** (max 30): `PsalmsPlayer`
-- **Short description** (max 80, 74 used): `Christian songs with lyrics, chords and a music player for your community.`
+- **Short description** (max 80, 74 used): `Songs with lyrics, chords and a music player. Read along, sing, and build setlists.`
 - **Category**: Music & Audio
-- **Tags**: Music player, Religion (pick whatever Play offers closest)
+- **Tags**: Music player, Lyrics (pick whatever Play offers closest)
 - **Contact email** (public): the developer contact address (decide whether to use a personal Gmail or an address on psalmsplayer.com)
 - **Website**: `https://psalmsplayer.com`
 - **Privacy policy**: `https://psalmsplayer.com/privacy`
@@ -16,9 +16,9 @@ Character limits are Play's. Edit freely; only describe what the app does today.
 **Full description** (max 4000):
 
 ```
-PsalmsPlayer is a songbook and music player for the Christian community.
+PsalmsPlayer is a songbook and music player.
 
-Find a song, read its lyrics, play the recording, and keep your own lists for home, church and services.
+Find a song, read its lyrics, play the recording, and keep your own lists.
 
 LYRICS AND CHORDS
 • Lyrics for every song, with chords when the writer provides them
@@ -37,10 +37,10 @@ DOWNLOADS
 YOUR LIBRARY
 • Like songs and follow your favourite artists
 • Make playlists for listening
-• Make setlists for a service, with the key for each song
-• Stage mode: big, clear lyrics for the service, and your screen stays awake
+• Make setlists, with the key for each song
+• Stage mode: big, clear lyrics on stage, and your screen stays awake
 
-COMMUNITY AND RIGHTS
+RIGHTS AND PRIVACY
 • Songs appear only with the writers' and artists' consent
 • Sign in with your Google account; nothing else to remember
 • Delete your account and your data any time from Settings

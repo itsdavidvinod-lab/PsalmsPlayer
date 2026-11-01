@@ -182,7 +182,7 @@ export default function ListView({ kind, id, title, serviceDate, rows: initialRo
               </div>
               {isSetlist ? (
                 <div className="field">
-                  <label htmlFor="edit-date">Service date</label>
+                  <label htmlFor="edit-date">Date</label>
                   <input id="edit-date" className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
               ) : null}

@@ -31,7 +31,7 @@ export default async function AboutPage() {
       <SettingsTop title="About" />
       <div className="card section">
         <p style={{ margin: 0, fontWeight: 600 }}>{APP_NAME}</p>
-        <p className="muted" style={{ margin: '6px 0 0' }}>Songs, lyrics and chords for the Christian community. Listen, follow the words, and take a setlist on stage.</p>
+        <p className="muted" style={{ margin: '6px 0 0' }}>Songs, lyrics and chords. Listen, follow the words, and take a setlist on stage.</p>
       </div>
       <ContactList contacts={contacts} />
     </div>

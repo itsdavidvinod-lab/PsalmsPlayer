@@ -39,12 +39,12 @@ export default function NewListForm({ userId }: { userId: string }) {
         <label htmlFor="list-kind">Type</label>
         <select id="list-kind" className="input" value={kind} onChange={(e) => setKind(e.target.value as 'playlist' | 'setlist')}>
           <option value="playlist">Playlist (for listening)</option>
-          <option value="setlist">Setlist (for a service, with Stage mode)</option>
+          <option value="setlist">Setlist (an ordered set for the stage, with Stage mode)</option>
         </select>
       </div>
       {kind === 'setlist' ? (
         <div className="field">
-          <label htmlFor="list-date">Service date (optional)</label>
+          <label htmlFor="list-date">Date (optional)</label>
           <input id="list-date" className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
       ) : null}

@@ -17,7 +17,7 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
   const dialog = page.getByRole('dialog', { name: 'New list' });
   await dialog.getByLabel('New list name').fill('Sunday service');
   await dialog.getByLabel('Type').selectOption('setlist');
-  await dialog.getByLabel('Service date (optional)').fill('2030-01-06');
+  await dialog.getByLabel('Date (optional)').fill('2030-01-06');
   await dialog.getByRole('button', { name: 'Create list' }).click();
   await expect(page).toHaveURL(/\/library\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { name: 'Sunday service', level: 1 })).toBeVisible();
@@ -66,7 +66,7 @@ test('make a setlist, add songs from their pages, reorder, choose a key, rename,
 
   // Rename and change the date.
   await page.getByLabel('Name', { exact: true }).fill('Sunday 6 January');
-  await page.getByLabel('Service date').fill('2030-01-13');
+  await page.getByLabel('Date', { exact: true }).fill('2030-01-13');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('heading', { name: 'Sunday 6 January', level: 1 })).toBeVisible();
   await expect(page.getByText('Setlist · 2030-01-13 · 2 songs')).toBeVisible();

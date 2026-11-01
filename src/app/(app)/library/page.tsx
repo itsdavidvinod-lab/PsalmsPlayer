@@ -86,7 +86,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
             ))}
             <NewListButton userId={user.id} />
           </div>
-          {lists.length === 0 ? <p className="muted small list-hint">No lists yet. Make a playlist to listen, or a setlist for a service.</p> : null}
+          {lists.length === 0 ? <p className="muted small list-hint">No lists yet. Make a playlist to listen, or a setlist for the stage.</p> : null}
         </section>
       ) : null}
 
