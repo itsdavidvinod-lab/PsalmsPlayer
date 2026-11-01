@@ -6,8 +6,9 @@ import { supabaseEnv } from './env';
 
 // Everything else needs a login. /get is the public landing page for shared app links; /about, /privacy and /terms are the
 // public pages Google asks for on its sign-in screen. /delete-account is the web page for deletion requests that
-// Google Play asks for.
-const PUBLIC_PATHS = ['/login', '/auth', '/get', '/about', '/privacy', '/terms', '/delete-account'];
+// Google Play asks for. /offline and /sw.js are the Android app's offline downloads page and the small worker that shows it when there is
+// no connection: neither holds anything that belongs to an account, and the worker must be reachable without a redirect.
+const PUBLIC_PATHS = ['/login', '/auth', '/get', '/about', '/privacy', '/terms', '/delete-account', '/offline', '/sw.js'];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));

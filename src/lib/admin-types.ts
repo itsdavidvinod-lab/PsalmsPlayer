@@ -140,6 +140,7 @@ export type AdminAgreement = {
   allow_translations: boolean;
   allow_video_embed: boolean;
   allow_audio_hosting: boolean;
+  allow_offline: boolean;
   allow_photo_bio: boolean;
   territories: string[];
   revocation_email: string | null;

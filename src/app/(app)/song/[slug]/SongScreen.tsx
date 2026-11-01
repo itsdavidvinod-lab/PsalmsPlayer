@@ -13,6 +13,7 @@ import AddToListPanel from '@/components/AddToListPanel';
 import Cover from '@/components/Cover';
 import { ChevronDownIcon, HeartIcon, MoreIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon, RepeatIcon, ShareIcon, ListPlusIcon, ShuffleIcon } from '@/components/icons';
 import { useLikes } from '@/components/LikesProvider';
+import LyricOptions from '@/components/LyricOptions';
 import LyricsBody from '@/components/LyricsBody';
 import { usePlayer } from '@/components/player/PlayerProvider';
 import SeekBar from '@/components/player/SeekBar';
@@ -23,7 +24,6 @@ import { SongMenuBody, useSongMenu } from '@/components/SongMenu';
 import { parseChordPro, prefersFlats, transposeKey, transposeLines } from '@/lib/chordpro';
 import { createClient } from '@/lib/supabase/client';
 import type { LyricsVersion, Song } from '@/lib/types';
-import LyricOptions from './LyricOptions';
 
 export type SongScreenMode = 'player' | 'lyrics';
 

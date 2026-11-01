@@ -5,6 +5,7 @@ The app is a thin native shell (Capacitor) around the live website. It opens `ht
 - **Google sign-in.** Google refuses to sign anyone in inside an app's embedded browser. The app opens the phone's own browser for the Google step, and Supabase sends it back to `com.psalmsplayer.app://auth-callback`, which opens the app and finishes the sign-in (`src/lib/native-app.ts`, `src/components/NativeBridge.tsx`, `src/app/login/LoginForm.tsx`).
 - **Music with the screen off.** A foreground service with a media session keeps Android from stopping the sound and shows the notification and lock-screen controls (`native/android/.../MediaPlaybackService.java`; web side `src/components/player/useNativeMedia.ts`). The website still plays the audio itself.
 - **An offline page** (`native-shell/offline.html`) instead of Android's error page when the site cannot be reached.
+- **Offline downloads** (website code, no shell change): songs saved on the phone, a downloads page that opens with no connection, and a service worker that shows it. See "Offline downloads" below.
 
 Inside the app the Admin site does not exist (no row in Settings, and `/admin` goes back to Home). The shell tells the website it is the app through the word `PsalmsPlayerApp` in the user agent.
 
@@ -95,13 +96,31 @@ and tap `PsalmsPlayer-debug.apk`. Android asks to allow installing apps from the
 - [ ] Sign in with Google: the phone's browser opens, and the app comes back signed in.
 - [ ] Play a song, press Home, lock the screen: the sound continues and the lock screen shows the title with play/pause/next/previous. Leave it for 10 minutes or more.
 - [ ] Settings shows no "Admin site" row, even for an admin.
-- [ ] Turn on airplane mode and reopen the app: the "You are offline" page, and "Try again" works when back online.
+- [ ] Turn on airplane mode and reopen the app with nothing downloaded: the "You are offline" page, and "Try again" works when back online. (With songs downloaded it opens the Downloads page instead; see "Offline downloads".)
 - [ ] Settings, Account, "Delete account" (with a throw-away Google account).
 - [ ] Opening a shared song link (`https://psalmsplayer.com/get?song=...`) opens it in the phone's browser, which shows the `/get` page. Opening these links directly in the app (Android App Links) is not set up yet.
 
+## Offline downloads
+
+Website code, so it reaches the app with every site update (only the link on `offline.html` needs a new bundle). What to know:
+
+- **The artist must allow it.** In the admin site, each agreement has "Allow offline copies in the Android app" (migration 0017). It is off for every existing agreement: tick it on the artists whose agreements permit phone copies. Until then no song shows a Download item.
+- **Where files live:** the app's own WebView storage (IndexedDB), not a folder other apps can read. `src/lib/offline/` holds the storage (`store.ts`), the download and rights logic (`manager.ts`), and the Supabase calls (`backend.ts`); `public/sw.js` is the service worker; `src/app/offline/` is the downloads page.
+- **Test it on a phone** (the part automated tests cannot prove, because they run in Chrome, not in the real Android WebView):
+  - [ ] Sign in, open a song's ⋮ menu, "Download for offline". The toast says it is saved; Settings, Downloads lists it with its size.
+  - [ ] Wait a minute (the app stores its offline page), turn on airplane mode, close the app from recent apps, open it. It should open on **Downloads** with the "Offline" label, not the "You are offline" screen. If you see the "You are offline" screen instead, tap "Open my downloads" there and tell the developer: the service worker did not take over in your WebView.
+  - [ ] Play the song (with the screen off too) and open its lyrics; the chords, key and size options work.
+  - [ ] Turn the connection back on: the page says "Back online" and "Open PsalmsPlayer" returns to the full app.
+  - [ ] Untick the artist's offline switch in the admin site, open the app online, wait a few seconds: the song disappears from Downloads.
+  - [ ] Settings, Account, Sign out: Downloads are gone (a new sign-in starts empty).
+- **Play Console:** in the Data safety form, downloaded files stay on the device and are not collected.
+
 ## Known limits
 
-- **It needs the internet.** The app is the website; without a connection it shows the offline page. Capacitor documents `server.url` as intended for development; here it is the deliberate choice, because the site is server-rendered with cookie sessions and must be one codebase. The cost is that Google Play may judge a very thin wrapper as "minimum functionality"; the background playback, notification controls, in-app deletion and the native Google sign-in are what make this more than a bookmark. Apple is stricter about this (guideline 4.2) and will need more native features before the iOS submission.
+- **Downloads are the only offline feature.** Browsing, searching, Stage mode and lists still need a connection; the offline page shows only saved songs, without cover pictures, and plays heard offline are not counted for listeners or Trending.
+- **Storage can be cleared by the phone or by the person** ("Clear storage" in Android's app settings, or very low space). The songs then simply disappear from Downloads and can be downloaded again.
+
+- **It needs the internet**, except for downloaded songs. The app is the website; without a connection it shows the offline page, or the Downloads page when songs are saved. Capacitor documents `server.url` as intended for development; here it is the deliberate choice, because the site is server-rendered with cookie sessions and must be one codebase. The cost is that Google Play may judge a very thin wrapper as "minimum functionality"; the background playback, notification controls, in-app deletion and the native Google sign-in are what make this more than a bookmark. Apple is stricter about this (guideline 4.2) and will need more native features before the iOS submission.
 - **Share links** open the browser, not the app (needs a Digital Asset Links file on the site and an intent filter for `https://psalmsplayer.com`).
 - **Background audio is only tested on devices.** Aggressive battery savers (some Xiaomi, Huawei, Samsung modes) can still stop apps; the usual fix is for the person to set PsalmsPlayer's battery use to "unrestricted".
 - The notification shows the title, artist and album but not the cover picture.

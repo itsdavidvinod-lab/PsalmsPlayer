@@ -11,6 +11,7 @@
     h1 { font-size: 22px; margin: 0 0 8px; }
     p { margin: 0 0 24px; color: #b3b3b3; line-height: 1.5; }
     button { font: inherit; font-weight: 700; color: #000; background: #9fb1ff; border: 0; border-radius: 999px; padding: 12px 28px; min-height: 48px; }
+    a.downloads { display: inline-block; margin-top: 20px; padding: 12px; color: #9fb1ff; font-weight: 600; text-decoration: none; }
   </style>
 </head>
 <body>
@@ -18,6 +19,8 @@
     <h1>You are offline</h1>
     <p>PsalmsPlayer needs an internet connection. Check your connection and try again.</p>
     <button type="button" id="retry">Try again</button>
+    <!-- Songs saved for offline use open from this page of the website, which the app keeps a copy of (public/sw.js). -->
+    <p><a class="downloads" href="https://psalmsplayer.com/offline">Open my downloads</a></p>
   </main>
   <script>
     // Shown by the app when https://psalmsplayer.com cannot be reached (capacitor.config.ts, server.errorPath).

@@ -1150,4 +1150,149 @@ end $$;
 reset role;
 rollback;
 
+-- ============================================================ offline copies in the Android app
+begin;
+-- Off unless the admin ticks it, for every agreement that already exists.
+update public.songs set audio_path = id::text || '/track.mp3', audio_mime = 'audio/mpeg', audio_bytes = 1000
+ where id in ('d0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002', 'd0000000-0000-0000-0000-000000000004');
+do $$ begin
+  assert (select count(*) from public.agreements where allow_offline) = 0, 'no existing agreement allows offline copies';
+  assert (select count(*) from public.active_agreements where allow_offline) = 0, 'the view of agreements in force shows the new column too';
+  raise notice 'ok: offline copies are off by default';
+end $$;
+
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role anon;
+select test_helpers.expect_error($q$select * from public.offline_allowed_songs('{}')$q$, '42501');
+reset role;
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.v_songs where can_download) = 0, 'nothing can be downloaded until a right is ticked';
+  assert (select count(*) from public.offline_allowed_songs(array['d0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000004']::uuid[])) = 0, 'no right, no songs';
+  assert not has_function_privilege('authenticated', 'public.song_offline_allowed(uuid)', 'execute'), 'the rule itself is private';
+  raise notice 'ok: nothing downloadable without the right';
+end $$;
+reset role;
+
+-- The artist grants it.
+update public.agreements set allow_offline = true where id = 'b0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select can_download from public.v_songs where slug = 'placeholder-song-one') = true, 'song one can be downloaded';
+  assert (select can_download from public.v_songs where slug = 'placeholder-single') = true, 'the single can be downloaded';
+  assert (select count(*) from public.offline_allowed_songs(array[
+           'd0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002',
+           'd0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000004',
+           'd0000000-0000-0000-0000-000000000005']::uuid[])) = 2, 'only the two live songs are allowed; the hidden ones and the other artist''s are not';
+  assert (select audio_path from public.offline_allowed_songs(array['d0000000-0000-0000-0000-000000000001']::uuid[])) = 'd0000000-0000-0000-0000-000000000001/track.mp3', 'the recording comes with it';
+  assert (select count(*) from public.offline_allowed_songs(array[]::uuid[])) = 0, 'an empty list gives an empty answer';
+  assert (select count(*) from public.offline_allowed_songs(null)) = 0, 'null gives an empty answer';
+  raise notice 'ok: the right opens downloads for live songs only';
+end $$;
+select test_helpers.expect_error($q$select * from public.offline_allowed_songs((select array_agg(gen_random_uuid()) from generate_series(1, 501)))$q$, '22023');
+reset role;
+
+-- The view and the rule are two spellings of one rule: they must never disagree.
+do $$ declare bad int; begin
+  select count(*) into bad from public.v_songs v where v.can_download <> public.song_offline_allowed(v.id);
+  assert bad = 0, 'v_songs.can_download and song_offline_allowed() agree';
+end $$;
+
+-- Only the lyrics may be copied: the audio right is off, the offline right stays.
+update public.agreements set allow_audio_hosting = false where id = 'b0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select can_download from public.v_songs where slug = 'placeholder-song-one') = true, 'lyrics alone can still be kept';
+  assert (select count(*) from public.offline_allowed_songs(array['d0000000-0000-0000-0000-000000000001']::uuid[])) = 1, 'the song is still allowed';
+  assert (select audio_path from public.offline_allowed_songs(array['d0000000-0000-0000-0000-000000000001']::uuid[])) is null, 'but not its recording: the phone deletes the audio and keeps the lyrics';
+  raise notice 'ok: the recording needs the audio right as well';
+end $$;
+reset role;
+
+-- Neither lyrics nor a recording may be shown: there is nothing to keep.
+update public.agreements set allow_lyrics = false where id = 'b0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select can_download from public.v_songs where slug = 'placeholder-song-one') = false, 'nothing to copy: no button';
+  assert (select count(*) from public.offline_allowed_songs(array['d0000000-0000-0000-0000-000000000001']::uuid[])) = 0, 'nothing to copy: not allowed';
+  raise notice 'ok: no right to anything, no download';
+end $$;
+reset role;
+do $$ declare bad int; begin
+  select count(*) into bad from public.v_songs v where v.can_download <> public.song_offline_allowed(v.id);
+  assert bad = 0, 'view and rule still agree';
+end $$;
+rollback;
+
+begin;
+-- The agreement ends, is withdrawn, or the song is taken down: the phone is told on its next check, with nothing to clean up here.
+update public.songs set audio_path = id::text || '/track.mp3', audio_mime = 'audio/mpeg', audio_bytes = 1000 where id = 'd0000000-0000-0000-0000-000000000001';
+update public.agreements set allow_offline = true where id = 'b0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.offline_allowed_songs(array['d0000000-0000-0000-0000-000000000001']::uuid[])) = 1, 'allowed at first';
+end $$;
+reset role;
+
+update public.agreements set expires_on = public.app_today() - 1 where id = 'b0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.offline_allowed_songs(array['d0000000-0000-0000-0000-000000000001']::uuid[])) = 0, 'agreement ended: not allowed';
+  raise notice 'ok: copies stop with the agreement';
+end $$;
+reset role;
+
+update public.agreements set expires_on = public.app_today() + 200 where id = 'b0000000-0000-0000-0000-000000000001';
+update public.agreements set status = 'revoked' where id = 'b0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.offline_allowed_songs(array['d0000000-0000-0000-0000-000000000001']::uuid[])) = 0, 'agreement revoked: not allowed';
+  raise notice 'ok: copies stop when the artist withdraws';
+end $$;
+reset role;
+rollback;
+
+begin;
+-- A song taken down stops being allowed even though the agreement still allows copies.
+update public.agreements set allow_offline = true where id = 'b0000000-0000-0000-0000-000000000001';
+update public.songs set is_published = false where id = 'd0000000-0000-0000-0000-000000000001';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.offline_allowed_songs(array['d0000000-0000-0000-0000-000000000001']::uuid[])) = 0, 'a song that is not live is not allowed';
+  raise notice 'ok: copies stop when the song is taken down';
+end $$;
+reset role;
+rollback;
+
+begin;
+-- Only an admin changes the flag, and a change is recorded like any other change to an agreement.
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ declare n int; begin
+  update public.agreements set allow_offline = true;
+  get diagnostics n = row_count;
+  assert n = 0, 'a normal user cannot change any agreement';
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
+set local role authenticated;
+do $$ begin
+  update public.agreements set allow_offline = true where id = 'b0000000-0000-0000-0000-000000000001';
+  assert (select allow_offline from public.agreements where id = 'b0000000-0000-0000-0000-000000000001') = true, 'an admin can tick it';
+  raise notice 'ok: only an admin changes the offline right';
+end $$;
+reset role;
+do $$ begin
+  assert exists (select 1 from public.audit_log where entity = 'agreements' and (new_row ->> 'allow_offline') = 'true'), 'the change is in the audit log';
+end $$;
+rollback;
+
 select 'database tests finished' as result;

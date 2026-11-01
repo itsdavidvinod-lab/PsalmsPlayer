@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { signInMethodLabel } from '@/lib/user';
 import SettingsTop from '../SettingsTop';
 import DeleteAccount from './DeleteAccount';
+import SignOutForm from './SignOutForm';
 
 export const metadata: Metadata = { title: 'Account' };
 export const dynamic = 'force-dynamic';
@@ -31,9 +32,7 @@ export default async function AccountPage() {
           <dd>{signInMethodLabel(user.app_metadata?.provider)}</dd>
         </div>
       </dl>
-      <form action="/auth/signout" method="post" className="section">
-        <button type="submit" className="btn btn-block">Sign out</button>
-      </form>
+      <SignOutForm />
       <DeleteAccount isAdmin={isAdmin} />
     </div>
   );

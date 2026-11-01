@@ -23,7 +23,13 @@ import { NO_CHIPS, isFiltering, listChips, matchesChips, matchesFind, songCountL
 import { makeLabels } from './labels.ts';
 import { displayImageUrl, driveFileId } from './image-url.ts';
 import { nextSlide, slideFromScroll } from './carousel.ts';
-import type { Song } from './types.ts';
+import type { LyricsVersion, Song } from './types.ts';
+import { MemoryStore, type OfflineSongRecord } from './offline/store.ts';
+import {
+  CHECK_GROUP, LYRICS_REFRESH_MS, audioMimeFor, chunks, downloadMessage, downloadSong, hasRoomFor, syncDownloads, usedBytes,
+  type AudioOutcome, type OfflineBackend,
+} from './offline/manager.ts';
+import { SHELL_CACHE_PREFIX } from './offline/shell.ts';
 import { pictureFromMetadata, signInMethodLabel } from './user.ts';
 import {
   visibilityLabel, slugify, isValidSlug, isHttpsUrl, isUuid, parseOptionalInt, daysLeftLabel, explainAdminError,
@@ -612,7 +618,7 @@ test('Agreement form: phase and summary line, matching the database definition o
   assert.equal(agreementSummary({ status: 'sent', starts_on: null, expires_on: null }, t), 'Sent · no term set · Not verified yet');
   assert.equal(agreementSummary({ status: 'revoked', starts_on: '2026-01-01', expires_on: '2026-12-31' }, t), 'Revoked · 2026-01-01 to 2026-12-31 · Revoked');
   assert.deepEqual(AGREEMENT_STATUSES.map((s) => s.value), ['sent', 'signed', 'verified', 'revoked']);
-  assert.deepEqual(ENFORCED_RIGHTS.map((r) => r.key), ['allow_lyrics', 'allow_chords', 'allow_translations', 'allow_video_embed', 'allow_audio_hosting']);
+  assert.deepEqual(ENFORCED_RIGHTS.map((r) => r.key), ['allow_lyrics', 'allow_chords', 'allow_translations', 'allow_video_embed', 'allow_audio_hosting', 'allow_offline']);
 });
 
 test('Ledger: rupees and paise without floating point', () => {
@@ -949,7 +955,7 @@ function song(over: Partial<Song> & { id: string; title: string }): Song {
   return {
     slug: over.id, language_code: 'ta', musical_key: null, tempo_bpm: null, duration_s: null, track_no: null, genres: [], occasions: [], moods: [],
     published_at: null, artist_id: 'a', artist_slug: 'a', artist_name: 'Artist', album_id: null, album_slug: null, album_title: null,
-    youtube_id: null, like_count: 0, has_audio: true, cover_url: null, ...over,
+    youtube_id: null, like_count: 0, has_audio: true, cover_url: null, can_download: false, ...over,
   };
 }
 
@@ -1181,4 +1187,312 @@ test('nativeActionCommand maps notification buttons to player commands', () => {
   assert.equal(nativeActionCommand({ action: 'seek', seekTo: -1 }, true), null);
   assert.equal(nativeActionCommand({ action: 'seek', seekTo: NaN }, true), null);
   assert.equal(nativeActionCommand({ action: 'explode' } as never, true), null);
+});
+
+
+// ---------------------------------------------------------------- offline downloads (Android app)
+
+type FakeBackend = OfflineBackend & {
+  user: string | null;
+  rights: Map<string, string | null> | null;
+  words: LyricsVersion[] | null;
+  details: Song[] | null;
+  file: AudioOutcome;
+  asked: string[];
+};
+
+const LYRICS: LyricsVersion[] = [{ version: 'original', language_code: 'ta', body: '[G]Hello', has_chords: true }];
+const wav = (bytes = 10) => new Blob([new Uint8Array(bytes)], { type: 'audio/mpeg' });
+
+function fakeBackend(over: Partial<Pick<FakeBackend, 'user' | 'rights' | 'words' | 'details' | 'file'>> = {}): FakeBackend {
+  const b: FakeBackend = {
+    user: 'user-1',
+    rights: new Map(),
+    words: LYRICS,
+    details: null,
+    file: { blob: wav() },
+    asked: [],
+    async currentUserId() { b.asked.push('user'); return b.user; },
+    async allowed(ids) {
+      b.asked.push('allowed');
+      if (!b.rights) return null;
+      const out = new Map<string, string | null>();
+      for (const id of ids) if (b.rights.has(id)) out.set(id, b.rights.get(id) ?? null);
+      return out;
+    },
+    async lyrics() { b.asked.push('lyrics'); return b.words; },
+    async songs(ids) { b.asked.push('songs'); return b.details ? b.details.filter((x) => ids.includes(x.id)) : null; },
+    async audio() { b.asked.push('audio'); return b.file; },
+    ...over,
+  };
+  return b;
+}
+
+function savedRecord(id: string, over: Partial<OfflineSongRecord> = {}): OfflineSongRecord {
+  return {
+    songId: id, song: song({ id, title: `Song ${id}` }), lyrics: LYRICS, audioPath: `${id}/a.mp3`, audioBytes: 10, audioType: 'audio/mpeg',
+    savedAt: 1000, lyricsCheckedAt: 1000, ...over,
+  };
+}
+
+test('a download keeps the lyrics and the recording together, and says whose they are', async () => {
+  const store = new MemoryStore();
+  const b = fakeBackend({ rights: new Map([['a', 'a/a.mp3']]) });
+  const result = await downloadSong(song({ id: 'a', title: 'A', has_audio: false }), b, store, undefined, () => 5000);
+  assert.deepEqual(result, { kind: 'saved', withAudio: true, withLyrics: true });
+  const rec = await store.get('a');
+  assert.equal(rec?.audioPath, 'a/a.mp3');
+  assert.equal(rec?.song.has_audio, true, 'the saved song says it has a recording, because this phone has one');
+  assert.equal(rec?.savedAt, 5000);
+  assert.equal(await store.owner(), 'user-1');
+  assert.ok(await store.getAudio('a'));
+  assert.deepEqual(downloadMessage(result, 'A'), 'Saved for offline: A.');
+});
+
+test('a song whose artist allows only the lyrics is saved as lyrics only', async () => {
+  const store = new MemoryStore();
+  const b = fakeBackend({ rights: new Map([['a', null]]) });
+  const result = await downloadSong(song({ id: 'a', title: 'A' }), b, store);
+  assert.deepEqual(result, { kind: 'saved', withAudio: false, withLyrics: true });
+  assert.equal((await store.get('a'))?.song.has_audio, false);
+  assert.equal(store.audioCount(), 0);
+  assert.ok(!b.asked.includes('audio'), 'no recording is fetched when none may be kept');
+  assert.match(downloadMessage(result, 'A'), /Lyrics saved for offline/);
+});
+
+test('nothing is saved unless the server says yes and everything arrives', async () => {
+  const s = song({ id: 'a', title: 'A' });
+  const cases: [string, Partial<Parameters<typeof fakeBackend>[0]>, string][] = [
+    ['not allowed', { rights: new Map() }, 'not-allowed'],
+    ['server unreachable', { rights: null }, 'failed'],
+    ['signed out', { user: null, rights: new Map([['a', 'a/a.mp3']]) }, 'failed'],
+    ['lyrics could not be fetched', { rights: new Map([['a', 'a/a.mp3']]), words: null }, 'failed'],
+    ['recording failed', { rights: new Map([['a', 'a/a.mp3']]), file: { error: 'failed' } }, 'failed'],
+    ['no room', { rights: new Map([['a', 'a/a.mp3']]), file: { error: 'no-space' } }, 'no-space'],
+    ['nothing to keep', { rights: new Map([['a', null]]), words: [] }, 'nothing'],
+  ];
+  for (const [name, over, kind] of cases) {
+    const store = new MemoryStore();
+    const result = await downloadSong(s, fakeBackend(over), store);
+    assert.equal(result.kind, kind, name);
+    assert.equal((await store.list()).length, 0, `${name}: nothing was kept`);
+    assert.equal(store.audioCount(), 0, `${name}: no recording was kept`);
+  }
+});
+
+test('a full disk while saving is reported as no space, and keeps nothing', async () => {
+  const store = new MemoryStore();
+  store.failNextPut = Object.assign(new Error('full'), { name: 'QuotaExceededError' });
+  const result = await downloadSong(song({ id: 'a', title: 'A' }), fakeBackend({ rights: new Map([['a', 'a/a.mp3']]) }), store);
+  assert.equal(result.kind, 'no-space');
+  assert.equal((await store.list()).length, 0);
+  store.failNextPut = new Error('something else');
+  assert.equal((await downloadSong(song({ id: 'a', title: 'A' }), fakeBackend({ rights: new Map([['a', 'a/a.mp3']]) }), store)).kind, 'failed');
+});
+
+test('another account\'s copies are removed before a new account saves its own', async () => {
+  const store = new MemoryStore();
+  await store.setOwner('someone-else');
+  await store.put(savedRecord('old'), wav(), 'create');
+  const result = await downloadSong(song({ id: 'a', title: 'A' }), fakeBackend({ rights: new Map([['a', 'a/a.mp3']]) }), store);
+  assert.equal(result.kind, 'saved');
+  assert.deepEqual((await store.list()).map((r) => r.songId), ['a']);
+  assert.equal(await store.owner(), 'user-1');
+});
+
+test('checking with nothing saved asks the server nothing', async () => {
+  const b = fakeBackend();
+  const summary = await syncDownloads(b, new MemoryStore());
+  assert.equal(summary.ran, true);
+  assert.deepEqual(b.asked, []);
+});
+
+test('a check that cannot reach the server, or finds nobody signed in, deletes nothing', async () => {
+  for (const over of [{ rights: null }, { user: null, rights: new Map([['a', 'a/a.mp3']]) }]) {
+    const store = new MemoryStore();
+    await store.setOwner('user-1');
+    await store.put(savedRecord('a'), wav(), 'create');
+    const summary = await syncDownloads(fakeBackend(over), store, () => 1000 + 10 * LYRICS_REFRESH_MS);
+    assert.equal(summary.ran, false);
+    assert.deepEqual(summary.removed, []);
+    assert.ok(await store.get('a'));
+    assert.ok(await store.getAudio('a'));
+  }
+});
+
+test('a song the server no longer allows is deleted, with its recording; the others stay', async () => {
+  const store = new MemoryStore();
+  await store.setOwner('user-1');
+  await store.put(savedRecord('a'), wav(), 'create');
+  await store.put(savedRecord('b'), wav(), 'create');
+  const b = fakeBackend({ rights: new Map([['a', 'a/a.mp3']]) }); // b was taken down or its agreement ended
+  const summary = await syncDownloads(b, store, () => 1500);
+  assert.equal(summary.ran, true);
+  assert.deepEqual(summary.removed, ['b']);
+  assert.equal(await store.get('b'), null);
+  assert.equal(await store.getAudio('b'), null);
+  assert.ok(await store.get('a'));
+  assert.ok(await store.getAudio('a'));
+});
+
+test('when only the recording is no longer allowed, it goes and the lyrics stay', async () => {
+  const store = new MemoryStore();
+  await store.setOwner('user-1');
+  await store.put(savedRecord('a'), wav(), 'create');
+  const summary = await syncDownloads(fakeBackend({ rights: new Map([['a', null]]) }), store, () => 1500);
+  assert.deepEqual(summary.audioDropped, ['a']);
+  const rec = await store.get('a');
+  assert.equal(rec?.audioPath, null);
+  assert.equal(rec?.audioBytes, 0);
+  assert.equal(rec?.song.has_audio, false);
+  assert.equal(await store.getAudio('a'), null);
+  assert.equal(rec?.lyrics.length, 1);
+});
+
+test('a recording replaced on the server is fetched again; if that fails the old one stays', async () => {
+  const store = new MemoryStore();
+  await store.setOwner('user-1');
+  await store.put(savedRecord('a'), wav(10), 'create');
+  const fresh = new Blob([new Uint8Array(25)], { type: 'audio/mpeg' });
+  const ok = await syncDownloads(fakeBackend({ rights: new Map([['a', 'a/new.mp3']]), file: { blob: fresh } }), store, () => 1500);
+  assert.deepEqual(ok.audioReplaced, ['a']);
+  assert.equal((await store.get('a'))?.audioPath, 'a/new.mp3');
+  assert.equal((await store.get('a'))?.audioBytes, 25);
+  assert.equal((await store.getAudio('a'))?.size, 25);
+
+  const store2 = new MemoryStore();
+  await store2.setOwner('user-1');
+  await store2.put(savedRecord('a'), wav(10), 'create');
+  const failed = await syncDownloads(fakeBackend({ rights: new Map([['a', 'a/new.mp3']]), file: { error: 'failed' } }), store2, () => 1500);
+  assert.deepEqual(failed.audioReplaced, []);
+  assert.equal((await store2.get('a'))?.audioPath, 'a/a.mp3');
+  assert.equal((await store2.getAudio('a'))?.size, 10);
+});
+
+test('lyrics are fetched again only when they are old, and a failed fetch keeps the old ones', async () => {
+  const newer: LyricsVersion[] = [{ version: 'original', language_code: 'ta', body: 'Hello without chords', has_chords: false }];
+  const store = new MemoryStore();
+  await store.setOwner('user-1');
+  await store.put(savedRecord('a', { lyricsCheckedAt: 1000 }), wav(), 'create');
+  const rights = new Map([['a', 'a/a.mp3']]);
+
+  let b = fakeBackend({ rights, words: newer });
+  await syncDownloads(b, store, () => 1000 + LYRICS_REFRESH_MS - 1);
+  assert.ok(!b.asked.includes('lyrics'), 'too soon: not fetched');
+  assert.equal((await store.get('a'))?.lyrics[0].body, '[G]Hello');
+
+  b = fakeBackend({ rights, words: null });
+  await syncDownloads(b, store, () => 1000 + LYRICS_REFRESH_MS);
+  assert.equal((await store.get('a'))?.lyrics[0].body, '[G]Hello', 'a failed fetch keeps the old lyrics');
+  assert.equal((await store.get('a'))?.lyricsCheckedAt, 1000, 'and tries again next time');
+
+  b = fakeBackend({ rights, words: newer });
+  await syncDownloads(b, store, () => 1000 + LYRICS_REFRESH_MS);
+  assert.equal((await store.get('a'))?.lyrics[0].body, 'Hello without chords', 'old enough: the new lyrics (chords withdrawn) arrive');
+  assert.equal((await store.get('a'))?.lyricsCheckedAt, 1000 + LYRICS_REFRESH_MS);
+});
+
+test('a song with nothing left that may be kept is removed', async () => {
+  const store = new MemoryStore();
+  await store.setOwner('user-1');
+  await store.put(savedRecord('a', { audioPath: null, audioBytes: 0, audioType: '' }), null, 'create');
+  const summary = await syncDownloads(fakeBackend({ rights: new Map([['a', null]]), words: [] }), store, () => 1000 + LYRICS_REFRESH_MS);
+  assert.deepEqual(summary.removed, ['a']);
+  assert.equal((await store.list()).length, 0);
+});
+
+test('a check never brings back a song that was removed while it was running', async () => {
+  const store = new MemoryStore();
+  await store.setOwner('user-1');
+  await store.put(savedRecord('a'), wav(), 'create');
+  await store.put(savedRecord('b'), wav(), 'create');
+  const b = fakeBackend({ rights: new Map([['a', 'a/a.mp3'], ['b', 'b/a.mp3']]), details: [song({ id: 'a', title: 'New A' }), song({ id: 'b', title: 'New B' })] });
+  const realAllowed = b.allowed.bind(b);
+  b.allowed = async (ids) => {
+    const answer = await realAllowed(ids);
+    await store.remove('b'); // the person removes it while the check is waiting for the server
+    return answer;
+  };
+  await syncDownloads(b, store, () => 1500);
+  assert.equal(await store.get('b'), null, 'still removed');
+  assert.equal((await store.get('a'))?.song.title, 'New A', 'the other song got its fresh details');
+});
+
+test('another account\'s copies are wiped by a check', async () => {
+  const store = new MemoryStore();
+  await store.setOwner('someone-else');
+  await store.put(savedRecord('a'), wav(), 'create');
+  const summary = await syncDownloads(fakeBackend({ rights: new Map([['a', 'a/a.mp3']]) }), store, () => 1500);
+  assert.equal(summary.wiped, true);
+  assert.deepEqual(summary.removed, ['a']);
+  assert.equal((await store.list()).length, 0);
+  assert.equal(store.audioCount(), 0);
+});
+
+test('a long list is checked in groups, and one failed group stops the whole check', async () => {
+  const store = new MemoryStore();
+  await store.setOwner('user-1');
+  const ids = Array.from({ length: CHECK_GROUP * 2 + 50 }, (_, i) => `s${i}`);
+  for (const id of ids) await store.put(savedRecord(id), null, 'create');
+  const rights = new Map(ids.map((id) => [id, `${id}/a.mp3`] as [string, string]));
+  const b = fakeBackend({ rights });
+  let groups = 0;
+  const real = b.allowed.bind(b);
+  b.allowed = async (group) => {
+    groups++;
+    assert.ok(group.length <= CHECK_GROUP);
+    return groups === 2 ? null : real(group); // the second group fails
+  };
+  const summary = await syncDownloads(b, store, () => 1500);
+  assert.equal(summary.ran, false);
+  assert.deepEqual(summary.removed, [], 'songs of the first group were not judged on their own');
+  assert.equal((await store.list()).length, ids.length);
+  assert.deepEqual(chunks([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+});
+
+test('download messages, audio types, free space and used space', () => {
+  assert.match(downloadMessage({ kind: 'not-allowed' }, 'A'), /cannot be downloaded/);
+  assert.match(downloadMessage({ kind: 'no-space' }, 'A'), /Not enough space/);
+  assert.match(downloadMessage({ kind: 'failed' }, 'A'), /did not finish/);
+  assert.match(downloadMessage({ kind: 'nothing' }, 'A'), /nothing to download/);
+
+  assert.equal(audioMimeFor('x/a.mp3', 'audio/mpeg; charset=x'), 'audio/mpeg');
+  assert.equal(audioMimeFor('x/a.m4a', 'application/octet-stream'), 'audio/mp4');
+  assert.equal(audioMimeFor('x/a.WAV', ''), 'audio/wav');
+  assert.equal(audioMimeFor('x/a.unknown', null), 'audio/mpeg');
+
+  const MB = 1024 * 1024;
+  assert.equal(hasRoomFor(5 * MB, undefined), true, 'unknown space counts as enough');
+  assert.equal(hasRoomFor(5 * MB, { quota: 1000 * MB, usage: 100 * MB }), true);
+  assert.equal(hasRoomFor(5 * MB, { quota: 40 * MB, usage: 10 * MB }), true);
+  assert.equal(hasRoomFor(5 * MB, { quota: 30 * MB, usage: 20 * MB }), false, 'a margin is kept for the database itself');
+  assert.equal(hasRoomFor(50 * MB, { quota: 60 * MB, usage: 0 }), false);
+
+  assert.equal(usedBytes([{ audioBytes: 5 }, { audioBytes: 7 }, { audioBytes: 0 }]), 12);
+});
+
+test('the offline worker and the app agree on the name of the stored copy, and the worker finds the files a page needs', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { runInNewContext } = await import('node:vm');
+  const source = readFileSync(new URL('../../public/sw.js', import.meta.url), 'utf8');
+  assert.ok(source.includes(`const CACHE_PREFIX = '${SHELL_CACHE_PREFIX}'`), 'public/sw.js and src/lib/offline/shell.ts use the same cache name');
+
+  const sandbox: Record<string, unknown> = { self: { addEventListener() {}, location: { origin: 'https://example.test' } }, URL, Response, caches: {}, fetch() {} };
+  runInNewContext(source, sandbox);
+  const found = sandbox.assetsIn as (text: string) => string[];
+  const assetsIn = (text: string) => Array.from(found(text)); // the worker's arrays come from another realm
+  const html = [
+    '<link rel="stylesheet" href="/_next/static/css/abc123.css" data-precedence="next"/>',
+    '<script src="/_next/static/chunks/webpack-0a1b.js" async=""></script>',
+    '<script src="/_next/static/chunks/4bd1b696-1234.js?dpl=dpl_x" async></script>',
+    '<script>self.__next_f.push([1,"5:I[\\"./src/app/offline/OfflineApp.tsx\\",[\\"974\\",\\"static/chunks/app/offline/page-ff00.js\\"],\\"default\\"]"])</script>',
+    '<img src="/logo.png"><script src="/other/script.js"></script>',
+  ].join('\n');
+  assert.deepEqual(assetsIn(html), [
+    '/_next/static/css/abc123.css',
+    '/_next/static/chunks/webpack-0a1b.js',
+    '/_next/static/chunks/4bd1b696-1234.js?dpl=dpl_x',
+    '/_next/static/chunks/app/offline/page-ff00.js',
+  ]);
+  assert.deepEqual(assetsIn('@font-face{font-family:x;src:url(/_next/static/media/e11418ac562b8ac1-s.p.woff2) format("woff2")}'), ['/_next/static/media/e11418ac562b8ac1-s.p.woff2']);
 });

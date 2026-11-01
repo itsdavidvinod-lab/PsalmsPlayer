@@ -9,6 +9,7 @@ import { createContext, useContext } from 'react';
 import Avatar from './Avatar';
 import { HomeIcon, LibraryIcon, SearchIcon } from './icons';
 import { LikesProvider } from './LikesProvider';
+import { OfflineProvider } from './offline/OfflineProvider';
 import MiniPlayer from './player/MiniPlayer';
 import { PlayerProvider, usePlayer } from './player/PlayerProvider';
 import { SongMenuProvider } from './SongMenu';
@@ -75,13 +76,15 @@ function Frame({ user, children }: { user: ShellUser | null; children: React.Rea
 export default function AppShell({ user, likedIds, children }: { user: ShellUser | null; likedIds: string[]; children: React.ReactNode }) {
   return (
     <PlayerProvider>
-      <LikesProvider userId={user?.id ?? null} initial={likedIds}>
-        <SongMenuProvider userId={user?.id ?? null}>
-          <ShellUserContext.Provider value={user}>
-            <Frame user={user}>{children}</Frame>
-          </ShellUserContext.Provider>
-        </SongMenuProvider>
-      </LikesProvider>
+      <OfflineProvider>
+        <LikesProvider userId={user?.id ?? null} initial={likedIds}>
+          <SongMenuProvider userId={user?.id ?? null}>
+            <ShellUserContext.Provider value={user}>
+              <Frame user={user}>{children}</Frame>
+            </ShellUserContext.Provider>
+          </SongMenuProvider>
+        </LikesProvider>
+      </OfflineProvider>
     </PlayerProvider>
   );
 }

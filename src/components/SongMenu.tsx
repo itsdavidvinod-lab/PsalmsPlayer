@@ -5,16 +5,18 @@
 
 import Link from 'next/link';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { downloadMessage } from '@/lib/offline/manager';
 import { youtubeWatchUrl } from '@/lib/youtube';
 import AddToListPanel from './AddToListPanel';
 import Cover from './Cover';
-import { ChevronLeftIcon, ExternalIcon, ListPlusIcon, ShareIcon, StageIcon } from './icons';
+import { ChevronLeftIcon, DownloadedIcon, DownloadIcon, ExternalIcon, ListPlusIcon, ShareIcon, StageIcon } from './icons';
+import { useOffline } from './offline/OfflineProvider';
 import { usePlayer } from './player/PlayerProvider';
 import { shareSong } from './share-client';
 import Sheet from './Sheet';
 import type { Song } from '@/lib/types';
 
-type MenuSong = Pick<Song, 'id' | 'slug' | 'title' | 'artist_name' | 'youtube_id'> & { cover_url?: string | null };
+type MenuSong = Song;
 
 export type SongMenuApi = {
   openSongMenu: (song: MenuSong) => void;
@@ -36,13 +38,28 @@ export function SongMenuBody({
   song, userId, onClose, notify, before,
 }: { song: MenuSong; userId: string | null; onClose: () => void; notify: (text: string) => void; before?: React.ReactNode }) {
   const player = usePlayer();
+  const offline = useOffline();
   const [view, setView] = useState<'menu' | 'add'>('menu');
+  const saved = offline.isSaved(song.id);
+  const downloading = offline.progressOf(song.id);
 
   async function share() {
     const outcome = await shareSong(song);
     onClose();
     if (outcome.kind === 'copied') notify('Link copied.');
     else if (outcome.kind === 'link') notify(`Copy this link: ${outcome.url}`);
+  }
+
+  async function startDownload() {
+    onClose();
+    notify(`Downloading ${song.title}…`);
+    notify(downloadMessage(await offline.download(song), song.title));
+  }
+
+  async function removeDownload() {
+    onClose();
+    await offline.remove(song.id);
+    notify(`Removed from downloads: ${song.title}.`);
   }
 
   return (
@@ -68,6 +85,23 @@ export function SongMenuBody({
                 <button type="button" className="sheet-item" onClick={() => setView('add')}>
                   <ListPlusIcon /> <span>Add to list</span>
                 </button>
+              </li>
+            ) : null}
+            {offline.enabled && (saved || downloading !== null || song.can_download) ? (
+              <li>
+                {saved ? (
+                  <button type="button" className="sheet-item" onClick={() => void removeDownload()}>
+                    <span className="sheet-item-saved"><DownloadedIcon /></span> <span>Downloaded · Remove download</span>
+                  </button>
+                ) : downloading !== null ? (
+                  <button type="button" className="sheet-item" disabled>
+                    <DownloadIcon /> <span>Downloading… {Math.round(downloading * 100)}%</span>
+                  </button>
+                ) : (
+                  <button type="button" className="sheet-item" onClick={() => void startDownload()}>
+                    <DownloadIcon /> <span>Download for offline</span>
+                  </button>
+                )}
               </li>
             ) : null}
             <li>

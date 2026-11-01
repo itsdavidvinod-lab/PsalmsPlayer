@@ -30,6 +30,10 @@ MUSIC PLAYER
 • Keeps playing with the screen off, with controls on the lock screen and in the notification
 • Shuffle and repeat, and a link to watch the song on YouTube when there is one
 
+DOWNLOADS
+• Save a song's recording and lyrics on your phone and use them with no connection, when the artist allows it
+• Downloads open straight from the app with no signal, and are removed when you sign out
+
 YOUR LIBRARY
 • Like songs and follow your favourite artists
 • Make playlists for listening
@@ -41,7 +45,7 @@ COMMUNITY AND RIGHTS
 • Sign in with your Google account; nothing else to remember
 • Delete your account and your data any time from Settings
 
-PsalmsPlayer needs an internet connection.
+PsalmsPlayer needs an internet connection, except for songs you have downloaded.
 ```
 
 **What's new** (first release): `First release.`
@@ -67,6 +71,7 @@ Answer in Play Console, "Data safety". Confirm each line against the database be
 | App activity: app interactions | Collected (liked songs, follows, listening time). Purpose: app functionality, counting how often songs are played (the monthly listener and like counts shown on artist pages) |
 | App activity: other user-generated content | Collected (playlists and setlists). Purpose: app functionality |
 | Location, financial info, health, contacts, photos, audio recordings, files | Not collected |
+| Songs downloaded for offline use | Stored on the device only, inside the app; never sent back to us, so nothing to declare as collected. Removed on sign-out or account deletion |
 | Is collection optional? | No for email, name, ID (needed to sign in) |
 
 ## Other App content answers

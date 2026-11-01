@@ -26,6 +26,8 @@ export type Song = {
   has_audio: boolean;
   /** The cover of the song's album, when it has a published album with a picture. */
   cover_url: string | null;
+  /** True when the artist's agreement lets the Android app keep a copy of the song on the phone (migration 0017). */
+  can_download: boolean;
 };
 
 export type Poster = {

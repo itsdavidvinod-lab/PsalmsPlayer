@@ -6,6 +6,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ListenReporter, type ListenRpc } from '@/lib/listen-reporter';
+import { localAudioUrl } from '@/lib/offline/local-audio';
 import { hasNextSong, indexInOrder, nextIndex, nextRepeatMode, parsePlayerPrefs, playableQueue, previousStep, randomPlayableId, shuffleQueue, type RepeatMode } from '@/lib/queue';
 import { SignedUrlCache } from '@/lib/signed-url-cache';
 import { createClient } from '@/lib/supabase/client';
@@ -102,6 +103,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const tokenRef = useRef(0); // a newer request to load a song cancels an older one that is still waiting for its link
   const pendingRef = useRef(false); // a song is being fetched; the element may still hold the previous one
   const retriedRef = useRef<string | null>(null);
+  const skipLocalRef = useRef<Set<string>>(new Set()); // saved copies that would not play: these songs stream instead
   const reporterRef = useRef<ListenReporter | null>(null);
   const lastTimeRef = useRef(-1);
 
@@ -115,7 +117,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       pendingRef.current = true;
       setLoading(true);
       setError(null);
-      const url = await urls.get(song.id);
+      // A copy saved on this phone (Android app) plays from the phone, with or without a connection. Otherwise the song streams.
+      const local = skipLocalRef.current.has(song.id) ? null : await localAudioUrl(song.id);
+      const url = local ?? (await urls.get(song.id));
       if (token !== tokenRef.current) return; // the person chose something else meanwhile
       pendingRef.current = false;
       if (!url) {
@@ -298,7 +302,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const upcomingId =
     index >= 0 && queue.length > 1 ? (index + 1 < queue.length ? queue[index + 1].id : repeat === 'all' ? queue[0].id : null) : null;
   useEffect(() => {
-    if (upcomingId) void urls.get(upcomingId);
+    if (!upcomingId) return;
+    void localAudioUrl(upcomingId).then((local) => {
+      if (!local) void urls.get(upcomingId);
+    });
   }, [upcomingId, urls]);
 
   // Lock-screen and headset controls.
@@ -352,8 +359,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const song = queueRef.current[indexRef.current];
     if (!el || !song || !el.getAttribute('src')) return;
     // A link that expired while the person was away: get a new one once and carry on from the same place.
+    // (A saved copy that would not play is dropped from the plan, so the retry streams the song instead.)
     if (retriedRef.current !== song.id) {
       retriedRef.current = song.id;
+      if (el.getAttribute('src')?.startsWith('blob:')) skipLocalRef.current.add(song.id);
       urls.invalidate(song.id);
       void startTrack(song, el.currentTime || 0, true);
       return;

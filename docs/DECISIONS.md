@@ -77,7 +77,7 @@
 - Whether unavailable setlist slots should keep the song title. Today they show position only.
 - Playlist versus setlist: kept as one list type with a kind flag. Confirm that is what you want.
 - Equalizer: possible now that the app hosts the audio. Not built.
-- Offline Stage mode in the Android app: needs a local copy of the user's setlist lyrics and a purge when a song is hidden. Today Stage mode needs a connection.
+- Offline Stage mode in the Android app: Stage mode itself still needs a connection. Downloaded songs open their lyrics (with chords, key and size options) on the offline page, but a setlist is not saved as such.
 - Sharing a setlist with a band (a read-only link, or a copy for another person) is not built; lists are private to their owner.
 - Tax and invoicing for promotion income, and a lawyer's review of the agreement.
 
@@ -88,3 +88,13 @@
 - Account deletion: Settings, Account, "Delete account" calls the database function `delete_my_account()` (security definer, signed-in users only, admins refused so the site cannot be left without an owner), which deletes the person's row in `auth.users`; everything of theirs (profile, likes, follows, lists, listening records) goes with it through the foreign keys. A public page `/delete-account` explains it for Google Play. People who cannot sign in write to the contact address on that page.
 - Release signing uses a Play App Signing upload key held in GitHub secrets (see docs/ANDROID.md). Each CI run sets `versionCode` to the run number so uploads always increase.
 - Open: Android App Links so shared song links open in the app; the cover picture in the notification; whether a personal developer account's 12-tester, 14-day closed test is workable (testers must be real people with Android phones).
+
+## Offline downloads (Android app only; decided with the owner, 1 Nov 2026)
+- Scope: a Download item in a song's ⋮ menu saves the recording and the lyrics together, as Spotify does. Android app only; the website has no download. No time limit on a download.
+- Rights: a new per-agreement switch `agreements.allow_offline` ("Allow offline copies in the Android app", migration 0017), off by default and **not** filled in for existing agreements, so each artist is switched on deliberately. A copy holds only what the other rights allow: the lyrics (and chords or translations only if allowed) and the recording only if audio hosting is allowed. `v_songs.can_download` tells the app where to show the button; `offline_allowed_songs()` is the door used to start a download and to re-check copies.
+- Withdrawal: whenever the app is opened, comes back to the front after 30 minutes, or the connection returns, it asks the server which saved songs may still be kept and deletes the others (agreement ended or revoked, switch unticked, song taken down, recording no longer allowed). It deletes **only on a clear answer from the server**, never on a failure, so a bad connection never wipes anyone's downloads. Lyrics are fetched again every 6 hours online, so a change to chords or translations arrives. The phone cannot be forced to delete while it stays offline: that is the same limit every offline app has, and the Terms say so.
+- Storage: IndexedDB in the app's own WebView (recordings as Blobs), not shared files, so other apps cannot read them. Copies belong to one account: signing out, deleting the account or a different account signing in removes them.
+- Offline opening: the app is a remote website, so when there is no connection a small service worker (`public/sw.js`, registered only once something is saved) shows the downloads page (`/offline`, a static page outside the signed-in layout) instead of the generic offline screen. The downloads page has its own player (the same player code) and a lyrics reader. `native-shell/offline.html` also links to it as a fallback.
+- Plays heard offline are not counted for monthly listeners or Trending (the count needs the server).
+- Honest limit: a download keeps a file on the phone for the person who is allowed to listen; it cannot stop a determined person with a rooted phone or a script from copying a recording that the site streams anyway. The Terms forbid it.
+- Open: a "download the whole album or list" button; showing the cover pictures offline (they are not stored); whether to limit total space; the Play Data safety form should say that downloaded files stay on the device.

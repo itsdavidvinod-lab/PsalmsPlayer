@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useOffline } from '@/components/offline/OfflineProvider';
 import { createClient } from '@/lib/supabase/client';
 
 type Step = 'idle' | 'confirm' | 'working';
@@ -10,6 +11,7 @@ type Step = 'idle' | 'confirm' | 'working';
 export default function DeleteAccount({ isAdmin }: { isAdmin: boolean }) {
   const [step, setStep] = useState<Step>('idle');
   const [error, setError] = useState<string | null>(null);
+  const offline = useOffline();
 
   async function remove() {
     setStep('working');
@@ -21,7 +23,8 @@ export default function DeleteAccount({ isAdmin }: { isAdmin: boolean }) {
       setStep('confirm');
       return;
     }
-    // The sign-in record is already gone; this only clears this device's copy of the session.
+    // The sign-in record is already gone; this only clears this device's copy of the session (and any songs saved for offline use).
+    await offline.removeAll();
     await supabase.auth.signOut({ scope: 'local' });
     window.location.assign('/login?deleted=1');
   }

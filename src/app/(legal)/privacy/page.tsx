@@ -21,6 +21,7 @@ export default function PrivacyPage() {
         <li><strong>What you listen to.</strong> The song and the number of seconds you actually listened, and which songs you opened lyrics for. This is how we count an artist&apos;s monthly listeners and which songs are trending.</li>
         <li><strong>A sign-in cookie.</strong> It keeps you signed in. We do not use advertising or tracking cookies.</li>
         <li><strong>A note in the Android app.</strong> A small cookie that remembers you have seen the welcome slides, so they show only once.</li>
+        <li><strong>Downloads on your phone.</strong> If you download songs in the Android app, the recordings and lyrics are stored on your phone only, inside the app. We do not receive them back. They are deleted when you sign out, delete your account or remove them, and when an artist withdraws permission and the app next goes online.</li>
       </ul>
 
       <h2>Who can see it</h2>

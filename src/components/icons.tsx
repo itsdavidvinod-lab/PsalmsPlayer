@@ -140,3 +140,15 @@ export const TileIcon = ({ index, size = 60 }: { index: number; size?: number })
       return <svg {...props}><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" /></svg>;
   }
 };
+
+/** An arrow into a tray: "download". */
+export const DownloadIcon = ({ size = 22 }: IconProps) => (
+  <svg {...svg(size)} {...line}><path d="M12 4v11M7.5 11 12 15.5 16.5 11M5 19.5h14" /></svg>
+);
+/** A filled disc with a down arrow: this song is saved on the phone. */
+export const DownloadedIcon = ({ size = 22 }: IconProps) => (
+  <svg {...svg(size)}>
+    <circle cx="12" cy="12" r="10" fill="currentColor" />
+    <path d="M12 7v8M8.5 12 12 15.5 15.5 12" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);

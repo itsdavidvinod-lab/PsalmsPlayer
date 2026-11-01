@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import type { Song } from '@/lib/types';
 import Cover from './Cover';
-import { HeartIcon, LyricsIcon, MoreIcon, PauseIcon, PlayIcon } from './icons';
+import { DownloadedIcon, HeartIcon, LyricsIcon, MoreIcon, PauseIcon, PlayIcon } from './icons';
 import { useLikes } from './LikesProvider';
+import { useOffline } from './offline/OfflineProvider';
 import { usePlayer } from './player/PlayerProvider';
 import { useSongMenu } from './SongMenu';
 
@@ -26,6 +27,7 @@ export function SongRow({ song, songs, source, rank, sub }: { song: Song; songs:
   const player = usePlayer();
   const likes = useLikes();
   const menu = useSongMenu();
+  const offline = useOffline();
   const isCurrent = player.current?.id === song.id;
   const busy = isCurrent && player.playing;
   const liked = likes.isLiked(song.id);
@@ -43,7 +45,10 @@ export function SongRow({ song, songs, source, rank, sub }: { song: Song; songs:
       </Link>
       <Link href={songHref(song)} className="song-main">
         <span className="song-title">{song.title}</span>
-        <span className="song-artist">{sub ?? song.artist_name}</span>
+        <span className="song-artist">
+          {offline.isSaved(song.id) ? <span className="song-saved" role="img" aria-label="Downloaded"><DownloadedIcon size={12} /></span> : null}
+          {sub ?? song.artist_name}
+        </span>
       </Link>
       <div className="row-actions">
         <Link href={lyricsHref(song)} className={`row-ic${song.has_audio ? '' : ' row-ic-hot'}`} aria-label={`Lyrics of ${song.title}`}>

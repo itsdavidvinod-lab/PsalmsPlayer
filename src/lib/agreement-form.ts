@@ -17,6 +17,11 @@ export const ENFORCED_RIGHTS = [
   { key: 'allow_translations', label: 'Show romanized and meaning versions', effect: 'Without it, only the original lyrics are shown.' },
   { key: 'allow_video_embed', label: 'Show the YouTube link', effect: 'Without it, the YouTube link is hidden.' },
   { key: 'allow_audio_hosting', label: 'Host and play the audio recording', effect: 'Without it, songs are lyrics only.' },
+  {
+    key: 'allow_offline',
+    label: 'Allow offline copies in the Android app',
+    effect: 'Without it, the Download button is hidden, and copies already on phones are deleted the next time the phone is online. A copy holds what the rights above allow: the lyrics, and the recording only if hosting is allowed.',
+  },
 ] as const;
 
 /** Kept on the record, but nothing in the site reads it yet. */

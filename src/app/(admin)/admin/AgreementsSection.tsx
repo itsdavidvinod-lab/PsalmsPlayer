@@ -24,6 +24,7 @@ function AgreementForm({ artistId, adminId, agreement }: { artistId: string; adm
     allow_translations: agreement?.allow_translations ?? false,
     allow_video_embed: agreement?.allow_video_embed ?? false,
     allow_audio_hosting: agreement?.allow_audio_hosting ?? false,
+    allow_offline: agreement?.allow_offline ?? false,
     allow_photo_bio: agreement?.allow_photo_bio ?? false,
   });
   const [busy, setBusy] = useState(false);
@@ -67,7 +68,7 @@ function AgreementForm({ artistId, adminId, agreement }: { artistId: string; adm
       setRef('');
       setEmail('');
       setTerritories('');
-      setRights({ allow_lyrics: false, allow_chords: false, allow_translations: false, allow_video_embed: false, allow_audio_hosting: false, allow_photo_bio: false });
+      setRights({ allow_lyrics: false, allow_chords: false, allow_translations: false, allow_video_embed: false, allow_audio_hosting: false, allow_offline: false, allow_photo_bio: false });
     }
     setMsg({ ok: true, text: agreement ? 'Saved.' : 'Agreement added.' });
     router.refresh();

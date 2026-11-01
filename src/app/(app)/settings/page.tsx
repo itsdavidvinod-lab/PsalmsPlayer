@@ -52,6 +52,7 @@ export default async function SettingsPage() {
         <Row href="/settings/profile" title="Profile" sub="Display name and picture" />
         <Row href="/settings/language" title="Language and region" sub="Shapes what Home shows first" />
         <Row href="/settings/account" title="Account" sub="Sign-in details and sign out" />
+        {inApp ? <Row href="/settings/downloads" title="Downloads" sub="Songs saved on this phone for offline use" /> : null}
         {profile.role === 'admin' && !inApp ? <Row href="/admin" title="Admin site" sub="Songs, artists, posters and requests" /> : null}
         <Row href="/settings/about" title="About" />
       </ul>
