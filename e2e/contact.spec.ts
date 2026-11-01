@@ -104,7 +104,7 @@ test('the admin edits, hides and deletes an option, and About follows', async ({
   await page.goto('/admin/contact');
 
   // The hidden one says so.
-  await expect(page.locator('summary', { hasText: 'E2E Hidden link' }).getByText('Hidden')).toBeVisible();
+  await expect(page.locator('summary', { hasText: 'E2E Hidden link' }).getByText('Hidden', { exact: true })).toBeVisible();
 
   // Edit the email address.
   await page.locator('summary', { hasText: 'E2E Mail us' }).click();

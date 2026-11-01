@@ -75,7 +75,7 @@ test('an account that already existed is never sent through it, and the next add
 test('a visitor who is not signed in is sent to login, not shown the step', async ({ page }) => {
   await page.goto('/onboarding');
   await expect(page).toHaveURL(/\/login/);
-  await expect(page.getByRole('heading', { name: /Welcome/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Skip for now' }), 'the first-step form is not shown').toHaveCount(0);
 });
 
 test('a person can mark themselves as done and set their choices, but the same request cannot make them an admin', async ({ request }) => {

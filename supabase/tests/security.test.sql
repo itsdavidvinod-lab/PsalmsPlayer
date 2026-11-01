@@ -1459,6 +1459,9 @@ do $$ begin
 end $$;
 insert into storage.objects (bucket_id, name) values ('avatars', '22222222-2222-2222-2222-222222222222/theirs.webp');
 select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+-- Supabase refuses any direct DELETE on storage.objects (it would leave the real file behind) unless this setting is on. It is set
+-- here only so the rule of who may delete a row can be tested; the site deletes through the Storage API.
+set local storage.allow_delete_query = 'true';
 set local role authenticated;
 do $$ declare n int; begin
   insert into storage.objects (bucket_id, name) values ('avatars', '11111111-1111-1111-1111-111111111111/mine.webp');
