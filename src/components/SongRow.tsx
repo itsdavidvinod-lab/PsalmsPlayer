@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import type { Song } from '@/lib/types';
 import Cover from './Cover';
-import { DownloadedIcon, HeartIcon, LyricsIcon, MoreIcon, PauseIcon, PlayIcon } from './icons';
+import { DownloadedIcon, DownloadIcon, DownloadRingIcon, HeartIcon, LyricsIcon, MoreIcon, PauseIcon, PlayIcon } from './icons';
 import { useLikes } from './LikesProvider';
-import { useOffline } from './offline/OfflineProvider';
+import { useSongDownload } from './offline/useSongDownload';
 import { usePlayer } from './player/PlayerProvider';
 import { useSongMenu } from './SongMenu';
 
@@ -27,7 +27,7 @@ export function SongRow({ song, songs, source, rank, sub }: { song: Song; songs:
   const player = usePlayer();
   const likes = useLikes();
   const menu = useSongMenu();
-  const offline = useOffline();
+  const download = useSongDownload(song);
   const isCurrent = player.current?.id === song.id;
   const busy = isCurrent && player.playing;
   const liked = likes.isLiked(song.id);
@@ -45,15 +45,28 @@ export function SongRow({ song, songs, source, rank, sub }: { song: Song; songs:
       </Link>
       <Link href={songHref(song)} className="song-main">
         <span className="song-title">{song.title}</span>
-        <span className="song-artist">
-          {offline.isSaved(song.id) ? <span className="song-saved" role="img" aria-label="Downloaded"><DownloadedIcon size={12} /></span> : null}
-          {sub ?? song.artist_name}
-        </span>
+        <span className="song-artist">{sub ?? song.artist_name}</span>
       </Link>
       <div className="row-actions">
         <Link href={lyricsHref(song)} className={`row-ic${song.has_audio ? '' : ' row-ic-hot'}`} aria-label={`Lyrics of ${song.title}`}>
           <LyricsIcon />
         </Link>
+        {download.visible ? (
+          download.saved ? (
+            // Saved on this phone. Tapping opens the menu, where it can be removed.
+            <button type="button" className="row-ic row-saved" aria-label={`Downloaded: ${song.title}. Options`} onClick={() => menu.openSongMenu(song)}>
+              <DownloadedIcon size={20} />
+            </button>
+          ) : download.progress !== null ? (
+            <span className="row-ic row-downloading" role="img" aria-label={`Downloading ${song.title}, ${Math.round(download.progress * 100)} percent`}>
+              <DownloadRingIcon size={20} progress={download.progress} />
+            </span>
+          ) : (
+            <button type="button" className="row-ic" aria-label={`Download ${song.title}`} onClick={() => void download.start()}>
+              <DownloadIcon size={20} />
+            </button>
+          )
+        ) : null}
         <button type="button" className="row-ic row-like" aria-pressed={liked} aria-label={liked ? `Unlike ${song.title}` : `Like ${song.title}`} onClick={() => void toggleLike()}>
           <HeartIcon filled={liked} />
         </button>

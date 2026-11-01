@@ -11,6 +11,7 @@ const LINKS: { href: string; label: string; icon: AdminIconName }[] = [
   { href: '/admin/requests', label: 'Requests', icon: 'requests' },
   { href: '/admin/posters', label: 'Posters', icon: 'posters' },
   { href: '/admin/lists', label: 'Lists', icon: 'lists' },
+  { href: '/admin/contact', label: 'Contact', icon: 'contact' },
 ];
 
 export default function AdminNav() {

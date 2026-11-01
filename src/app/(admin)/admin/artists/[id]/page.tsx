@@ -18,7 +18,7 @@ export default async function AdminArtistPage({ params }: { params: Promise<{ id
   const { supabase, user } = await requireAdmin(`/admin/artists/${id}`);
 
   const [artistRes, albumsRes, songsRes, langRes, regionRes, tagRes, agreementsRes, statusRes] = await Promise.all([
-    supabase.from('artists').select('id, slug, name, bio, photo_url, language_codes, region_code, genres, is_published').eq('id', id).maybeSingle(),
+    supabase.from('artists').select('id, slug, name, bio, photo_url, youtube_channel_url, language_codes, region_code, genres, is_published').eq('id', id).maybeSingle(),
     supabase.from('albums').select('id, slug, title, kind, release_year, cover_url, is_published').eq('artist_id', id).order('created_at'),
     supabase.from('v_admin_songs').select('id, slug, title, artist_id, artist_name, album_id, is_published, hidden_by_admin, visibility').eq('artist_id', id).order('title'),
     supabase.from('languages').select('code, name, native_name').order('name'),

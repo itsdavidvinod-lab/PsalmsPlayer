@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import BackButton from '@/components/BackButton';
 import Cover from '@/components/Cover';
-import { HeartIcon } from '@/components/icons';
+import { HeartIcon, YoutubeIcon } from '@/components/icons';
 import ShellFlags from '@/components/ShellFlags';
 import SongList from '@/components/SongRow';
 import { heroBackground } from '@/lib/cover';
@@ -13,6 +13,7 @@ import { loadLabels } from '@/lib/labels';
 import { likesLabel, listenersLabel, songCountLabel } from '@/lib/list';
 import { createClient } from '@/lib/supabase/server';
 import type { Album, Artist, Song } from '@/lib/types';
+import { subscribeHref } from '@/lib/youtube-channel';
 import { FollowButton, PlayControls } from './ArtistActions';
 
 export const metadata: Metadata = { title: 'Artist' };
@@ -110,6 +111,18 @@ export default async function ArtistPage({ params }: { params: Promise<{ slug: s
 
         <div className="artist-actions">
           <FollowButton artistId={artist.id} userId={user.id} initial={following} />
+          {artist.youtube_channel_url ? (
+            <a
+              className="follow-btn follow-link"
+              href={subscribeHref(artist.youtube_channel_url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Subscribe to ${artist.name} on YouTube`}
+            >
+              <span className="follow-link-ic"><YoutubeIcon size={15} /></span>
+              Subscribe
+            </a>
+          ) : null}
           <span className="artist-actions-gap" />
           <PlayControls artistId={artist.id} artistName={artist.name} songs={songs} />
         </div>

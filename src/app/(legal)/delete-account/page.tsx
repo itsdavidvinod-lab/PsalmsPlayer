@@ -20,7 +20,7 @@ export default function DeleteAccountPage() {
 
       <h2>What is deleted</h2>
       <ul>
-        <li>Your sign-in record, with your name, email address and picture.</li>
+        <li>Your sign-in record, with your name, email address and picture, and the profile photo you chose here, if any.</li>
         <li>Your language and region choices.</li>
         <li>Your liked songs, playlists and setlists, and the artists you follow.</li>
         <li>Your listening history, which is what artists&apos; monthly listener counts are made from. Those counts may go down by one.</li>

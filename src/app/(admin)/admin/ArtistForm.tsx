@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { AdminArtist, Option } from '@/lib/admin-types';
 import { explainAdminError, isHttpsUrl, isValidSlug, slugify } from '@/lib/admin-text';
+import { normalizeChannelUrl } from '@/lib/youtube-channel';
 import { createClient } from '@/lib/supabase/client';
 import CheckGroup from './CheckGroup';
 import PictureField from './PictureField';
@@ -24,6 +25,7 @@ export default function ArtistForm({ artist, languages, regions, genres }: {
   const [slugTouched, setSlugTouched] = useState(editing);
   const [bio, setBio] = useState(artist?.bio ?? '');
   const [photo, setPhoto] = useState(artist?.photo_url ?? '');
+  const [channel, setChannel] = useState(artist?.youtube_channel_url ?? '');
   const [langs, setLangs] = useState<string[]>(artist?.language_codes ?? []);
   const [region, setRegion] = useState(artist?.region_code ?? '');
   const [genreSel, setGenreSel] = useState<string[]>(artist?.genres ?? []);
@@ -47,11 +49,14 @@ export default function ArtistForm({ artist, languages, regions, genres }: {
     if (photo.trim() !== '' && !isHttpsUrl(photo)) {
       return setStatus({ ok: false, text: 'The photo link must be a secure address starting with https://.' });
     }
+    const channelResult = normalizeChannelUrl(channel);
+    if (!channelResult.ok) return setStatus({ ok: false, text: channelResult.reason });
     const row = {
       name: name.trim(),
       slug: cleanSlug,
       bio: bio.trim() || null,
       photo_url: photo.trim() || null,
+      youtube_channel_url: channelResult.value,
       language_codes: langs,
       region_code: region || null,
       genres: genreSel,
@@ -100,6 +105,22 @@ export default function ArtistForm({ artist, languages, regions, genres }: {
         <textarea id="artist-bio" className="input" rows={4} maxLength={2000} value={bio} onChange={(e) => setBio(e.target.value)} />
       </div>
       <PictureField id="artist-photo" label="Photo" kind="artist" what="photo" value={photo} onChange={setPhoto} />
+      <div className="field">
+        <label htmlFor="artist-channel">YouTube channel</label>
+        <input
+          id="artist-channel"
+          className="input"
+          inputMode="url"
+          maxLength={300}
+          value={channel}
+          onChange={(e) => setChannel(e.target.value)}
+          placeholder="https://www.youtube.com/@name"
+          aria-describedby="artist-channel-help"
+        />
+        <span id="artist-channel-help" className="small muted">
+          Optional. Shows a Subscribe link beside Follow on the artist page. Paste the channel address from YouTube (for example youtube.com/@name); extra parts are removed.
+        </span>
+      </div>
       <CheckGroup legend="Languages" options={languages} selected={langs} onChange={setLangs} />
       <div className="field">
         <label htmlFor="artist-region">Region</label>

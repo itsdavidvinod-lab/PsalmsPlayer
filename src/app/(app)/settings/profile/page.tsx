@@ -15,7 +15,7 @@ export default async function ProfilePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=%2Fsettings%2Fprofile');
 
-  const { data, error } = await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle();
+  const { data, error } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', user.id).maybeSingle();
   return (
     <div>
       <SettingsTop title="Profile" />
@@ -24,7 +24,8 @@ export default async function ProfilePage() {
         userId={user.id}
         displayName={(data as { display_name: string | null } | null)?.display_name ?? null}
         email={user.email ?? null}
-        pictureUrl={pictureFromMetadata(user.user_metadata)}
+        avatarUrl={(data as { avatar_url: string | null } | null)?.avatar_url ?? null}
+        googleUrl={pictureFromMetadata(user.user_metadata)}
       />
     </div>
   );

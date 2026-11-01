@@ -6,7 +6,7 @@ import Avatar from '@/components/Avatar';
 import { ChevronRightIcon } from '@/components/icons';
 import { isNativeUserAgent } from '@/lib/native-app';
 import { createClient } from '@/lib/supabase/server';
-import { pictureFromMetadata } from '@/lib/user';
+import { profilePicture } from '@/lib/user';
 
 export const metadata: Metadata = { title: 'Settings' };
 export const dynamic = 'force-dynamic';
@@ -32,8 +32,8 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=%2Fsettings');
 
-  const { data } = await supabase.from('profiles').select('display_name, role').eq('id', user.id).maybeSingle();
-  const profile = (data ?? { display_name: null, role: 'user' }) as { display_name: string | null; role: 'user' | 'admin' };
+  const { data } = await supabase.from('profiles').select('display_name, role, avatar_url').eq('id', user.id).maybeSingle();
+  const profile = (data ?? { display_name: null, role: 'user', avatar_url: null }) as { display_name: string | null; role: 'user' | 'admin'; avatar_url: string | null };
   const shownName = profile.display_name || user.email || 'You';
   // The admin site is web only: inside the app the row is not shown (and /admin is closed to the app, see the middleware).
   const inApp = isNativeUserAgent((await headers()).get('user-agent'));
@@ -42,7 +42,7 @@ export default async function SettingsPage() {
     <div>
       <h1>Settings</h1>
       <div className="profile-photo" style={{ marginTop: 14, marginBottom: 0 }}>
-        <Avatar name={shownName} url={pictureFromMetadata(user.user_metadata)} size={56} />
+        <Avatar name={shownName} url={profilePicture(profile.avatar_url, user.user_metadata)} size={56} />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600 }}>{shownName}</div>
           {user.email ? <div className="small muted">{user.email}</div> : null}

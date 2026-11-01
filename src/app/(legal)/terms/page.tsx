@@ -9,7 +9,7 @@ export default function TermsPage() {
   return (
     <>
       <h1>Terms</h1>
-      <p className="muted">Last updated 1 November 2026.</p>
+      <p className="muted">Last updated 2 November 2026.</p>
       <p>By signing in to {APP_NAME} you agree to these terms.</p>
 
       <h2>Using the site</h2>
@@ -18,6 +18,7 @@ export default function TermsPage() {
         <li>Songs, lyrics, chords and recordings belong to their writers and owners and are shown with their permission. Do not copy them out of the site, sell them or share them publicly. The one copy the app makes for you is the download described below.</li>
         <li>Do not try to inflate listening time or like counts, run scripts against the site, or look for ways around its limits.</li>
         <li>Do not try to reach another person&apos;s account or the admin pages.</li>
+        <li>A profile photo must be yours to use. Do not choose a picture that is unlawful, hateful or of someone else without their permission. We may remove a photo that breaks this.</li>
       </ul>
 
       <h2>Downloads in the Android app</h2>

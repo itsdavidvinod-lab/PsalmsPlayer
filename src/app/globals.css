@@ -295,7 +295,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---- downloads: songs saved on the phone, and the page the app opens when there is no connection */
 .sheet-item-saved { display: inline-flex; color: var(--primary); }
-.song-saved { display: inline-flex; vertical-align: -2px; margin-right: 4px; color: var(--primary); }
+.row-saved, .row-downloading { color: var(--primary); }
 .dl-list .song-artist { white-space: normal; }
 .offline-page {
   max-width: 640px; margin: 0 auto; font-size: 14px;
@@ -358,6 +358,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .kv dt { font-size: 12px; color: var(--muted); }
 .kv dd { margin: 2px 0 0; font-size: 15px; overflow-wrap: anywhere; }
 .profile-photo { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.photo-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---- forms */
 .field { display: grid; gap: 6px; margin-bottom: 14px; }
@@ -763,6 +764,8 @@ textarea.input { min-height: 96px; resize: vertical; }
 .follow-btn::after { content: ''; position: absolute; inset: -8px 0; }
 .follow-btn[aria-pressed='true'] { border-color: var(--ink); }
 .follow-btn:disabled { opacity: 0.6; cursor: default; }
+.follow-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; line-height: 28px; }
+.follow-link-ic { display: inline-flex; color: #ff4e45; }
 .ctl-ic { width: 40px; }
 .liked-card { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 14px; background: var(--card); }
 @media (hover: hover) { .liked-card:hover { background: var(--card-2); } }
@@ -802,3 +805,21 @@ textarea.input { min-height: 96px; resize: vertical; }
 .edit-panel { margin-top: 8px; padding: 16px; border-radius: 16px; background: rgba(0, 0, 0, 0.45); }
 .edit-delete { margin-top: 12px; }
 .new-list-form { display: block; }
+
+/* ---- Settings, About: contact us */
+.contact-list { display: grid; gap: 8px; margin-top: 12px; }
+.contact-btn {
+  display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--card); color: var(--ink); text-decoration: none;
+}
+@media (hover: hover) { .contact-btn:hover { background: var(--card-2); } }
+.contact-whatsapp { background: #128c4a; border-color: #128c4a; color: #fff; }
+@media (hover: hover) { .contact-whatsapp:hover { background: #0f7a40; } }
+.contact-ic { display: inline-flex; flex: 0 0 auto; }
+.contact-text { display: flex; flex-direction: column; min-width: 0; }
+.contact-label { font-size: 15px; font-weight: 700; line-height: 20px; }
+.contact-sub { font-size: 12px; line-height: 16px; opacity: 0.85; overflow-wrap: anywhere; }
+
+/* ---- the first step after a new account signs in */
+.onboarding { max-width: 520px; margin: 0 auto; padding: 32px 16px 48px; }
+.onboarding h1 { margin: 0; }

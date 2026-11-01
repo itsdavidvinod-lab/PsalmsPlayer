@@ -8,7 +8,7 @@ export default function PrivacyPage() {
   return (
     <>
       <h1>Privacy</h1>
-      <p className="muted">Last updated 1 November 2026.</p>
+      <p className="muted">Last updated 2 November 2026.</p>
       <p>
         This page says what {APP_NAME} keeps about you, why, who can see it and how to have it removed. {APP_NAME} has no advertising and does not
         sell or rent your information.
@@ -16,8 +16,9 @@ export default function PrivacyPage() {
 
       <h2>What we keep</h2>
       <ul>
-        <li><strong>Your Google sign-in details.</strong> Your name and email address, which Google gives us when you sign in. We never see your Google password.</li>
-        <li><strong>Your choices.</strong> The languages and region you pick in Settings, the songs you like, the playlists and setlists you make, and the artists you follow.</li>
+        <li><strong>Your Google sign-in details.</strong> Your name, email address and profile picture, which Google gives us when you sign in. We never see your Google password.</li>
+        <li><strong>A profile photo, if you choose one.</strong> In Settings, Profile you can pick a photo from your device. It is cut to a small square on your device and then stored with us. You can change or remove it at any time, and it is deleted when you delete your account. It is shown to you only: the app does not show your photo to other people. It is kept at an address that cannot be guessed, but anyone who has that exact address can open the picture.</li>
+        <li><strong>Your choices.</strong> The languages and region you pick when you first sign in or later in Settings, the songs you like, the playlists and setlists you make, and the artists you follow.</li>
         <li><strong>What you listen to.</strong> The song and the number of seconds you actually listened, and which songs you opened lyrics for. This is how we count an artist&apos;s monthly listeners and which songs are trending.</li>
         <li><strong>A sign-in cookie.</strong> It keeps you signed in. We do not use advertising or tracking cookies.</li>
         <li><strong>A note in the Android app.</strong> A small cookie that remembers you have seen the welcome slides, so they show only once.</li>

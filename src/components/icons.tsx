@@ -152,3 +152,40 @@ export const DownloadedIcon = ({ size = 22 }: IconProps) => (
     <path d="M12 7v8M8.5 12 12 15.5 15.5 12" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+
+/** A ring that fills as a download progresses (0 to 1). */
+export const DownloadRingIcon = ({ size = 22, progress }: IconProps & { progress: number }) => {
+  const r = 9;
+  const c = 2 * Math.PI * r;
+  const filled = c * Math.min(1, Math.max(0.04, progress));
+  return (
+    <svg {...svg(size)} fill="none" strokeWidth="2.5">
+      <circle cx="12" cy="12" r={r} stroke="currentColor" strokeOpacity="0.25" />
+      <circle cx="12" cy="12" r={r} stroke="currentColor" strokeLinecap="round" strokeDasharray={`${filled} ${c}`} transform="rotate(-90 12 12)" />
+    </svg>
+  );
+};
+/** A rounded screen with a play triangle: a YouTube channel link. */
+export const YoutubeIcon = ({ size = 18 }: IconProps) => (
+  <svg {...svg(size)} fill="currentColor">
+    <path d="M21.6 7.2a2.5 2.5 0 0 0-1.76-1.77C18.27 5 12 5 12 5s-6.27 0-7.84.43A2.5 2.5 0 0 0 2.4 7.2C2 8.78 2 12 2 12s0 3.22.4 4.8a2.5 2.5 0 0 0 1.76 1.77C5.73 19 12 19 12 19s6.27 0 7.84-.43a2.5 2.5 0 0 0 1.76-1.77C22 15.22 22 12 22 12s0-3.22-.4-4.8ZM10 15V9l5.2 3L10 15Z" />
+  </svg>
+);
+/** A speech bubble with a handset: WhatsApp-style chat link. */
+export const ChatIcon = ({ size = 18 }: IconProps) => (
+  <svg {...svg(size)} {...line}>
+    <path d="M20.5 11.5a8.5 8.5 0 0 1-12.6 7.4L3.5 20.5l1.6-4.3a8.5 8.5 0 1 1 15.4-4.7Z" />
+    <path d="M9 9.2c.2 2 2.6 4.4 4.8 5l1.2-1.2-1.8-1-.8.6a4 4 0 0 1-1.7-1.7l.6-.8-1-1.8L9 9.2Z" />
+  </svg>
+);
+export const MailIcon = ({ size = 18 }: IconProps) => (
+  <svg {...svg(size)} {...line}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3.5 7 8.5 6 8.5-6" />
+  </svg>
+);
+export const PhoneIcon = ({ size = 18 }: IconProps) => (
+  <svg {...svg(size)} {...line}>
+    <path d="M5 4h3.5l1.5 4-2 1.5a11 11 0 0 0 6.5 6.5L16 14l4 1.5V19a1 1 0 0 1-1 1A15 15 0 0 1 4 5a1 1 0 0 1 1-1Z" />
+  </svg>
+);

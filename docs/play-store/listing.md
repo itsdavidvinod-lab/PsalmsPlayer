@@ -70,9 +70,10 @@ Answer in Play Console, "Data safety". Confirm each line against the database be
 | Personal info: user IDs | Collected. Purpose: app functionality, account management |
 | App activity: app interactions | Collected (liked songs, follows, listening time). Purpose: app functionality, counting how often songs are played (the monthly listener and like counts shown on artist pages) |
 | App activity: other user-generated content | Collected (playlists and setlists). Purpose: app functionality |
-| Location, financial info, health, contacts, photos, audio recordings, files | Not collected |
+| Photos and videos: photos | Collected, optional: the profile photo a person chooses in Settings, Profile (cut to a small square on the device, then stored). Purpose: app functionality. Not shared. Deleted by the person or with the account |
+| Location, financial info, health, contacts, audio recordings, files | Not collected |
 | Songs downloaded for offline use | Stored on the device only, inside the app; never sent back to us, so nothing to declare as collected. Removed on sign-out or account deletion |
-| Is collection optional? | No for email, name, ID (needed to sign in) |
+| Is collection optional? | No for email, name, ID (needed to sign in). Yes for the profile photo |
 
 ## Other App content answers
 

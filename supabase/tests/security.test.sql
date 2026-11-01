@@ -1393,4 +1393,160 @@ end $$;
 reset role;
 rollback;
 
+-- ============================================================ artist YouTube channel, profile picture, first step, contact options (0019)
+begin;
+-- 1. The artist's channel: youtube.com channel addresses only.
+do $$ begin
+  update public.artists set youtube_channel_url = 'https://www.youtube.com/@GraceWorship' where slug = 'grace-worship';
+  update public.artists set youtube_channel_url = 'https://youtube.com/channel/UCabc_123-x' where slug = 'grace-worship';
+  update public.artists set youtube_channel_url = 'https://m.youtube.com/c/GraceWorship/' where slug = 'grace-worship';
+  update public.artists set youtube_channel_url = 'https://www.youtube.com/user/graceworship' where slug = 'grace-worship';
+  update public.artists set youtube_channel_url = null where slug = 'grace-worship';
+  raise notice 'ok: channel addresses accepted';
+end $$;
+select test_helpers.expect_error($q$update public.artists set youtube_channel_url = 'http://www.youtube.com/@x' where slug = 'grace-worship'$q$, '23514');
+select test_helpers.expect_error($q$update public.artists set youtube_channel_url = 'https://evil.example/@x' where slug = 'grace-worship'$q$, '23514');
+select test_helpers.expect_error($q$update public.artists set youtube_channel_url = 'https://www.youtube.com.evil.example/@x' where slug = 'grace-worship'$q$, '23514');
+select test_helpers.expect_error($q$update public.artists set youtube_channel_url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' where slug = 'grace-worship'$q$, '23514');
+select test_helpers.expect_error($q$update public.artists set youtube_channel_url = 'https://www.youtube.com/@x?sub_confirmation=1' where slug = 'grace-worship'$q$, '23514');
+select test_helpers.expect_error($q$update public.artists set youtube_channel_url = 'https://www.youtube.com/@' where slug = 'grace-worship'$q$, '23514');
+select test_helpers.expect_error($q$update public.artists set youtube_channel_url = 'javascript:alert(1)' where slug = 'grace-worship'$q$, '23514');
+
+update public.artists set youtube_channel_url = 'https://www.youtube.com/@GraceWorship' where slug = 'grace-worship';
+update public.artists set youtube_channel_url = 'https://www.youtube.com/@ShalomChoir' where slug = 'shalom-choir';
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select youtube_channel_url from public.v_artists where slug = 'grace-worship') = 'https://www.youtube.com/@GraceWorship', 'an available artist shows the channel';
+  assert (select youtube_channel_url is null from public.v_artists where slug = 'shalom-choir'), 'an unavailable artist shows nothing but the name';
+  raise notice 'ok: the channel is shown only while the artist is available';
+end $$;
+reset role;
+
+-- 2. First step and profile picture.
+do $$ begin
+  assert (select onboarded_at is null from public.profiles where id = '11111111-1111-1111-1111-111111111111'), 'a new account has not done the first step';
+  assert (select avatar_url is null from public.profiles where id = '11111111-1111-1111-1111-111111111111'), 'and has no picture of its own';
+  raise notice 'ok: new accounts start at the first step';
+end $$;
+
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ declare n int; begin
+  update public.profiles set onboarded_at = now(), language_codes = '{ta}', region_code = 'IN-TN' where id = '11111111-1111-1111-1111-111111111111';
+  assert (select onboarded_at is not null and language_codes = '{ta}' and region_code = 'IN-TN' from public.profiles where id = '11111111-1111-1111-1111-111111111111'), 'a person finishes the first step on their own row';
+  update public.profiles set avatar_url = 'https://abc.supabase.co/storage/v1/object/public/avatars/11111111-1111-1111-1111-111111111111/0f8c.webp' where id = '11111111-1111-1111-1111-111111111111';
+  assert (select avatar_url like '%/avatars/11111111-1111-1111-1111-111111111111/0f8c.webp' from public.profiles where id = '11111111-1111-1111-1111-111111111111'), 'their own picture is saved';
+  update public.profiles set avatar_url = null where id = '11111111-1111-1111-1111-111111111111';
+  assert (select avatar_url is null from public.profiles where id = '11111111-1111-1111-1111-111111111111'), 'and can be taken off again';
+  update public.profiles set onboarded_at = now() where id = '22222222-2222-2222-2222-222222222222';
+  get diagnostics n = row_count;
+  assert n = 0, 'nobody changes another person''s profile';
+  raise notice 'ok: a person edits only their own first step and picture';
+end $$;
+select test_helpers.expect_error($q$update public.profiles set avatar_url = 'https://abc.supabase.co/storage/v1/object/public/avatars/22222222-2222-2222-2222-222222222222/a.webp' where id = '11111111-1111-1111-1111-111111111111'$q$, '23514');
+select test_helpers.expect_error($q$update public.profiles set avatar_url = 'https://abc.supabase.co/storage/v1/object/public/pictures/artist/a.webp' where id = '11111111-1111-1111-1111-111111111111'$q$, '23514');
+select test_helpers.expect_error($q$update public.profiles set avatar_url = 'http://abc.supabase.co/storage/v1/object/public/avatars/11111111-1111-1111-1111-111111111111/a.webp' where id = '11111111-1111-1111-1111-111111111111'$q$, '23514');
+select test_helpers.expect_error($q$update public.profiles set avatar_url = 'https://evil.example/photo.png' where id = '11111111-1111-1111-1111-111111111111'$q$, '23514');
+select test_helpers.expect_error($q$update public.profiles set avatar_url = 'https://abc.supabase.co/storage/v1/object/public/avatars/11111111-1111-1111-1111-111111111111/a/b.webp' where id = '11111111-1111-1111-1111-111111111111'$q$, '23514');
+select test_helpers.expect_error($q$update public.profiles set role = 'admin' where id = '11111111-1111-1111-1111-111111111111'$q$, '42501');
+reset role;
+
+-- The avatars bucket: public to read, small, pictures only; each person works in their own folder only.
+do $$ begin
+  assert (select public and file_size_limit = 524288 and allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'] from storage.buckets where id = 'avatars'), 'avatars bucket: public, 512 KB, pictures only';
+  raise notice 'ok: avatars bucket';
+end $$;
+insert into storage.objects (bucket_id, name) values ('avatars', '22222222-2222-2222-2222-222222222222/theirs.webp');
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ declare n int; begin
+  insert into storage.objects (bucket_id, name) values ('avatars', '11111111-1111-1111-1111-111111111111/mine.webp');
+  assert (select count(*) from storage.objects where bucket_id = 'avatars') = 1, 'a person lists only their own folder';
+  update storage.objects set name = '11111111-1111-1111-1111-111111111111/mine2.webp' where name = '11111111-1111-1111-1111-111111111111/mine.webp';
+  get diagnostics n = row_count;
+  assert n = 1, 'a person replaces their own file';
+  delete from storage.objects where bucket_id = 'avatars' and name = '22222222-2222-2222-2222-222222222222/theirs.webp';
+  get diagnostics n = row_count;
+  assert n = 0, 'nobody deletes another person''s file';
+  update storage.objects set name = '11111111-1111-1111-1111-111111111111/stolen.webp' where name = '22222222-2222-2222-2222-222222222222/theirs.webp';
+  get diagnostics n = row_count;
+  assert n = 0, 'nobody renames another person''s file into their folder';
+  delete from storage.objects where bucket_id = 'avatars' and name = '11111111-1111-1111-1111-111111111111/mine2.webp';
+  get diagnostics n = row_count;
+  assert n = 1, 'a person deletes their own file';
+  raise notice 'ok: each person works in their own avatar folder';
+end $$;
+select test_helpers.expect_error($q$insert into storage.objects (bucket_id, name) values ('avatars', '22222222-2222-2222-2222-222222222222/planted.webp')$q$, '42501');
+select test_helpers.expect_error($q$insert into storage.objects (bucket_id, name) values ('avatars', 'loose.webp')$q$, '42501');
+select test_helpers.expect_error($q$insert into storage.objects (bucket_id, name) values ('pictures', '11111111-1111-1111-1111-111111111111/x.webp')$q$, '42501');
+reset role;
+rollback;
+
+begin;
+-- 3. Contact options.
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role anon;
+select test_helpers.expect_error($q$select * from public.site_contacts$q$, '42501');
+reset role;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
+set local role authenticated;
+insert into public.site_contacts (kind, label, value, sort_order) values
+  ('whatsapp', 'WhatsApp', '919876543210', 1),
+  ('email', 'Email', 'hello@example.org', 2),
+  ('phone', 'Phone', '+919876543210', 3),
+  ('link', 'Instagram', 'https://instagram.com/psalmsplayer', 4);
+insert into public.site_contacts (kind, label, value, sort_order, is_active) values ('email', 'Old address', 'old@example.org', 5, false);
+select test_helpers.expect_error($q$insert into public.site_contacts (kind, label, value) values ('whatsapp', 'WhatsApp', '+91 98765 43210')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.site_contacts (kind, label, value) values ('whatsapp', 'WhatsApp', '1234567')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.site_contacts (kind, label, value) values ('whatsapp', 'WhatsApp', 'https://wa.me/919876543210')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.site_contacts (kind, label, value) values ('email', 'Email', 'not an email')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.site_contacts (kind, label, value) values ('phone', 'Phone', 'call me')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.site_contacts (kind, label, value) values ('link', 'Site', 'http://example.org')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.site_contacts (kind, label, value) values ('link', 'Site', 'javascript:alert(1)')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.site_contacts (kind, label, value) values ('sms', 'Text', '919876543210')$q$, '23514');
+select test_helpers.expect_error($q$insert into public.site_contacts (kind, label, value) values ('email', '', 'hello@example.org')$q$, '23514');
+do $$ begin
+  assert (select count(*) from public.site_contacts) = 5, 'an admin sees every option, hidden ones too';
+  raise notice 'ok: an admin adds contact options, each checked for its kind';
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ declare n int; begin
+  assert (select count(*) from public.site_contacts) = 4, 'a signed-in person sees only the options that are on';
+  assert (select count(*) from public.site_contacts where label = 'Old address') = 0, 'a hidden option stays hidden';
+  update public.site_contacts set value = '911111111111' where kind = 'whatsapp';
+  get diagnostics n = row_count;
+  assert n = 0, 'a person cannot change an option';
+  delete from public.site_contacts;
+  get diagnostics n = row_count;
+  assert n = 0, 'a person cannot remove an option';
+  raise notice 'ok: people read the options that are on and change nothing';
+end $$;
+select test_helpers.expect_error($q$insert into public.site_contacts (kind, label, value) values ('email', 'Mine', 'me@example.org')$q$, '42501');
+reset role;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
+set local role authenticated;
+do $$ declare n int; begin
+  update public.site_contacts set is_active = false where kind = 'link';
+  update public.site_contacts set value = '911111111111' where kind = 'whatsapp';
+  get diagnostics n = row_count;
+  assert n = 1, 'an admin changes an option';
+  delete from public.site_contacts where label = 'Old address';
+  get diagnostics n = row_count;
+  assert n = 1, 'and removes one';
+end $$;
+reset role;
+do $$ begin
+  assert exists (select 1 from public.audit_log where entity = 'site_contacts' and action = 'INSERT'), 'additions are in the audit log';
+  assert exists (select 1 from public.audit_log where entity = 'site_contacts' and action = 'UPDATE' and (new_row ->> 'value') = '911111111111'), 'changes are in the audit log';
+  assert exists (select 1 from public.audit_log where entity = 'site_contacts' and action = 'DELETE'), 'removals are in the audit log';
+  raise notice 'ok: only an admin changes contact options, and it is recorded';
+end $$;
+rollback;
+
 select 'database tests finished' as result;

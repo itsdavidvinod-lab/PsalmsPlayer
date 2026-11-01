@@ -33,7 +33,7 @@ export default async function AccountPage() {
         </div>
       </dl>
       <SignOutForm />
-      <DeleteAccount isAdmin={isAdmin} />
+      <DeleteAccount isAdmin={isAdmin} userId={user.id} />
     </div>
   );
 }

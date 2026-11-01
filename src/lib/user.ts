@@ -14,6 +14,18 @@ export function pictureFromMetadata(meta: unknown): string | null {
   }
 }
 
+/** The picture to show for a person: the one they chose here, else the one from their Google account, else null (their initial is shown). */
+export function profilePicture(chosenUrl: string | null | undefined, meta: unknown): string | null {
+  if (chosenUrl) {
+    try {
+      if (new URL(chosenUrl).protocol === 'https:') return chosenUrl;
+    } catch {
+      // Not an address: fall back to the Google picture.
+    }
+  }
+  return pictureFromMetadata(meta);
+}
+
 /** How the person signed in, in words. The e-mail form exists only in test builds. */
 export function signInMethodLabel(provider: unknown): string {
   if (provider === 'google') return 'Google';

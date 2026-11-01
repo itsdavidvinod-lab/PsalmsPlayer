@@ -67,6 +67,7 @@ export type Artist = {
   language_codes: string[];
   region_code: string | null;
   genres: string[];
+  youtube_channel_url: string | null;
 };
 
 export type Album = {

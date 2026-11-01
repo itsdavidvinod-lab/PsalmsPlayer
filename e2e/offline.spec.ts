@@ -69,6 +69,9 @@ test.describe('inside the app', () => {
   test('without the artist\'s offline right there is no Download item', async ({ page }) => {
     setOfflineRight(false);
     await signUpAndIn(page, uniqueEmail('offline-off'));
+    await page.goto('/search?q=placeholder%20song%20one');
+    await expect(page.getByRole('button', { name: `More options for ${SONG}` }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: new RegExp(`^Download(ed)?:? ${SONG}`) }), 'no Download button on the row either').toHaveCount(0);
     const sheet = await openMenu(page);
     await expect(sheet.getByRole('button', { name: /Download/ })).toHaveCount(0);
     await expect(sheet.getByRole('link', { name: 'Stage mode' })).toBeVisible(); // the rest of the menu is there
@@ -82,7 +85,7 @@ test.describe('inside the app', () => {
 
     // The row says so, the menu offers to remove it, and Settings lists it.
     await page.goto('/search?q=placeholder%20song%20one');
-    await expect(page.getByRole('img', { name: 'Downloaded' })).toBeVisible();
+    await expect(page.getByRole('button', { name: `Downloaded: ${SONG}. Options` }).first()).toBeVisible();
     await page.goto('/settings');
     await page.getByRole('link', { name: /Downloads/ }).click();
     await expect(page).toHaveURL(/\/settings\/downloads$/);
@@ -118,6 +121,28 @@ test.describe('inside the app', () => {
     await context.setOffline(false);
     await expect(page.getByRole('status').filter({ hasText: 'Back online' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Open PsalmsPlayer' })).toBeVisible();
+  });
+
+  test('the Download button on the song row saves it, shows progress, and then opens the menu where it can be removed', async ({ page }) => {
+    test.setTimeout(120_000);
+    setOfflineRight(true);
+    await signUpAndIn(page, uniqueEmail('offline-row'));
+    await page.goto('/search?q=placeholder%20song%20one');
+    await page.getByRole('button', { name: `Download ${SONG}`, exact: true }).first().click();
+    await expect(page.getByRole('status').filter({ hasText: `Saved for offline: ${SONG}.` })).toBeVisible({ timeout: 30_000 });
+    const saved = page.getByRole('button', { name: `Downloaded: ${SONG}. Options` }).first();
+    await expect(saved).toBeVisible();
+    await expect(page.getByRole('button', { name: `Download ${SONG}`, exact: true })).toHaveCount(0); // the idle button is gone
+    expect(await savedCount(page)).toBe(1);
+
+    // The saved mark opens the song's menu, which offers to remove the copy.
+    await saved.click();
+    const sheet = page.getByRole('dialog', { name: `Options for ${SONG}` });
+    await expect(sheet.getByRole('button', { name: 'Downloaded · Remove download' })).toBeVisible();
+    await sheet.getByRole('button', { name: 'Downloaded · Remove download' }).click();
+    await expect(page.getByRole('status').filter({ hasText: `Removed from downloads: ${SONG}.` })).toBeVisible();
+    await expect(page.getByRole('button', { name: `Download ${SONG}`, exact: true }).first()).toBeVisible(); // back to the idle button
+    expect(await savedCount(page)).toBe(0);
   });
 
   test('when the artist withdraws the right, the copy is deleted the next time the app is online', async ({ page }) => {
@@ -169,6 +194,9 @@ test('a normal browser never sees any of it, even when the artist allows it', as
     const sheet = page.getByRole('dialog', { name: `Options for ${SONG}` });
     await expect(sheet.getByRole('link', { name: 'Stage mode' })).toBeVisible();
     await expect(sheet.getByRole('button', { name: /Download/ })).toHaveCount(0);
+    await page.goto('/search?q=placeholder%20song%20one');
+    await expect(page.getByRole('button', { name: `More options for ${SONG}` }).first()).toBeVisible(); // the row is there...
+    await expect(page.getByRole('button', { name: /^Download/ }), 'no Download button on the song row in a normal browser').toHaveCount(0);
     await page.goto('/settings');
     await expect(page.getByRole('link', { name: /Downloads/ })).toHaveCount(0);
     expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length)).toBe(0);

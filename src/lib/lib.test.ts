@@ -30,7 +30,11 @@ import {
   type AudioOutcome, type OfflineBackend,
 } from './offline/manager.ts';
 import { SHELL_CACHE_PREFIX } from './offline/shell.ts';
-import { pictureFromMetadata, signInMethodLabel } from './user.ts';
+import { pictureFromMetadata, profilePicture, signInMethodLabel } from './user.ts';
+import { normalizeChannelUrl, subscribeHref } from './youtube-channel.ts';
+import { CONTACT_KINDS, contactDisplay, contactHref, normalizeContactValue, validateContact } from './site-contacts.ts';
+import { AVATAR_BUCKET, avatarObjectName, avatarPathFromUrl, checkAvatarFile } from './avatar.ts';
+import { afterSignInPath, onboardingChoice } from './onboarding.ts';
 import {
   visibilityLabel, slugify, isValidSlug, isHttpsUrl, isUuid, parseOptionalInt, daysLeftLabel, agreementEndLabel, consentEndLabel, explainAdminError,
   visibilityHint, youtubeStatusLabel, KEY_CHOICES, isMusicalKey, indiaToday,
@@ -1527,4 +1531,123 @@ test('the offline worker and the app agree on the name of the stored copy, and t
     '/_next/static/chunks/app/offline/page-ff00.js',
   ]);
   assert.deepEqual(assetsIn('@font-face{font-family:x;src:url(/_next/static/media/e11418ac562b8ac1-s.p.woff2) format("woff2")}'), ['/_next/static/media/e11418ac562b8ac1-s.p.woff2']);
+});
+
+// What the database accepts for an artist's channel (migration 0019): youtube.com, one of four path shapes, nothing after it.
+const DB_CHANNEL = /^https:\/\/(www\.|m\.)?youtube\.com\/(@|channel\/|c\/|user\/)[^\s/?#]+\/?$/i;
+
+test('YouTube channel: what is pasted becomes one clean address, or a reason', () => {
+  const ok = (input: string) => {
+    const r = normalizeChannelUrl(input);
+    assert.equal(r.ok, true, input);
+    return r.ok ? r.value : null;
+  };
+  assert.equal(ok(''), null);
+  assert.equal(ok('   '), null, 'nothing typed means no channel');
+  assert.equal(ok('@GraceWorship'), 'https://www.youtube.com/@GraceWorship');
+  assert.equal(ok('youtube.com/@GraceWorship/videos'), 'https://www.youtube.com/@GraceWorship', 'extra parts are dropped');
+  assert.equal(ok('https://m.youtube.com/@x?si=abc#t'), 'https://www.youtube.com/@x');
+  assert.equal(ok('http://www.youtube.com/@x'), 'https://www.youtube.com/@x', 'always https');
+  assert.equal(ok('https://www.youtube.com/channel/UCabc_123-x/about'), 'https://www.youtube.com/channel/UCabc_123-x');
+  assert.equal(ok('https://youtube.com/c/GraceWorship'), 'https://www.youtube.com/c/GraceWorship');
+  assert.equal(ok('https://www.youtube.com/user/graceworship/'), 'https://www.youtube.com/user/graceworship');
+  assert.equal(ok('https://www.youtube.com/@%E0%AE%A4%E0%AE%AE%E0%AE%BF%E0%AE%B4%E0%AF%8D'), 'https://www.youtube.com/@%E0%AE%A4%E0%AE%AE%E0%AE%BF%E0%AE%B4%E0%AF%8D', 'a handle in another script keeps working');
+  for (const bad of [
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'https://www.youtube.com/', 'https://www.youtube.com/@', 'https://youtu.be/dQw4w9WgXcQ',
+    'https://evil.example/@x', 'https://www.youtube.com.evil.example/@x', 'https://evil.example/?u=https://www.youtube.com/@x',
+    'javascript:alert(1)', 'ftp://youtube.com/@x', 'not a link', 'https://www.youtube.com/playlist?list=PL1',
+  ]) {
+    const r = normalizeChannelUrl(bad);
+    assert.equal(r.ok, false, bad);
+    if (!r.ok) assert.match(r.reason, /not a YouTube channel address/);
+  }
+  // Whatever it accepts, the database accepts.
+  for (const input of ['@a', 'youtube.com/@a/featured', 'https://www.youtube.com/channel/UC1', 'm.youtube.com/c/N', 'https://youtube.com/user/u']) {
+    const v = ok(input);
+    assert.ok(v !== null && DB_CHANNEL.test(v), `${input} -> ${v}`);
+  }
+  assert.equal(subscribeHref('https://www.youtube.com/@x'), 'https://www.youtube.com/@x?sub_confirmation=1');
+  assert.equal(subscribeHref('https://www.youtube.com/@x/'), 'https://www.youtube.com/@x?sub_confirmation=1');
+});
+
+test('Contact options: what is typed, how it is checked, where a tap goes', () => {
+  assert.deepEqual(CONTACT_KINDS.map((k) => k.value), ['whatsapp', 'email', 'phone', 'link']);
+  // WhatsApp: any common way of writing the number, or a pasted chat link, ends as digits only.
+  for (const typed of ['+91 98765 43210', '(+91) 98765-43210', '0091 98765 43210', '919876543210', 'https://wa.me/919876543210', 'wa.me/919876543210?text=hi', 'https://api.whatsapp.com/send?phone=919876543210&text=x']) {
+    assert.equal(normalizeContactValue('whatsapp', typed), '919876543210', typed);
+  }
+  assert.equal(normalizeContactValue('phone', '+91 (98765) 43-210'), '+919876543210');
+  assert.equal(normalizeContactValue('email', '  hello@example.org '), 'hello@example.org');
+  assert.equal(normalizeContactValue('link', ' https://instagram.com/x '), 'https://instagram.com/x');
+
+  const check = (kind: 'whatsapp' | 'email' | 'phone' | 'link', value: string, label = 'Button') => validateContact({ kind, label, value });
+  assert.equal(check('whatsapp', '+91 98765 43210'), null);
+  assert.match(check('whatsapp', '9876543210') ?? '', /country code/, 'ten digits is the usual mistake: no country code');
+  assert.match(check('whatsapp', '9198765432101234') ?? '', /at most 15 digits/);
+  assert.match(check('whatsapp', 'call me') ?? '', /digits only/);
+  assert.equal(check('email', 'hello@example.org'), null);
+  assert.match(check('email', 'hello@') ?? '', /email address/);
+  assert.equal(check('phone', '+91 98765 43210'), null);
+  assert.match(check('phone', '123') ?? '', /6 to 15 digits/);
+  assert.equal(check('link', 'https://instagram.com/psalmsplayer'), null);
+  assert.match(check('link', 'http://example.org') ?? '', /https:\/\//);
+  assert.match(check('link', 'javascript:alert(1)') ?? '', /https:\/\//);
+  assert.match(check('link', 'https://exa mple.org') ?? '', /no spaces/);
+  assert.match(check('email', 'hello@example.org', '  ') ?? '', /button text is required/);
+  assert.match(check('email', 'hello@example.org', 'x'.repeat(61)) ?? '', /too long/);
+
+  assert.equal(contactHref('whatsapp', '919876543210'), 'https://wa.me/919876543210');
+  assert.equal(contactHref('email', 'hello@example.org'), 'mailto:hello@example.org');
+  assert.equal(contactHref('phone', '+919876543210'), 'tel:+919876543210');
+  assert.equal(contactHref('link', 'https://instagram.com/x'), 'https://instagram.com/x');
+  assert.equal(contactDisplay('whatsapp', '919876543210'), '+919876543210');
+  assert.equal(contactDisplay('link', 'https://instagram.com/psalmsplayer/'), 'instagram.com/psalmsplayer');
+  assert.equal(contactDisplay('email', 'hello@example.org'), 'hello@example.org');
+  // Whatever passes here, the database accepts (same shapes as the constraint in 0019).
+  const DB = { whatsapp: /^[0-9]{8,15}$/, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, phone: /^\+?[0-9]{6,15}$/, link: /^https:\/\/[^\s]+$/ };
+  for (const [kind, typed] of [['whatsapp', 'wa.me/919876543210'], ['email', 'a@b.co'], ['phone', '+91 98765-43210'], ['link', 'https://a.example/b']] as const) {
+    assert.equal(validateContact({ kind, label: 'x', value: typed }), null);
+    assert.ok(DB[kind].test(normalizeContactValue(kind, typed)), `${kind} ${typed}`);
+  }
+});
+
+test('Profile picture: what is accepted, where it is kept, which one is shown', () => {
+  assert.equal(checkAvatarFile({ type: 'image/jpeg', size: 1000 }).ok, true);
+  assert.equal(checkAvatarFile({ type: 'image/webp', size: 1000 }).ok, true);
+  assert.equal(checkAvatarFile({ type: 'image/gif', size: 1000 }).ok, false);
+  assert.equal(checkAvatarFile({ type: 'application/pdf', size: 1000 }).ok, false);
+  assert.equal(checkAvatarFile({ type: 'image/png', size: 0 }).ok, false, 'empty');
+  assert.equal(checkAvatarFile({ type: 'image/png', size: 21 * 1024 * 1024 }).ok, false, 'too large to even try');
+
+  const me = '11111111-1111-1111-1111-111111111111';
+  const other = '22222222-2222-2222-2222-222222222222';
+  assert.equal(avatarObjectName(me, 'abc', 'image/webp'), `${me}/abc.webp`);
+  assert.equal(avatarObjectName(me, 'abc', 'image/png'), `${me}/abc.png`);
+  assert.equal(avatarObjectName(me, 'abc', 'image/jpeg'), `${me}/abc.jpg`);
+  const url = (user: string, file: string, bucket = AVATAR_BUCKET) => `https://x.supabase.co/storage/v1/object/public/${bucket}/${user}/${file}`;
+  assert.equal(avatarPathFromUrl(url(me, 'abc.webp'), me), `${me}/abc.webp`, 'one of mine');
+  assert.equal(avatarPathFromUrl(url(other, 'abc.webp'), me), null, 'not mine: never delete it');
+  assert.equal(avatarPathFromUrl(url(me, 'abc.webp', 'pictures'), me), null, 'another bucket');
+  assert.equal(avatarPathFromUrl(url(me, 'a/b.webp'), me), null, 'no sub-folders');
+  assert.equal(avatarPathFromUrl(url(me, 'abc.webp').replace('https:', 'http:'), me), null);
+  assert.equal(avatarPathFromUrl('https://lh3.googleusercontent.com/a/photo', me), null, 'a Google picture is not mine to delete');
+  assert.equal(avatarPathFromUrl('not a url', me), null);
+  assert.equal(avatarPathFromUrl(null, me), null);
+
+  const google = { picture: 'https://lh3.googleusercontent.com/a/photo' };
+  assert.equal(profilePicture(url(me, 'abc.webp'), google), url(me, 'abc.webp'), 'the one chosen here wins');
+  assert.equal(profilePicture(null, google), 'https://lh3.googleusercontent.com/a/photo', 'otherwise the Google one');
+  assert.equal(profilePicture('http://insecure.example/x.png', google), 'https://lh3.googleusercontent.com/a/photo', 'only https is shown');
+  assert.equal(profilePicture('', {}), null, 'neither: the initial is shown');
+});
+
+test('First sign-in step: who is sent to it and what it saves', () => {
+  assert.equal(afterSignInPath(null, '/'), '/onboarding?next=%2F', 'a new account goes to the first step');
+  assert.equal(afterSignInPath(null, '/song/grace?x=1'), '/onboarding?next=%2Fsong%2Fgrace%3Fx%3D1', 'and then on to the page it asked for');
+  assert.equal(afterSignInPath('2026-11-02T00:00:00Z', '/song/grace'), '/song/grace', 'done once: straight on');
+  assert.equal(afterSignInPath(undefined, '/library'), '/library', 'a profile that could not be read never holds anyone back');
+  const now = '2026-11-02T01:00:00.000Z';
+  assert.deepEqual(onboardingChoice(['ta', 'en'], 'IN-TN', now, false), { language_codes: ['ta', 'en'], region_code: 'IN-TN', onboarded_at: now });
+  assert.deepEqual(onboardingChoice(['ta'], '', now, false), { language_codes: ['ta'], region_code: null, onboarded_at: now }, 'no region chosen');
+  assert.deepEqual(onboardingChoice(['ta'], 'IN-TN', now, true), { language_codes: [], region_code: null, onboarded_at: now }, 'skipped: nothing is saved but the step counts as done');
 });

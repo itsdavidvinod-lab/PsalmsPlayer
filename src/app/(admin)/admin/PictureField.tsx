@@ -3,9 +3,10 @@
 import { useRef, useState } from 'react';
 import Cover from '@/components/Cover';
 import { PICTURE_BUCKET, PICTURE_MAX_WIDTH, PICTURE_STORED_MAX_BYTES, PICTURE_TYPES, checkPictureFile, pictureObjectName, type PictureKind } from '@/lib/picture-upload';
+import { shrinkPicture } from '@/lib/shrink-picture';
 import { createClient } from '@/lib/supabase/client';
 import ImageLinkHelp from './ImageLinkHelp';
-import { shrinkPicture } from './shrink-picture';
+
 
 type Msg = { ok: boolean; text: string } | null;
 

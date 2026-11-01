@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useOffline } from '@/components/offline/OfflineProvider';
+import { removeAvatar } from '@/lib/avatar-client';
 import { createClient } from '@/lib/supabase/client';
 
 type Step = 'idle' | 'confirm' | 'working';
 
 /** Delete my account: two taps (the button, then the confirmation). Required by Google Play and the App Store.
  *  The database removes the sign-in record and everything tied to it. An admin account is refused, in the database too. */
-export default function DeleteAccount({ isAdmin }: { isAdmin: boolean }) {
+export default function DeleteAccount({ isAdmin, userId }: { isAdmin: boolean; userId: string }) {
   const [step, setStep] = useState<Step>('idle');
   const [error, setError] = useState<string | null>(null);
   const offline = useOffline();
@@ -17,6 +18,9 @@ export default function DeleteAccount({ isAdmin }: { isAdmin: boolean }) {
     setStep('working');
     setError(null);
     const supabase = createClient();
+    // The photo they chose goes first (the profile, then the file), so no picture of theirs outlives the account. If deleting then fails,
+    // they simply see their Google picture again.
+    await removeAvatar(userId);
     const { error: err } = await supabase.rpc('delete_my_account');
     if (err) {
       setError('Your account could not be deleted. Please try again in a moment.');

@@ -13,6 +13,7 @@ export type AdminArtist = {
   language_codes: string[];
   region_code: string | null;
   genres: string[];
+  youtube_channel_url: string | null;
   is_published: boolean;
 };
 
