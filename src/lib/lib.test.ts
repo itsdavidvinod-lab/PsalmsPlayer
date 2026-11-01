@@ -17,7 +17,7 @@ import { COVER_PALETTE, coverBackground, coverColors, heroBackground, initialOf 
 import { timeAgo } from './relative-time.ts';
 import { FILTER_KINDS, cleanQuery, hasSearch, parseSearch, searchHref } from './search.ts';
 import { nativeActionCommand, nativeMediaState } from './native-media-state.ts';
-import { NATIVE_AUTH_CALLBACK, NATIVE_UA_MARKER, isNativeUserAgent, nativeCallbackToWebPath } from './native-app.ts';
+import { NATIVE_AUTH_CALLBACK, NATIVE_UA_MARKER, WELCOME_COOKIE, isNativeUserAgent, nativeCallbackToWebPath, shouldShowWelcome } from './native-app.ts';
 import { PICTURE_MAX_WIDTH, checkPictureFile, fitWithin, pictureObjectName } from './picture-upload.ts';
 import { NO_CHIPS, isFiltering, listChips, matchesChips, matchesFind, songCountLabel, listenersLabel, likesLabel, sortSlots, toggleChip, visibleSlots, type Slot } from './list.ts';
 import { makeLabels } from './labels.ts';
@@ -1099,6 +1099,19 @@ test('pictureObjectName puts each picture in its own folder with the right exten
   assert.equal(pictureObjectName('song', 'abc', 'image/png'), 'song/abc.png');
 });
 
+
+test('the welcome slides show in the app only, and only until the seen cookie is set', () => {
+  const app = `Mozilla/5.0 (Linux; Android 15) ${NATIVE_UA_MARKER}/1`;
+  const browser = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/605.1.15';
+  assert.equal(shouldShowWelcome(app, undefined), true);
+  assert.equal(shouldShowWelcome(app, null), true);
+  assert.equal(shouldShowWelcome(app, ''), true);
+  assert.equal(shouldShowWelcome(app, '1'), false);
+  assert.equal(shouldShowWelcome(browser, undefined), false);
+  assert.equal(shouldShowWelcome(browser, '1'), false);
+  assert.equal(shouldShowWelcome(null, undefined), false);
+  assert.match(WELCOME_COOKIE, /^[a-z_]+$/);
+});
 
 test('isNativeUserAgent recognises the app by the word its shell adds', () => {
   assert.equal(isNativeUserAgent(`Mozilla/5.0 (Linux; Android 15) ${NATIVE_UA_MARKER}/1`), true);

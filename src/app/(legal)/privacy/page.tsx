@@ -8,7 +8,7 @@ export default function PrivacyPage() {
   return (
     <>
       <h1>Privacy</h1>
-      <p className="muted">Last updated 28 October 2026.</p>
+      <p className="muted">Last updated 1 November 2026.</p>
       <p>
         This page says what {APP_NAME} keeps about you, why, who can see it and how to have it removed. {APP_NAME} has no advertising and does not
         sell or rent your information.
@@ -20,6 +20,7 @@ export default function PrivacyPage() {
         <li><strong>Your choices.</strong> The languages and region you pick in Settings, the songs you like, the playlists and setlists you make, and the artists you follow.</li>
         <li><strong>What you listen to.</strong> The song and the number of seconds you actually listened, and which songs you opened lyrics for. This is how we count an artist&apos;s monthly listeners and which songs are trending.</li>
         <li><strong>A sign-in cookie.</strong> It keeps you signed in. We do not use advertising or tracking cookies.</li>
+        <li><strong>A note in the Android app.</strong> A small cookie that remembers you have seen the welcome slides, so they show only once.</li>
       </ul>
 
       <h2>Who can see it</h2>

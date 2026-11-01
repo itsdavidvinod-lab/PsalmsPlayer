@@ -7,6 +7,14 @@ export function isNativeUserAgent(userAgent: string | null | undefined): boolean
   return typeof userAgent === 'string' && userAgent.includes(NATIVE_UA_MARKER);
 }
 
+/** Set (a year) once the person has been through, or skipped, the welcome slides that the app shows before the sign-in page. */
+export const WELCOME_COOKIE = 'pp_welcome';
+
+/** The welcome slides are for the app only, and only until they have been seen once. */
+export function shouldShowWelcome(userAgent: string | null | undefined, welcomeCookie: string | null | undefined): boolean {
+  return isNativeUserAgent(userAgent) && welcomeCookie !== '1';
+}
+
 /** The address Google sign-in returns to inside the app: Supabase sends the browser here, Android opens the app. */
 export const NATIVE_AUTH_CALLBACK = 'com.psalmsplayer.app://auth-callback';
 

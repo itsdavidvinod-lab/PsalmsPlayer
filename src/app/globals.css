@@ -373,6 +373,23 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .signin-legal a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 .signin-foot { margin: 16px 0 0; color: var(--muted); font-size: 0.85rem; }
 .signin-foot a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; }
+/* The welcome slides the Android app shows on its first open, above the sign-in page (WelcomeSlides.tsx). A scroll-snap strip: no
+   gap, inset or other newer CSS, so it also works in older Android WebViews. */
+.welcome { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 100; display: flex; flex-direction: column; background: var(--bg); padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+.welcome-top { flex: 0 0 auto; display: flex; justify-content: flex-end; min-height: 56px; padding: 8px 12px 0; }
+.welcome-skip { min-width: 64px; min-height: 44px; padding: 0 12px; border: 0; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
+.welcome-track { flex: 1 1 auto; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.welcome-track::-webkit-scrollbar { display: none; }
+.welcome-slide { flex: 0 0 100%; width: 100%; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px 32px; text-align: center; }
+.welcome-art { display: grid; place-items: center; width: 112px; height: 112px; margin-bottom: 32px; border-radius: 32px; background: var(--card); color: var(--primary); }
+.welcome-slide h2 { margin: 0 0 12px; font-size: 1.6rem; line-height: 1.25; }
+.welcome-slide p { margin: 0; max-width: 320px; color: var(--muted); font-size: 1rem; line-height: 1.5; }
+.welcome-foot { flex: 0 0 auto; padding: 8px 24px 24px; }
+.welcome-dots { display: flex; justify-content: center; margin-bottom: 20px; }
+.welcome-dot { width: 8px; height: 8px; margin: 0 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.25); transition: width 0.15s ease, background 0.15s ease; }
+.welcome-dot.is-on { width: 22px; background: var(--primary); }
+.welcome-next { min-height: 52px; font-size: 1rem; }
+@media (prefers-reduced-motion: reduce) { .welcome-dot { transition: none; } }
 .legal { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
 .legal h1 { font-size: 1.75rem; margin: 24px 0 6px; }
 .legal h2 { font-size: 1.15rem; margin: 28px 0 8px; }

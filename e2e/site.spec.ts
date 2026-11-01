@@ -36,7 +36,9 @@ test('the sign-in page is the familiar card: welcome, the Google button with its
   expect(box && box.height, 'a comfortable tap target').toBeGreaterThanOrEqual(44);
   await expect(page.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms');
   await expect(page.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/privacy');
-  await expect(page.getByRole('link', { name: 'Delete account' })).toHaveAttribute('href', '/delete-account');
+  // Deleting an account is offered inside Settings, Account, not on the page for people who are signed out.
+  await expect(page.getByRole('link', { name: 'Delete account' })).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0); // the welcome slides are for the app only
 });
 
 test('the Google button starts a Google sign-in that returns to the callback and the page asked for', async ({ page }) => {
