@@ -25,7 +25,7 @@ export default async function AdminArtistPage({ params }: { params: Promise<{ id
     supabase.from('regions').select('code, name').order('name'),
     supabase.from('tags').select('code, label').eq('kind', 'genre').order('label'),
     supabase.from('agreements').select('*').eq('artist_id', id).order('created_at', { ascending: false }),
-    supabase.from('v_admin_artists').select('available, agreement_expires_on, agreement_days_left').eq('id', id).maybeSingle(),
+    supabase.from('v_admin_artists').select('available, agreement_expires_on, agreement_days_left, agreement_open_ended').eq('id', id).maybeSingle(),
   ]);
   if (!artistRes.data) notFound();
 
@@ -43,7 +43,7 @@ export default async function AdminArtistPage({ params }: { params: Promise<{ id
   const failed = Boolean(albumsRes.error || songsRes.error || langRes.error || regionRes.error || tagRes.error || agreementsRes.error || statusRes.error);
   const reasons: string[] = [];
   if (!artist.is_published) reasons.push('the artist is not published');
-  if (!standing?.agreement_expires_on) reasons.push('no verified agreement is in force');
+  if (!standing?.agreement_open_ended && !standing?.agreement_expires_on) reasons.push('no verified agreement is in force');
 
   return (
     <div>
@@ -53,7 +53,10 @@ export default async function AdminArtistPage({ params }: { params: Promise<{ id
       <div className={`${standing?.available ? 'ok' : 'notice'} adm-banner`} role="status" aria-label="Artist status">
         {standing?.available ? (
           <strong>
-            Available: users can find this artist. The agreement in force ends on {standing.agreement_expires_on} ({daysLeftLabel(standing.agreement_days_left)}).
+            Available: users can find this artist.{' '}
+            {standing.agreement_open_ended
+              ? 'The agreement in force runs until cancelled or revoked.'
+              : `The agreement in force ends on ${standing.agreement_expires_on} (${daysLeftLabel(standing.agreement_days_left)}).`}
           </strong>
         ) : (
           <strong>Not available to users: {reasons.length > 0 ? reasons.join(' and ') : 'the status could not be read'}.</strong>

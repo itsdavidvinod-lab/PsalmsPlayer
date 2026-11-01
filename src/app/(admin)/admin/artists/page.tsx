@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Cover from '@/components/Cover';
 import { requireAdmin } from '@/lib/admin';
 import type { AdminArtistSummary } from '@/lib/admin-types';
-import { daysLeftLabel } from '@/lib/admin-text';
+import { agreementEndLabel } from '@/lib/admin-text';
 import NameCell from '../NameCell';
 import PageHead from '../PageHead';
 import TableFilter from '../TableFilter';
@@ -76,7 +76,7 @@ export default async function AdminArtists() {
                         </div>
                       </td>
                       <td>{a.live_song_count} of {a.song_count} songs live</td>
-                      <td className="muted">{daysLeftLabel(a.agreement_days_left)}</td>
+                      <td className="muted">{agreementEndLabel(a.agreement_open_ended, a.agreement_days_left)}</td>
                     </tr>
                   );
                 })}

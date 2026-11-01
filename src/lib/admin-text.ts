@@ -1,4 +1,6 @@
-// Plain helpers for the admin site. No dependencies, so they are tested with the other shared logic.
+// Plain helpers for the admin site. Only other plain modules, so they are tested with the other shared logic.
+
+import { UNTIL_REVOKED_LABEL } from './agreement-form.ts';
 
 const REASONS: Record<string, string> = {
   live: 'Live',
@@ -68,6 +70,16 @@ export function daysLeftLabel(days: number | null | undefined): string {
   if (days < 0) return `Expired ${-days} ${-days === 1 ? 'day' : 'days'} ago`;
   if (days === 0) return 'Expires today';
   return `${days} ${days === 1 ? 'day' : 'days'} left`;
+}
+
+/** What an artist's agreement says about its end, for lists: "Until cancelled or revoked" when there is no end date, otherwise the days left. */
+export function agreementEndLabel(openEnded: boolean | null | undefined, days: number | null | undefined): string {
+  return openEnded ? UNTIL_REVOKED_LABEL : daysLeftLabel(days);
+}
+
+/** The consent of a writer or owner, for a credit: "Until cancelled or revoked" when it has no end date, otherwise "Valid through 2027-01-31". */
+export function consentEndLabel(expiresOn: string | null | undefined): string {
+  return expiresOn ? `Valid through ${expiresOn}` : UNTIL_REVOKED_LABEL;
 }
 
 export type AdminError = { code?: string | null; message?: string | null };

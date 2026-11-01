@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { AdminAgreement } from '@/lib/admin-types';
-import { AGREEMENT_STATUSES, ENFORCED_RIGHTS, RECORDED_RIGHTS, agreementPhase, agreementSummary, parseTerritories, phaseLabel, stampsFor, validateAgreement, type AgreementStatus, type RightKey } from '@/lib/agreement-form';
+import { AGREEMENT_STATUSES, ENFORCED_RIGHTS, RECORDED_RIGHTS, UNTIL_REVOKED_LABEL, agreementPhase, agreementSummary, parseTerritories, phaseLabel, stampsFor, validateAgreement, type AgreementStatus, type RightKey } from '@/lib/agreement-form';
 import { explainAdminError } from '@/lib/admin-text';
 import { createClient } from '@/lib/supabase/client';
 
@@ -15,6 +15,7 @@ function AgreementForm({ artistId, adminId, agreement }: { artistId: string; adm
   const [status, setStatus] = useState<AgreementStatus>(agreement?.status ?? 'sent');
   const [starts, setStarts] = useState(agreement?.starts_on ?? '');
   const [expires, setExpires] = useState(agreement?.expires_on ?? '');
+  const [untilRevoked, setUntilRevoked] = useState(agreement?.until_revoked ?? false);
   const [ref, setRef] = useState(agreement?.document_ref ?? '');
   const [email, setEmail] = useState(agreement?.revocation_email ?? '');
   const [territories, setTerritories] = useState((agreement?.territories ?? []).join(', '));
@@ -35,7 +36,7 @@ function AgreementForm({ artistId, adminId, agreement }: { artistId: string; adm
 
   async function persist(confirmed: boolean) {
     setMsg(null);
-    const problem = validateAgreement({ status, starts_on: starts, expires_on: expires, document_ref: ref, revocation_email: email, territories });
+    const problem = validateAgreement({ status, starts_on: starts, expires_on: expires, until_revoked: untilRevoked, document_ref: ref, revocation_email: email, territories });
     if (problem) return setMsg({ ok: false, text: problem });
     const parsed = parseTerritories(territories);
     if (!parsed.ok) return setMsg({ ok: false, text: parsed.reason });
@@ -46,7 +47,8 @@ function AgreementForm({ artistId, adminId, agreement }: { artistId: string; adm
     const row = {
       status,
       starts_on: starts || null,
-      expires_on: expires || null,
+      expires_on: untilRevoked ? null : expires || null,
+      until_revoked: untilRevoked,
       document_ref: ref.trim() || null,
       revocation_email: email.trim() || null,
       territories: parsed.value,
@@ -65,6 +67,7 @@ function AgreementForm({ artistId, adminId, agreement }: { artistId: string; adm
       setStatus('sent');
       setStarts('');
       setExpires('');
+      setUntilRevoked(false);
       setRef('');
       setEmail('');
       setTerritories('');
@@ -92,11 +95,28 @@ function AgreementForm({ artistId, adminId, agreement }: { artistId: string; adm
         <label htmlFor={`${idp}-starts`}>Starts on</label>
         <input id={`${idp}-starts`} className="input" type="date" value={starts} onChange={(e) => setStarts(e.target.value)} />
       </div>
-      <div className="field">
-        <label htmlFor={`${idp}-expires`}>Ends on</label>
-        <input id={`${idp}-expires`} className="input" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
-        <span className="small muted">Valid through the end of this day, India time.</span>
-      </div>
+      <fieldset className="field" style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
+        <legend>How long it lasts</legend>
+        <div className="checks">
+          <label className="check">
+            <input type="radio" name={`${idp}-term`} id={`${idp}-term-date`} checked={!untilRevoked} onChange={() => setUntilRevoked(false)} />
+            <span>Ends on a date</span>
+          </label>
+          <label className="check">
+            <input type="radio" name={`${idp}-term`} id={`${idp}-term-open`} checked={untilRevoked} onChange={() => { setUntilRevoked(true); setExpires(''); }} />
+            <span>{UNTIL_REVOKED_LABEL}</span>
+          </label>
+        </div>
+        {untilRevoked ? (
+          <span className="small muted">No end date. It stays in force until the artist cancels it and you set the status to Revoked.</span>
+        ) : (
+          <div className="field" style={{ marginTop: 8 }}>
+            <label htmlFor={`${idp}-expires`}>Ends on</label>
+            <input id={`${idp}-expires`} className="input" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
+            <span className="small muted">Valid through the end of this day, India time.</span>
+          </div>
+        )}
+      </fieldset>
 
       <fieldset className="field" style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
         <legend>Rights the artist granted</legend>

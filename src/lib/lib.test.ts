@@ -9,7 +9,7 @@ import {
 import { checkChordPro } from './lyrics-check.ts';
 import { TAG_KINDS, explainReferenceError, normalizeLanguageCode, normalizeRegionCode, regionCountry, suggestTagCode, validateLanguage, validateRegion, validateTag } from './reference-form.ts';
 import { paiseToInput, paiseToRupees, istInputToIso, isoToIstInput, rupeesToPaise, validateRequest, validatePoster, requestAllowsApproval, posterPhase, paidOnToIso, isoToPaidOn, type RequestInput, type PosterInput } from './ledger.ts';
-import { AGREEMENT_STATUSES, ENFORCED_RIGHTS, agreementPhase, agreementSummary, parseTerritories, stampsFor, validateAgreement, type AgreementInput } from './agreement-form.ts';
+import { AGREEMENT_STATUSES, ENFORCED_RIGHTS, UNTIL_REVOKED_LABEL, agreementPhase, agreementSummary, parseTerritories, stampsFor, termLabel, validateAgreement, type AgreementInput } from './agreement-form.ts';
 import { AUDIO_MAX_BYTES, checkAudioFile, audioObjectName, audioHostingState, durationSeconds, audioDisplayName, mmss, sizeLabel } from './audio-file.ts';
 import { extractYoutubeId, youtubeWatchUrl } from './youtube.ts';
 import { buildShareUrl, safeNextPath } from './share.ts';
@@ -32,7 +32,7 @@ import {
 import { SHELL_CACHE_PREFIX } from './offline/shell.ts';
 import { pictureFromMetadata, signInMethodLabel } from './user.ts';
 import {
-  visibilityLabel, slugify, isValidSlug, isHttpsUrl, isUuid, parseOptionalInt, daysLeftLabel, explainAdminError,
+  visibilityLabel, slugify, isValidSlug, isHttpsUrl, isUuid, parseOptionalInt, daysLeftLabel, agreementEndLabel, consentEndLabel, explainAdminError,
   visibilityHint, youtubeStatusLabel, KEY_CHOICES, isMusicalKey, indiaToday,
 } from './admin-text.ts';
 
@@ -436,6 +436,11 @@ test('Admin: optional numbers, day counts and error messages', () => {
   assert.equal(daysLeftLabel(12), '12 days left');
   assert.equal(daysLeftLabel(-1), 'Expired 1 day ago');
   assert.equal(daysLeftLabel(-3), 'Expired 3 days ago');
+  assert.equal(agreementEndLabel(true, null), 'Until cancelled or revoked');
+  assert.equal(agreementEndLabel(false, 12), '12 days left');
+  assert.equal(agreementEndLabel(undefined, null), 'No agreement in force');
+  assert.equal(consentEndLabel(null), 'Until cancelled or revoked');
+  assert.equal(consentEndLabel('2027-01-31'), 'Valid through 2027-01-31');
 
   assert.match(explainAdminError({ code: '23505' }), /already uses/);
   assert.match(explainAdminError({ code: '23514', message: 'Unknown genre: x' }), /Unknown genre: x/);
@@ -515,7 +520,7 @@ test('Admin audio: only MP3 and M4A/AAC, within the size limit, with safe storag
 });
 
 test('Admin audio: whether the agreement in force lets the file play', () => {
-  const ok = { status: 'verified', starts_on: '2026-01-01', expires_on: '2026-12-31', allow_audio_hosting: true };
+  const ok = { status: 'verified', starts_on: '2026-01-01', expires_on: '2026-12-31', until_revoked: false, allow_audio_hosting: true };
   assert.equal(audioHostingState([ok], '2026-10-27').ok, true);
   assert.equal(audioHostingState([ok], '2026-12-31').ok, true, 'valid through the end of the last day');
   assert.equal(audioHostingState([ok], '2027-01-01').ok, false, 'expired');
@@ -526,6 +531,14 @@ test('Admin audio: whether the agreement in force lets the file play', () => {
   assert.equal(audioHostingState([], '2026-10-27').reason, 'No verified agreement is in force for this artist.');
   assert.equal(audioHostingState([{ ...ok, allow_audio_hosting: false }, ok], '2026-10-27').ok, true, 'any agreement in force that allows it is enough');
   assert.equal(audioHostingState([{ ...ok, starts_on: null }], '2026-10-27').ok, false);
+  const open = { ...ok, expires_on: null, until_revoked: true };
+  assert.equal(audioHostingState([open], '2026-10-27').ok, true, 'no end date: in force until revoked');
+  assert.equal(audioHostingState([open], '2099-01-01').ok, true, 'and still, years on');
+  assert.equal(audioHostingState([{ ...open, starts_on: '2026-11-01' }], '2026-10-27').ok, false, 'an open-ended agreement still has to have started');
+  assert.equal(audioHostingState([{ ...open, status: 'revoked' }], '2026-10-27').ok, false, 'revoking is what ends it');
+  assert.equal(audioHostingState([{ ...open, status: 'signed' }], '2026-10-27').ok, false);
+  assert.equal(audioHostingState([{ ...open, allow_audio_hosting: false }], '2026-10-27').reason, 'The agreement in force does not allow audio hosting.');
+  assert.equal(audioHostingState([{ ...ok, expires_on: null }], '2026-10-27').ok, false, 'no date and no open-ended choice is not a term');
 });
 
 test('Admin audio: durations, names, sizes and the India date', () => {
@@ -554,14 +567,21 @@ test('Admin audio: durations, names, sizes and the India date', () => {
   assert.equal(indiaToday(new Date('2026-10-26T18:30:00Z')), '2026-10-27');
 });
 
-const goodAgreement: AgreementInput = { status: 'verified', starts_on: '2026-01-01', expires_on: '2026-12-31', document_ref: 'MSG-1', revocation_email: '', territories: '' };
+const goodAgreement: AgreementInput = { status: 'verified', starts_on: '2026-01-01', expires_on: '2026-12-31', until_revoked: false, document_ref: 'MSG-1', revocation_email: '', territories: '' };
 
 test('Agreement form: what is checked before it is sent', () => {
   assert.equal(validateAgreement(goodAgreement), null);
   assert.equal(validateAgreement({ ...goodAgreement, status: 'sent', starts_on: '', expires_on: '', document_ref: '' }), null, 'a sent agreement needs nothing yet');
   assert.match(validateAgreement({ ...goodAgreement, document_ref: '  ' }) ?? '', /needs the document reference/);
-  assert.match(validateAgreement({ ...goodAgreement, starts_on: '' }) ?? '', /both a start date and an end date/);
-  assert.match(validateAgreement({ ...goodAgreement, expires_on: '' }) ?? '', /both a start date and an end date/);
+  assert.match(validateAgreement({ ...goodAgreement, starts_on: '' }) ?? '', /needs a start date and an end date, or "Until cancelled or revoked"/);
+  assert.match(validateAgreement({ ...goodAgreement, expires_on: '' }) ?? '', /needs a start date and an end date, or "Until cancelled or revoked"/);
+  // No end date: allowed only when it is chosen on purpose, and then there must be no date.
+  const open = { ...goodAgreement, expires_on: '', until_revoked: true };
+  assert.equal(validateAgreement(open), null, 'verified, with a start and "until cancelled or revoked"');
+  assert.match(validateAgreement({ ...open, starts_on: '' }) ?? '', /needs a start date/, 'open-ended still needs a start');
+  assert.match(validateAgreement({ ...open, document_ref: '' }) ?? '', /needs the document reference/, 'and proof');
+  assert.match(validateAgreement({ ...open, expires_on: '2026-12-31' }) ?? '', /either an end date or "Until cancelled or revoked", not both/);
+  assert.equal(validateAgreement({ ...open, status: 'sent', starts_on: '' }), null, 'a draft can be marked open-ended before it is verified');
   assert.match(validateAgreement({ ...goodAgreement, starts_on: '2026-06-01', expires_on: '2026-05-31' }) ?? '', /before the start/);
   assert.equal(validateAgreement({ ...goodAgreement, starts_on: '2026-06-01', expires_on: '2026-06-01' }), null, 'a one-day term is fine');
   assert.match(validateAgreement({ ...goodAgreement, starts_on: '2026-13-01x' }) ?? '', /start date is not a valid date/);
@@ -605,7 +625,7 @@ test('Agreement form: who verified it and when', () => {
 
 test('Agreement form: phase and summary line, matching the database definition of "in force"', () => {
   const t = '2026-10-27';
-  const v = { status: 'verified', starts_on: '2026-01-01', expires_on: '2026-12-31' };
+  const v = { status: 'verified', starts_on: '2026-01-01', expires_on: '2026-12-31', until_revoked: false };
   assert.equal(agreementPhase(v, t), 'in_force');
   assert.equal(agreementPhase({ ...v, expires_on: '2026-10-27' }, t), 'in_force', 'valid through the end of the last day');
   assert.equal(agreementPhase({ ...v, expires_on: '2026-10-26' }, t), 'expired');
@@ -615,8 +635,20 @@ test('Agreement form: phase and summary line, matching the database definition o
   assert.equal(agreementPhase({ ...v, starts_on: null }, t), 'not_verified');
   assert.equal(agreementPhase({ ...v, status: 'revoked' }, t), 'revoked');
   assert.equal(agreementSummary(v, t), 'Verified · 2026-01-01 to 2026-12-31 · In force');
-  assert.equal(agreementSummary({ status: 'sent', starts_on: null, expires_on: null }, t), 'Sent · no term set · Not verified yet');
-  assert.equal(agreementSummary({ status: 'revoked', starts_on: '2026-01-01', expires_on: '2026-12-31' }, t), 'Revoked · 2026-01-01 to 2026-12-31 · Revoked');
+  assert.equal(agreementSummary({ status: 'sent', starts_on: null, expires_on: null, until_revoked: false }, t), 'Sent · no term set · Not verified yet');
+  assert.equal(agreementSummary({ status: 'revoked', starts_on: '2026-01-01', expires_on: '2026-12-31', until_revoked: false }, t), 'Revoked · 2026-01-01 to 2026-12-31 · Revoked');
+  // Until cancelled or revoked: no end date, so it never expires; it has to have started, and revoking ends it.
+  const o = { status: 'verified', starts_on: '2026-01-01', expires_on: null, until_revoked: true };
+  assert.equal(agreementPhase(o, t), 'in_force');
+  assert.equal(agreementPhase(o, '2099-01-01'), 'in_force', 'years on');
+  assert.equal(agreementPhase({ ...o, starts_on: '2026-10-28' }, t), 'not_started');
+  assert.equal(agreementPhase({ ...o, status: 'revoked' }, t), 'revoked');
+  assert.equal(agreementPhase({ ...o, status: 'signed' }, t), 'not_verified');
+  assert.equal(agreementPhase({ ...o, starts_on: null }, t), 'not_verified');
+  assert.equal(agreementPhase({ ...v, expires_on: null, until_revoked: false }, t), 'not_verified', 'no date and no open-ended choice is not a term');
+  assert.equal(agreementSummary(o, t), 'Verified · from 2026-01-01, until cancelled or revoked · In force');
+  assert.equal(termLabel({ starts_on: null, expires_on: null, until_revoked: true }), 'until cancelled or revoked');
+  assert.equal(UNTIL_REVOKED_LABEL, 'Until cancelled or revoked');
   assert.deepEqual(AGREEMENT_STATUSES.map((s) => s.value), ['sent', 'signed', 'verified', 'revoked']);
   assert.deepEqual(ENFORCED_RIGHTS.map((r) => r.key), ['allow_lyrics', 'allow_chords', 'allow_translations', 'allow_video_embed', 'allow_audio_hosting', 'allow_offline']);
 });

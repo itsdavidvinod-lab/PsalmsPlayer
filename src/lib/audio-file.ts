@@ -36,11 +36,11 @@ export function audioObjectName(originalName: string, ext: string, nowMs: number
   return `${base}-${nowMs.toString(36)}.${ext}`;
 }
 
-export type AgreementTerms = { status: string; starts_on: string | null; expires_on: string | null; allow_audio_hosting: boolean };
+export type AgreementTerms = { status: string; starts_on: string | null; expires_on: string | null; until_revoked: boolean; allow_audio_hosting: boolean };
 
 /** Whether an agreement in force today lets the file be played. Dates are YYYY-MM-DD and valid through the end of that day. */
 export function audioHostingState(agreements: AgreementTerms[], today: string): { ok: boolean; reason: string } {
-  const inForce = agreements.filter((a) => a.status === 'verified' && a.starts_on !== null && a.expires_on !== null && a.starts_on <= today && a.expires_on >= today);
+  const inForce = agreements.filter((a) => a.status === 'verified' && a.starts_on !== null && a.starts_on <= today && (a.until_revoked || (a.expires_on !== null && a.expires_on >= today)));
   if (inForce.length === 0) return { ok: false, reason: 'No verified agreement is in force for this artist.' };
   if (!inForce.some((a) => a.allow_audio_hosting)) return { ok: false, reason: 'The agreement in force does not allow audio hosting.' };
   return { ok: true, reason: 'The agreement in force allows audio hosting.' };

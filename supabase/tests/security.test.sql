@@ -1295,4 +1295,102 @@ do $$ begin
 end $$;
 rollback;
 
+-- ============================================================ agreements that run until cancelled or revoked
+begin;
+-- Nothing existing changes.
+do $$ begin
+  assert (select count(*) from public.agreements where until_revoked) = 0, 'existing agreements are not open-ended';
+  assert (select count(*) from public.active_agreements where until_revoked) = 0, 'the view of agreements in force shows the new column too';
+  raise notice 'ok: existing agreements keep their dates';
+end $$;
+
+-- The rules of the record: a verified agreement needs a start and EITHER an end date OR "until revoked"; an open-ended one has no date.
+select test_helpers.expect_error($q$update public.agreements set expires_on = null where id = 'b0000000-0000-0000-0000-000000000001'$q$, '23514');
+select test_helpers.expect_error($q$update public.agreements set until_revoked = true where id = 'b0000000-0000-0000-0000-000000000001'$q$, '23514');
+select test_helpers.expect_error($q$update public.agreements set until_revoked = true, expires_on = null, starts_on = null where id = 'b0000000-0000-0000-0000-000000000001'$q$, '23514');
+select test_helpers.expect_error($q$update public.agreements set until_revoked = true, expires_on = null, document_ref = null where id = 'b0000000-0000-0000-0000-000000000001'$q$, '23514');
+-- A draft can be marked open-ended before it is verified, with or without a start date.
+insert into public.agreements (id, artist_id, status, until_revoked)
+values ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000002', 'sent', true);
+do $$ begin
+  assert not exists (select 1 from public.active_agreements where id = 'b0000000-0000-0000-0000-000000000003'), 'a draft is never in force';
+  raise notice 'ok: the term rules hold';
+end $$;
+
+-- Grace's dated agreement becomes open-ended: still in force, with no end date to count down to.
+update public.agreements set until_revoked = true, expires_on = null where id = 'b0000000-0000-0000-0000-000000000001';
+do $$ begin
+  assert exists (select 1 from public.active_agreements where id = 'b0000000-0000-0000-0000-000000000001'), 'an open-ended agreement is in force';
+  assert public.artist_is_available('a0000000-0000-0000-0000-000000000001'), 'the artist stays available';
+  assert (select count(*) from public.songs where artist_id = 'a0000000-0000-0000-0000-000000000001' and public.song_is_live(id)) = 2, 'the same songs are live';
+  raise notice 'ok: open-ended agreement is in force';
+end $$;
+
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.v_songs where artist_slug = 'grace-worship') = 2, 'users see the artist''s live songs';
+  assert (select count(*) from public.v_expiry_watch) = 0, 'users still see no expiry watch';
+  raise notice 'ok: users see the songs of an open-ended agreement';
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
+set local role authenticated;
+do $$ begin
+  assert (select agreement_open_ended from public.v_admin_artists where slug = 'grace-worship') = true, 'the admin list says open-ended';
+  assert (select agreement_expires_on is null and agreement_days_left is null from public.v_admin_artists where slug = 'grace-worship'), 'no date and no days left to show';
+  assert (select not agreement_open_ended and agreement_expires_on is null from public.v_admin_artists where slug = 'shalom-choir'), 'the expired artist is not open-ended and has no agreement in force';
+  assert (select count(*) from public.v_expiry_watch where kind = 'agreement') = 0, 'an agreement with no end never comes up in the expiry watch';
+  raise notice 'ok: admin views show open-ended agreements';
+end $$;
+reset role;
+
+-- Not started yet, and revoked, are not in force whatever the term.
+update public.agreements set starts_on = public.app_today() + 5 where id = 'b0000000-0000-0000-0000-000000000001';
+do $$ begin
+  assert not public.artist_is_available('a0000000-0000-0000-0000-000000000001'), 'not started yet: not in force';
+end $$;
+update public.agreements set starts_on = public.app_today() - 30 where id = 'b0000000-0000-0000-0000-000000000001';
+update public.agreements set status = 'revoked' where id = 'b0000000-0000-0000-0000-000000000001';
+do $$ begin
+  assert not public.artist_is_available('a0000000-0000-0000-0000-000000000001'), 'revoked: not in force, however open the term was';
+  assert (select count(*) from public.songs where artist_id = 'a0000000-0000-0000-0000-000000000001' and public.song_is_live(id)) = 0, 'the songs go off the site at once';
+  raise notice 'ok: not started and revoked agreements are not in force';
+end $$;
+
+-- An artist whose dated agreement ran out comes back with an open-ended one, and the open-ended one is the one that counts.
+update public.agreements set status = 'verified' where id = 'b0000000-0000-0000-0000-000000000001';
+update public.agreements set status = 'verified', document_ref = 'mailbox:msg-0003', verified_by = '00000000-0000-0000-0000-0000000000aa', verified_at = now(),
+       starts_on = public.app_today() - 1 where id = 'b0000000-0000-0000-0000-000000000003';
+do $$ begin
+  assert public.artist_is_available('a0000000-0000-0000-0000-000000000002'), 'an open-ended agreement brings the artist back';
+  assert (public.artist_active_agreement('a0000000-0000-0000-0000-000000000002')).id = 'b0000000-0000-0000-0000-000000000003', 'it is the agreement in force';
+  raise notice 'ok: a new open-ended agreement replaces an expired one';
+end $$;
+-- With a dated and an open-ended agreement both in force, the open-ended one is reported.
+insert into public.agreements (id, artist_id, status, document_ref, verified_by, verified_at, starts_on, expires_on)
+values ('b0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000002', 'verified', 'mailbox:msg-0004',
+        '00000000-0000-0000-0000-0000000000aa', now(), public.app_today() - 1, public.app_today() + 400);
+do $$ begin
+  assert (public.artist_active_agreement('a0000000-0000-0000-0000-000000000002')).id = 'b0000000-0000-0000-0000-000000000003', 'open-ended comes first';
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
+set local role authenticated;
+do $$ begin
+  assert (select agreement_open_ended and agreement_expires_on is null from public.v_admin_artists where slug = 'shalom-choir'), 'the admin list shows open-ended when both are in force';
+end $$;
+reset role;
+-- Revoking the open-ended one leaves the dated one in force.
+update public.agreements set status = 'revoked' where id = 'b0000000-0000-0000-0000-000000000003';
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000aa', true);
+set local role authenticated;
+do $$ begin
+  assert public.artist_is_available('a0000000-0000-0000-0000-000000000002'), 'the dated agreement still holds';
+  assert (select not agreement_open_ended and agreement_days_left = 400 from public.v_admin_artists where slug = 'shalom-choir'), 'back to counting days';
+  raise notice 'ok: open-ended and dated agreements together';
+end $$;
+reset role;
+rollback;
+
 select 'database tests finished' as result;

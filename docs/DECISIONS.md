@@ -98,3 +98,10 @@
 - Plays heard offline are not counted for monthly listeners or Trending (the count needs the server).
 - Honest limit: a download keeps a file on the phone for the person who is allowed to listen; it cannot stop a determined person with a rooted phone or a script from copying a recording that the site streams anyway. The Terms forbid it.
 - Open: a "download the whole album or list" button; showing the cover pictures offline (they are not stored); whether to limit total space; the Play Data safety form should say that downloaded files stay on the device.
+
+## Agreements "Until cancelled or revoked" (1 Nov 2026)
+- An artist's agreement can have no end date. In the admin form, "How long it lasts" offers "Ends on a date" or "Until cancelled or revoked". An open-ended agreement is in force from its start date until the admin sets it to Revoked (when the artist writes to the withdrawal email); there is no expiry, no countdown, and it never appears in the 60-day expiry list. Artists with one show "Until cancelled or revoked" where the list would show days left.
+- Stored as its own yes/no column, `agreements.until_revoked` (migration 0018), not as an empty end date, so "the admin forgot the date" and "there is no date" cannot be confused. A verified agreement still needs proof and a start date, and then EITHER an end date OR `until_revoked`; the database refuses both together. Existing agreements are unchanged.
+- Songs: a credit's consent already had an optional end date (empty meant none). The credit form now says so with the same two choices; a new credit starts as "Until cancelled or revoked", as before. No database change.
+- If an artist has a dated and an open-ended agreement in force together, the open-ended one is the one reported.
+

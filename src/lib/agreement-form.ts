@@ -29,10 +29,15 @@ export const RECORDED_RIGHTS = [{ key: 'allow_photo_bio', label: 'Show the artis
 
 export type RightKey = (typeof ENFORCED_RIGHTS)[number]['key'] | (typeof RECORDED_RIGHTS)[number]['key'];
 
+/** How long an agreement runs when it has no end date. Shown wherever an end date would be. */
+export const UNTIL_REVOKED_LABEL = 'Until cancelled or revoked';
+
 export type AgreementInput = {
   status: AgreementStatus;
   starts_on: string;
   expires_on: string;
+  /** No end date: it stays in force until the admin sets it to Revoked. Excludes an end date. */
+  until_revoked: boolean;
   document_ref: string;
   revocation_email: string;
   territories: string;
@@ -48,6 +53,7 @@ export function validateAgreement(i: AgreementInput): string | null {
   if (starts !== '' && !DATE_RE.test(starts)) return 'The start date is not a valid date.';
   if (expires !== '' && !DATE_RE.test(expires)) return 'The end date is not a valid date.';
   if (starts !== '' && expires !== '' && expires < starts) return 'The end date is before the start date.';
+  if (i.until_revoked && expires !== '') return `Choose either an end date or "${UNTIL_REVOKED_LABEL}", not both.`;
   if (i.document_ref.trim().length > 300) return 'The document reference is too long (300 characters at most).';
   const email = i.revocation_email.trim();
   if (email !== '' && (!EMAIL_RE.test(email) || email.length > 200)) return 'The withdrawal email address does not look like an email address.';
@@ -55,7 +61,7 @@ export function validateAgreement(i: AgreementInput): string | null {
   if (!t.ok) return t.reason;
   if (i.status === 'verified') {
     if (i.document_ref.trim() === '') return 'A verified agreement needs the document reference: the message or file name of the signed agreement in the official mailbox.';
-    if (starts === '' || expires === '') return 'A verified agreement needs both a start date and an end date.';
+    if (starts === '' || (expires === '' && !i.until_revoked)) return `A verified agreement needs a start date and an end date, or "${UNTIL_REVOKED_LABEL}".`;
   }
   return null;
 }
@@ -89,10 +95,12 @@ export function stampsFor(prev: Stamps | null, status: AgreementStatus, adminId:
 
 export type AgreementPhase = 'in_force' | 'expired' | 'not_started' | 'not_verified' | 'revoked';
 
-export function agreementPhase(a: { status: string; starts_on: string | null; expires_on: string | null }, today: string): AgreementPhase {
+export type AgreementTerm = { status: string; starts_on: string | null; expires_on: string | null; until_revoked: boolean };
+
+export function agreementPhase(a: AgreementTerm, today: string): AgreementPhase {
   if (a.status === 'revoked') return 'revoked';
-  if (a.status !== 'verified' || a.starts_on === null || a.expires_on === null) return 'not_verified';
-  if (a.expires_on < today) return 'expired';
+  if (a.status !== 'verified' || a.starts_on === null || (a.expires_on === null && !a.until_revoked)) return 'not_verified';
+  if (a.expires_on !== null && a.expires_on < today) return 'expired';
   if (a.starts_on > today) return 'not_started';
   return 'in_force';
 }
@@ -108,9 +116,14 @@ export function phaseLabel(p: AgreementPhase): string {
   return PHASE_LABEL[p];
 }
 
+/** What an agreement's term says, in a few words: "2026-01-01 to 2026-12-31", "from 2026-01-01, until cancelled or revoked", or "no term set". */
+export function termLabel(a: Pick<AgreementTerm, 'starts_on' | 'expires_on' | 'until_revoked'>): string {
+  if (a.until_revoked) return a.starts_on ? `from ${a.starts_on}, ${UNTIL_REVOKED_LABEL.toLowerCase()}` : UNTIL_REVOKED_LABEL.toLowerCase();
+  return a.starts_on && a.expires_on ? `${a.starts_on} to ${a.expires_on}` : 'no term set';
+}
+
 /** One line describing an agreement in a list: "Verified · 2026-01-01 to 2026-12-31 · In force". */
-export function agreementSummary(a: { status: string; starts_on: string | null; expires_on: string | null }, today: string): string {
+export function agreementSummary(a: AgreementTerm, today: string): string {
   const status = AGREEMENT_STATUSES.find((s) => s.value === a.status)?.label.split(':')[0] ?? a.status;
-  const term = a.starts_on && a.expires_on ? `${a.starts_on} to ${a.expires_on}` : 'no term set';
-  return `${status} · ${term} · ${phaseLabel(agreementPhase(a, today))}`;
+  return `${status} · ${termLabel(a)} · ${phaseLabel(agreementPhase(a, today))}`;
 }

@@ -72,14 +72,19 @@ test('a new song goes live only when every rule is met, and the page says what i
   expect(live()).toBe('1');
 
   // 4. the consent runs out: hidden again, with no other step
-  await credit.getByLabel('Consent valid through (optional)').fill('2000-01-01');
+  await expect(credit.locator('summary')).toContainText('Until cancelled or revoked'); // no end date until one is chosen
+  await credit.getByLabel('Until a date').check();
+  await credit.getByRole('button', { name: 'Save credit' }).click(); // a date is chosen but not filled in: asked for, nothing saved
+  await expect(credit.getByRole('alert').filter({ hasText: 'Pick the date the consent ends' })).toBeVisible();
+  await credit.getByLabel('Consent valid through').fill('2000-01-01');
   await credit.getByRole('button', { name: 'Save credit' }).click();
   await expect(box).toContainText('Not live: A consent has expired');
   expect(live()).toBe('0');
-  await credit.getByLabel('Consent valid through (optional)').fill('');
+  await credit.getByLabel('Until cancelled or revoked').check();
   await credit.getByRole('button', { name: 'Save credit' }).click();
   await expect(box).toContainText('Live: users can find this song.');
   expect(live()).toBe('1');
+  expect(sql(`select consent_expires_on is null from public.song_credits where song_id = '${id}' and person_name = 'E2E Writer'`)).toBe('t');
 
   // 5. a takedown beats everything
   await page.locator('#song-hidden').check();

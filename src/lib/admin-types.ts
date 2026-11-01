@@ -35,6 +35,8 @@ export type AdminArtistSummary = {
   available: boolean;
   agreement_expires_on: string | null;
   agreement_days_left: number | null;
+  /** An agreement with no end date is in force: there is no end date or day count to show. */
+  agreement_open_ended: boolean;
   song_count: number;
   live_song_count: number;
 };
@@ -134,6 +136,7 @@ export type AdminAgreement = {
   verified_by: string | null;
   starts_on: string | null;
   expires_on: string | null;
+  until_revoked: boolean;
   document_ref: string | null;
   allow_lyrics: boolean;
   allow_chords: boolean;
@@ -148,7 +151,7 @@ export type AdminAgreement = {
 };
 
 /** The parts of v_admin_artists the artist page shows in its status line. */
-export type AdminArtistStatus = { available: boolean; agreement_expires_on: string | null; agreement_days_left: number | null };
+export type AdminArtistStatus = { available: boolean; agreement_expires_on: string | null; agreement_days_left: number | null; agreement_open_ended: boolean };
 
 /** One row of requests: someone asking for a promotion or for their songs to be added. Admins only; users never see any of this. */
 export type AdminRequest = {

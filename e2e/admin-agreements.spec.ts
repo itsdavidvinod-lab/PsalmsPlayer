@@ -46,7 +46,7 @@ test('an agreement is verified only with proof, then it turns the artist on; rev
   // Verifying without dates, without the reference, or with the dates the wrong way round is refused with a sentence, and nothing is saved.
   await card.locator(`#agr-${aid}-status`).selectOption('verified');
   await card.getByRole('button', { name: 'Save agreement' }).click();
-  await expect(card.getByRole('alert').filter({ hasText: 'needs both a start date and an end date' })).toBeVisible();
+  await expect(card.getByRole('alert').filter({ hasText: 'needs a start date and an end date, or "Until cancelled or revoked"' })).toBeVisible();
   await card.locator(`#agr-${aid}-ref`).fill('');
   await card.locator(`#agr-${aid}-starts`).fill(past);
   await card.locator(`#agr-${aid}-expires`).fill(soon);
@@ -101,6 +101,71 @@ test('an agreement is verified only with proof, then it turns the artist on; rev
   await expect(banner).toContainText('Not available to users: no verified agreement is in force.');
 
   expect(Number(sql(`select count(*) from public.audit_log where entity = 'agreements' and entity_id = '${aid}' and action = 'UPDATE' and actor = '${userId}'`))).toBeGreaterThanOrEqual(3);
+});
+
+test('an agreement can run until cancelled or revoked: no end date, still in force, and revoking ends it', async ({ page }) => {
+  const { userId } = await signInAsAdmin(page);
+  const slug = `e2e-artist-agr-open-${Date.now()}`;
+  const id = bareArtist(slug);
+  const past = sql('select public.app_today() - 10');
+
+  await page.goto(`/admin/artists/${id}`);
+  const banner = page.getByRole('status', { name: 'Artist status' });
+  const section = page.locator('section[aria-labelledby="agreements"]');
+  await section.getByText('Add an agreement').click();
+
+  // Verified with a start but neither an end date nor the open-ended choice: refused with a sentence.
+  await section.locator('#agr-new-status').selectOption('verified');
+  await section.locator('#agr-new-ref').fill('MSG-OPEN-1');
+  await section.locator('#agr-new-starts').fill(past);
+  await section.getByRole('button', { name: 'Add agreement' }).click();
+  await expect(section.getByRole('alert').filter({ hasText: 'Until cancelled or revoked' })).toBeVisible();
+  expect(sql(`select count(*) from public.agreements where artist_id = '${id}'`)).toBe('0');
+
+  // The open-ended choice replaces the end date.
+  await section.locator('#agr-new-term-open').check();
+  await expect(section.locator('#agr-new-expires')).toHaveCount(0);
+  await expect(section).toContainText('No end date. It stays in force until the artist cancels it and you set the status to Revoked.');
+  await section.getByRole('button', { name: 'Add agreement' }).click();
+  await expect(section.getByRole('status').filter({ hasText: 'Agreement added.' })).toBeVisible();
+  const aid = sql(`select id from public.agreements where artist_id = '${id}'`);
+  expect(sql(`select status || '|' || until_revoked::text || '|' || (expires_on is null)::text from public.agreements where id = '${aid}'`)).toBe('verified|true|true');
+  expect(sql(`select count(*) from public.active_agreements where artist_id = '${id}'`)).toBe('1');
+  expect(sql(`select count(*) from public.audit_log where entity = 'agreements' and entity_id = '${aid}' and action = 'INSERT' and actor = '${userId}'`)).toBe('1');
+
+  // The artist page, the artists list and the dashboard all say so, and nothing counts down.
+  await expect(banner).toContainText('Available: users can find this artist. The agreement in force runs until cancelled or revoked.');
+  const card = section.locator('details', { has: page.locator(`#agr-${aid}-status`) });
+  await expect(card.locator('summary')).toContainText(`Verified · from ${past}, until cancelled or revoked · In force`);
+  await card.locator('summary').click();
+  await expect(card.locator(`#agr-${aid}-term-open`)).toBeChecked();
+  await page.goto('/admin/artists');
+  await expect(page.locator('tr', { hasText: `/artist/${slug}` })).toContainText('Until cancelled or revoked');
+  await page.goto('/admin');
+  await expect(page.locator('section[aria-labelledby="expiry"]')).not.toContainText(slug);
+
+  // Back to a date and again to open-ended: the end date and the choice never exist together.
+  await page.goto(`/admin/artists/${id}`);
+  const card2 = section.locator('details', { has: page.locator(`#agr-${aid}-status`) });
+  await card2.locator('summary').click();
+  await card2.locator(`#agr-${aid}-term-date`).check();
+  await card2.locator(`#agr-${aid}-expires`).fill(sql('select public.app_today() + 30'));
+  await card2.getByRole('button', { name: 'Save agreement' }).click();
+  await expect(card2.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+  expect(sql(`select until_revoked::text || '|' || (expires_on is not null)::text from public.agreements where id = '${aid}'`)).toBe('false|true');
+  await expect(banner).toContainText('(30 days left)');
+  await card2.locator(`#agr-${aid}-term-open`).check();
+  await card2.getByRole('button', { name: 'Save agreement' }).click();
+  await expect(card2.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+  expect(sql(`select until_revoked::text || '|' || (expires_on is null)::text from public.agreements where id = '${aid}'`)).toBe('true|true');
+
+  // Revoking is what ends it.
+  await card2.locator(`#agr-${aid}-status`).selectOption('revoked');
+  await card2.getByRole('button', { name: 'Save agreement' }).click();
+  await card2.getByRole('button', { name: 'Yes, revoke' }).click();
+  await expect(card2.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+  expect(sql(`select count(*) from public.active_agreements where artist_id = '${id}'`)).toBe('0');
+  await expect(banner).toContainText('Not available to users: no verified agreement is in force.');
 });
 
 test('territories and the withdrawal email are checked, and an unpublished artist says so', async ({ page }) => {

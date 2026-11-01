@@ -40,7 +40,7 @@ export default async function AdminSongPage({ params }: { params: Promise<{ id: 
   const credits = (creditsRes.data ?? []) as AdminCredit[];
   const lyrics = (lyricsRes.data ?? []) as AdminLyrics[];
   const audio = (audioRes.data ?? { audio_path: null, audio_mime: null, audio_bytes: null, duration_s: null }) as AdminAudio;
-  const agreementsRes = await supabase.from('agreements').select('status, starts_on, expires_on, allow_audio_hosting').eq('artist_id', song.artist_id);
+  const agreementsRes = await supabase.from('agreements').select('status, starts_on, expires_on, until_revoked, allow_audio_hosting').eq('artist_id', song.artist_id);
   const hosting = audioHostingState((agreementsRes.data ?? []) as AgreementTerms[], indiaToday(new Date()));
   const artistName = choices.artists.find((a) => a.id === song.artist_id)?.name ?? 'Artist';
   const failed = Boolean(visRes.error || creditsRes.error || lyricsRes.error || audioRes.error || agreementsRes.error || choices.failed);
