@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LyricsBody from '@/components/LyricsBody';
 import { parseChordPro, prefersFlats, transposeLines } from '@/lib/chordpro';
@@ -14,6 +15,7 @@ const SIZE_STORAGE_KEY = 'stage-size';
 type Props = { title: string; items: StageItem[]; backHref: string };
 
 export default function StageView({ title, items, backHref }: Props) {
+  const router = useRouter();
   const [index, setIndex] = useState(0);
   const [size, setSize] = useState(2);
   const [showChords, setShowChords] = useState(true);
@@ -115,10 +117,22 @@ export default function StageView({ title, items, backHref }: Props) {
     // go() and changeSize() only use state setters and `total`, so they never go stale.
   }, [total]);
 
+  // Close goes back to where Stage was opened from instead of pushing that page again. Pushing it left Stage in the
+  // history, so the song page's own close button (which goes back) landed on Stage again, and Stage's Close pushed the
+  // song page again: a loop. The link still works as a plain link when there is nothing to go back to (a stage link
+  // opened directly) and for new-tab clicks.
+  function onClose(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (window.history.length > 1) {
+      e.preventDefault();
+      router.back();
+    }
+  }
+
   return (
     <div className="stage">
       <header className="stage-top">
-        <Link href={backHref} className="btn btn-ghost" aria-label="Close Stage mode">✕ Close</Link>
+        <Link href={backHref} className="btn btn-ghost" aria-label="Close Stage mode" onClick={onClose}>✕ Close</Link>
         <div className="stage-title">
           <strong>{title}</strong>
           <span className="small muted" aria-live="polite">{`Song ${index + 1} of ${total}`}</span>

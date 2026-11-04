@@ -27,7 +27,10 @@ test('a setlist on stage: key for the service, moving through songs, text size, 
   sql(`insert into public.playlist_items (playlist_id, song_id, position, key_override) values
         ('${list}', '${SONG_ONE}', 1, 'A'), ('${list}', '${SINGLE}', 2, null), ('${list}', '${SONG_TWO_HIDDEN}', 3, null)`);
 
-  await page.goto(`/stage/setlist/${list}`);
+  // The way a person gets here: the Stage button on the setlist's own page.
+  await page.goto(`/library/${list}`);
+  await page.getByRole('link', { name: 'Stage mode', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/stage/setlist/${list}$`));
   await expect(page.getByRole('heading', { name: 'Placeholder Song One' })).toBeVisible();
   await expect(page.getByText('Song 1 of 3')).toBeVisible();
   await expect(page.getByRole('navigation')).toHaveCount(0); // no app frame on stage
@@ -106,4 +109,30 @@ test('one song on stage, from its page; hidden and unknown songs are not availab
 
   expect((await page.goto('/stage/song/placeholder-song-two'))?.status()).toBe(404);
   expect((await page.goto('/stage/song/no-such-song'))?.status()).toBe(404);
+});
+
+test('Close on stage goes back to where it was opened; minimizing the song page afterwards does not land on stage again', async ({ page }) => {
+  await signUpAndIn(page, uniqueEmail('stage-loop')); // ends on Home
+  const stageFromMenu = async () => {
+    await page.getByRole('button', { name: 'More options for Placeholder Song One' }).first().click();
+    await page.getByRole('dialog').getByRole('link', { name: 'Stage mode' }).click();
+    await expect(page).toHaveURL(/\/stage\/song\/placeholder-song-one$/);
+  };
+
+  // The reported loop: Home, song page, Stage, Close (back on the song page), then the song page's own minimize.
+  await page.goto('/song/placeholder-song-one');
+  await stageFromMenu();
+  await page.getByRole('link', { name: 'Close Stage mode' }).click();
+  await expect(page).toHaveURL(/\/song\/placeholder-song-one$/);
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page).toHaveURL(/localhost:3000\/$/); // the page before the song, not Stage
+  await expect(page.getByRole('link', { name: 'Close Stage mode' })).toHaveCount(0);
+
+  // Opened from a song row's ⋮ menu: Close returns to that list.
+  await page.goto('/search?q=placeholder');
+  await page.locator('.song-row').filter({ hasText: 'Placeholder Song One' }).getByRole('button', { name: 'More options for Placeholder Song One' }).click();
+  await page.getByRole('dialog').getByRole('link', { name: 'Stage mode' }).click();
+  await expect(page).toHaveURL(/\/stage\/song\/placeholder-song-one$/);
+  await page.getByRole('link', { name: 'Close Stage mode' }).click();
+  await expect(page).toHaveURL(/\/search\?q=placeholder$/);
 });
